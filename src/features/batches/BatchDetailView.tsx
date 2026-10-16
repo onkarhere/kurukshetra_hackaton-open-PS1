@@ -6,14 +6,13 @@ import {
   Clock,
   Users,
   Building2,
-  Sparkles,
-  AlertTriangle,
+  AlertOctagon,
   Play,
-  FileSpreadsheet,
+  Download,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { ReasonChip } from '@/components/ui/ReasonChip'
-import { StatusPill } from '@/components/ui/StatusPill'
 import { store } from '@/mocks/store'
 import { useToast } from '@/context/ToastContext'
 
@@ -27,31 +26,60 @@ export const BatchDetailView: React.FC = () => {
 
   const isOverCapacity = batch.enrolledCount > batch.capacity
 
+  const renderRiskGlyph = (risk: string) => {
+    switch (risk) {
+      case 'critical':
+        return (
+          <span className="inline-flex items-center gap-1 text-danger font-medium text-xs">
+            <AlertOctagon className="w-3.5 h-3.5" /> Critical
+          </span>
+        )
+      case 'high':
+        return (
+          <span className="inline-flex items-center gap-1 text-warning font-medium text-xs">
+            <AlertTriangle className="w-3.5 h-3.5" /> High
+          </span>
+        )
+      case 'watch':
+        return (
+          <span className="inline-flex items-center gap-1 text-text-muted text-xs">
+            <Clock className="w-3.5 h-3.5" /> Watch
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-text-muted text-xs">
+            <CheckCircle2 className="w-3.5 h-3.5 text-success" /> Low
+          </span>
+        )
+    }
+  }
+
   return (
-    <div className="space-y-5 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Back button */}
       <div>
         <button
           onClick={() => navigate('/batches')}
-          className="text-xs text-fg-muted hover:text-fg inline-flex items-center gap-1.5 transition-colors"
+          className="text-xs text-text-muted hover:text-text inline-flex items-center gap-1.5 transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Batches</span>
+          <span>Back to batches</span>
         </button>
       </div>
 
       {/* Header Card */}
-      <div className="p-5 rounded-card border border-border bg-surface space-y-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-4 rounded-card border border-border bg-surface space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+              <span className="font-mono text-[10px] text-text-muted border border-border px-1.5 py-0.5 rounded bg-surface-sunken">
                 {batch.code}
               </span>
-              <h1 className="text-xl font-bold text-fg">{batch.name}</h1>
+              <h1 className="text-lg font-semibold text-text">{batch.name}</h1>
             </div>
-            <p className="text-xs text-fg-muted mt-0.5">
-              Course: {batch.courseName} · Branch: {batch.branch}
+            <p className="text-xs text-text-muted mt-0.5">
+              Course: {batch.courseName} · Campus: {batch.branch}
             </p>
           </div>
 
@@ -62,26 +90,24 @@ export const BatchDetailView: React.FC = () => {
               onClick={() => navigate('/sessions/sess-m2')}
               leftIcon={<Play className="w-3.5 h-3.5" />}
             >
-              Start Session (QR)
+              Start session (QR)
             </Button>
           </div>
         </div>
 
         {/* Capacity Warning Banner */}
         {isOverCapacity && (
-          <div className="p-3 rounded-btn border border-danger/40 bg-danger/10 text-xs text-danger flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+          <div className="p-3 rounded-control border border-border bg-surface-sunken text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-danger font-medium">
+              <AlertOctagon className="w-4 h-4 shrink-0" />
               <span>
-                <strong>Over Capacity Alert:</strong> {batch.enrolledCount} students assigned to{' '}
-                {batch.room} (Maximum seating limit: {batch.capacity}).
+                Over capacity: {batch.enrolledCount} students assigned to {batch.room} (Limit: {batch.capacity}).
               </span>
             </div>
             <Button
-              variant="outline"
-              size="sm"
-              className="h-6 text-[11px] border-danger/30 text-danger hover:bg-danger/20"
-              onClick={() => success('Opened room re-assignment modal')}
+              variant="secondary"
+              size="xs"
+              onClick={() => success('Room re-assignment staged')}
             >
               Move to Room 4
             </Button>
@@ -90,80 +116,77 @@ export const BatchDetailView: React.FC = () => {
 
         {/* Weekly Pattern Visual & KPIs */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border text-xs">
-          <div className="space-y-1">
-            <div className="text-fg-muted text-[11px]">Schedule Pattern</div>
-            <div className="font-semibold text-fg font-mono">{batch.schedulePattern}</div>
+          <div>
+            <div className="text-text-muted text-[11px]">Schedule pattern</div>
+            <div className="font-medium text-text tabular-nums mt-0.5">{batch.schedulePattern}</div>
           </div>
-          <div className="space-y-1">
-            <div className="text-fg-muted text-[11px]">Assigned Faculty</div>
-            <div className="font-semibold text-fg">{batch.trainerName}</div>
+          <div>
+            <div className="text-text-muted text-[11px]">Assigned trainer</div>
+            <div className="font-medium text-text mt-0.5">{batch.trainerName}</div>
           </div>
-          <div className="space-y-1">
-            <div className="text-fg-muted text-[11px]">Room & Seat Limit</div>
-            <div className="font-semibold text-fg">
+          <div>
+            <div className="text-text-muted text-[11px]">Room & seat limit</div>
+            <div className="font-medium text-text mt-0.5">
               {batch.room} ({batch.onlineSeatLimit} online seats)
             </div>
           </div>
-          <div className="space-y-1">
-            <div className="text-fg-muted text-[11px]">Current Module</div>
-            <div className="font-semibold text-primary">{batch.currentModule}</div>
+          <div>
+            <div className="text-text-muted text-[11px]">Current module</div>
+            <div className="font-medium text-accent mt-0.5">{batch.currentModule}</div>
           </div>
         </div>
       </div>
 
       {/* Roster of Enrolled Students */}
-      <div className="rounded-card border border-border bg-surface overflow-hidden shadow-sm">
-        <div className="p-3.5 border-b border-border bg-surface-2/60 flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-fg uppercase tracking-wider font-mono">
-            Enrolled Student Roster ({enrolledStudents.length})
+      <div className="rounded-card border border-border bg-surface overflow-hidden">
+        <div className="p-3 border-b border-border bg-surface-sunken/40 flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-text">
+            Enrolled student roster ({enrolledStudents.length})
           </h3>
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="xs"
             onClick={() => success('Exporting batch roster...')}
+            leftIcon={<Download className="w-3 h-3" />}
           >
-            Export Attendance Sheet
+            Export roster
           </Button>
         </div>
 
         <table className="w-full text-left text-xs">
-          <thead className="bg-surface-2 border-b border-border text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
+          <thead className="bg-surface-sunken border-b border-border text-[11px] font-medium text-text-muted sticky top-0">
             <tr>
-              <th className="py-2.5 px-3">Student</th>
-              <th className="py-2.5 px-3">Attendance Rate</th>
-              <th className="py-2.5 px-3">Risk Tier</th>
-              <th className="py-2.5 px-3 text-right">Profile</th>
+              <th className="py-2 px-3">Student</th>
+              <th className="py-2 px-3 text-right">Attendance rate</th>
+              <th className="py-2 px-3">Risk tier</th>
+              <th className="py-2 px-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {enrolledStudents.map((st) => (
-              <tr key={st.id} className="hover:bg-surface-2/50 transition-colors">
-                <td className="py-2.5 px-3 font-medium text-fg">
+              <tr key={st.id} className="hover:bg-surface-sunken/40 h-10 transition-colors">
+                <td className="px-3 font-medium text-text">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-[10px] flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full border border-border bg-surface-sunken text-text font-medium text-[10px] flex items-center justify-center">
                       {st.name.slice(0, 2).toUpperCase()}
                     </div>
                     <span>{st.name}</span>
                   </div>
                 </td>
-                <td className="py-2.5 px-3">
-                  <span
-                    className={`font-mono font-bold ${
-                      st.attendanceRate < 60 ? 'text-danger' : 'text-fg'
-                    }`}
-                  >
+                <td className="px-3 text-right tabular-nums font-medium text-text">
+                  <span className={st.attendanceRate < 60 ? 'text-danger' : 'text-text'}>
                     {st.attendanceRate}%
                   </span>
                 </td>
-                <td className="py-2.5 px-3">
-                  <StatusPill status={st.riskLevel} size="sm" />
+                <td className="px-3">
+                  {renderRiskGlyph(st.riskLevel)}
                 </td>
-                <td className="py-2.5 px-3 text-right">
+                <td className="px-3 text-right">
                   <button
                     onClick={() => navigate(`/students/${st.id}`)}
-                    className="text-primary hover:underline text-xs font-medium"
+                    className="text-accent hover:underline text-xs font-medium"
                   >
-                    View Details
+                    View profile
                   </button>
                 </td>
               </tr>

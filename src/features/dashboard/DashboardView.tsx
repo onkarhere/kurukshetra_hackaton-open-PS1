@@ -1,23 +1,26 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Sparkles,
-  Search,
   CheckCheck,
-  AlertTriangle,
-  Clock,
-  ArrowRight,
-  ShieldAlert,
-  Play,
-  Calendar,
-  Users,
-  DollarSign,
-  TrendingUp,
-  CreditCard,
-  Building2,
-  ChevronRight,
-  CheckCircle2,
   AlertOctagon,
+  CreditCard,
+  ShieldAlert,
+  ArrowRight,
+  ChevronDown,
+  ChevronRight,
+  Table as TableIcon,
+  LineChart as LineChartIcon,
+  Calendar,
+  UserPlus,
+  Layers,
+  Clock,
+  ExternalLink,
+  CheckCircle2,
+  AlertTriangle,
+  Play,
+  UserCheck,
+  PhoneCall,
+  Lock,
 } from 'lucide-react'
 import { KpiCard } from '@/components/app/KpiCard'
 import { ReasonChip } from '@/components/ui/ReasonChip'
@@ -29,27 +32,32 @@ import { store } from '@/mocks/store'
 import { formatINR } from '@/lib/utils'
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
+  CartesianGrid,
 } from 'recharts'
 
 export const DashboardView: React.FC = () => {
-  const { role, currentUser, branch, setCopilotOpen } = useApp()
+  const { role, currentUser, branch } = useApp()
   const { success } = useToast()
   const navigate = useNavigate()
 
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false)
+  const [showChartAsTable, setShowChartAsTable] = useState(false)
+
+  // Data aggregations
   const pendingApprovalsCount = store.approvals.filter((a) => a.status === 'pending').length
   const criticalStudents = store.students.filter((s) => s.riskLevel === 'critical')
+  const highRiskStudents = store.students.filter((s) => s.riskLevel === 'high')
+  const watchRiskStudents = store.students.filter((s) => s.riskLevel === 'watch')
+  const lowRiskStudents = store.students.filter((s) => s.riskLevel === 'low')
+  const overdueInstalments = store.feeInstalments.filter((i) => i.status === 'overdue')
+  const overdueTotal = overdueInstalments.reduce((acc, i) => acc + (i.amount - i.paidAmount), 0)
 
-  // Sample collection trend data
+  // 7-day collections data
   const collectionData = [
     { day: '10 Oct', amount: 45000, target: 40000 },
     { day: '11 Oct', amount: 52000, target: 40000 },
@@ -60,35 +68,40 @@ export const DashboardView: React.FC = () => {
     { day: '16 Oct', amount: 96500, target: 50000 },
   ]
 
-  // Attendance batch x day matrix
+  // Attendance matrix: batch by weekday
   const attendanceHeatmapData = [
-    { batch: 'Java B3 (Kothrud)', mon: 88, tue: 82, wed: 78, thu: 85, fri: 79 },
-    { batch: 'Java B4 (Baner)', mon: 94, tue: 92, wed: 96, thu: 91, fri: 93 },
-    { batch: 'Python B1 (Baner)', mon: 89, tue: 86, wed: 91, thu: 88, fri: 90 },
-    { batch: 'Analytics B2 (Kothrud)', mon: 96, tue: 94, wed: 98, thu: 95, fri: 97 },
-    { batch: 'React B1 (Online)', mon: 91, tue: 89, wed: 90, thu: 92, fri: 91 },
+    { batch: 'Java Full-Stack B3 (Kothrud)', mon: 88, tue: 82, wed: 78, thu: 85, fri: 79 },
+    { batch: 'Java Full-Stack B4 (Baner)', mon: 94, tue: 92, wed: 96, thu: 91, fri: 93 },
+    { batch: 'Python Data B1 (Baner)', mon: 89, tue: 86, wed: 91, thu: 88, fri: 90 },
+    { batch: 'Data Analytics B2 (Kothrud)', mon: 96, tue: 94, wed: 98, thu: 95, fri: 97 },
+    { batch: 'React Frontend B1 (Online)', mon: 91, tue: 89, wed: 90, thu: 92, fri: 91 },
   ]
 
-  // Suggested question chips
-  const suggestedQuestions = [
-    'Which students in Java batch have missed ≥3 classes and owe EMI?',
-    'Show room capacity clashes for next week',
-    'Who is Arjun Mehta substituting for on Thursday?',
-    'Collections this week vs target in Kothrud branch',
-  ]
+  // Sequential accent scale helper
+  const getSequentialAccentClass = (pct: number) => {
+    if (pct >= 95) return 'bg-accent text-white dark:text-ink font-semibold'
+    if (pct >= 90) return 'bg-accent/70 text-white dark:text-ink font-medium'
+    if (pct >= 85) return 'bg-accent/40 text-text font-medium'
+    if (pct >= 80) return 'bg-accent/25 text-text'
+    return 'bg-accent/15 text-text-muted'
+  }
 
   /* =========================================================================
-     TRAINER DASHBOARD VARIANT (Strictly NO fee / money UI)
+     1. TRAINER DASHBOARD VARIANT
+     STRICT RULE: Never show fee amount, payment status, instalment, fee column or ₹ symbol
      ========================================================================= */
   if (role === 'trainer') {
+    const trainerBatches = store.batches.filter((b) => b.trainerName.includes('Arjun'))
+    const trainerSessions = store.timetableSessions.filter((s) => s.trainerName.includes('Arjun'))
+
     return (
-      <div className="space-y-6 animate-fade-in select-none">
-        {/* Welcome Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
           <div>
-            <h1 className="text-xl font-bold text-fg">Welcome back, Arjun</h1>
-            <p className="text-xs text-fg-muted mt-0.5">
-              Trainer Portal · Java Full-Stack & Spring Boot Faculty
+            <h1 className="text-xl font-semibold text-text">Good afternoon, Arjun</h1>
+            <p className="text-xs text-text-muted mt-0.5">
+              CodeCraft Academy · {branch === 'All' ? 'All Campuses' : `${branch} Campus`} · Thu, 16 Oct 2026
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -98,111 +111,156 @@ export const DashboardView: React.FC = () => {
               onClick={() => navigate('/sessions/sess-m2')}
               leftIcon={<Play className="w-3.5 h-3.5" />}
             >
-              Start Today's Session
+              Start today's session
             </Button>
           </div>
         </div>
 
-        {/* Trainer KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* 4 Trainer KPIs */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
-            label="My Batches"
-            value="3 active"
-            delta={{ value: '112 students', isNeutral: true }}
-            sparklineData={[3, 3, 3, 3, 3, 3]}
-            onClick={() => navigate('/batches')}
-          />
-          <KpiCard
-            label="Today's Sessions"
+            label="Today's sessions"
             value="2 classes"
             delta={{ value: 'Room 3 & Lab A', isNeutral: true }}
-            sparklineData={[1, 2, 2, 2, 1, 2]}
             onClick={() => navigate('/timetable')}
           />
           <KpiCard
-            label="Avg Batch Attendance"
+            label="My active batches"
+            value="3 cohorts"
+            delta={{ value: '112 total students', isNeutral: true }}
+            onClick={() => navigate('/batches')}
+          />
+          <KpiCard
+            label="My attendance rate"
             value="84.2%"
-            delta={{ value: '+2.4% vs last wk', isPositive: true }}
-            sparklineData={[78, 80, 81, 82, 83, 84]}
-            sparklineColor="var(--success)"
+            delta={{ value: '+2.4% vs last week', isPositive: true }}
             onClick={() => navigate('/attendance')}
           />
           <KpiCard
-            label="Students Needing Catch-up"
+            label="Students needing attention"
             value="4 students"
-            delta={{ value: '2 critical', isPositive: false }}
-            sparklineData={[2, 3, 3, 4, 4, 4]}
-            sparklineColor="var(--danger)"
+            delta={{ value: '2 critical catch-ups', isPositive: false }}
             onClick={() => navigate('/risk')}
           />
         </div>
 
-        {/* Schedule & Attention */}
+        {/* Main Content: Today's Sessions + Students Needing Academic Attention */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Today's Schedule (8 cols) */}
           <div className="lg:col-span-8 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-fg">Today's Class Schedule</h3>
-              <span className="text-xs font-mono text-fg-muted">IST · Thu, 16 Oct</span>
+              <h2 className="text-sm font-semibold text-text">Today's sessions</h2>
+              <span className="text-xs text-text-muted">16 Oct 2026 · IST</span>
             </div>
 
-            <div className="space-y-2.5">
-              <div className="p-4 rounded-card border border-primary/30 bg-primary/5 flex items-center justify-between gap-4 shadow-sm">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-primary font-mono">19:00 - 21:00</span>
-                    <span className="text-xs font-semibold text-fg">Java Full-Stack B3 (Kothrud)</span>
-                    <ReasonChip reason="Room 3 · Hybrid" variant="neutral" />
-                  </div>
-                  <p className="text-xs text-fg-muted">
-                    Topic: Spring Data JPA Repositories & Transaction Management
-                  </p>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => navigate('/sessions/sess-m2')}
-                  leftIcon={<Play className="w-3.5 h-3.5" />}
-                >
-                  Start QR Check-in
-                </Button>
-              </div>
+            <div className="border border-border rounded-card bg-surface overflow-hidden">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-surface-sunken border-b border-border text-text-muted">
+                  <tr>
+                    <th className="py-2.5 px-3 font-medium">Batch</th>
+                    <th className="py-2.5 px-3 font-medium">Time (IST)</th>
+                    <th className="py-2.5 px-3 font-medium">Room</th>
+                    <th className="py-2.5 px-3 font-medium">Status</th>
+                    <th className="py-2.5 px-3 text-right font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  <tr className="hover:bg-surface-sunken/40">
+                    <td className="py-3 px-3 font-medium text-text">
+                      Java Full-Stack B3 (Kothrud)
+                      <div className="text-[11px] text-text-muted font-normal mt-0.5">
+                        Topic: Spring Data JPA Repositories
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 tabular-nums text-text">19:00 - 21:00</td>
+                    <td className="py-3 px-3">
+                      <span className="text-text-muted">Room 3 · Hybrid</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <StatusPill status="in_progress" />
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() => navigate('/sessions/sess-m2')}
+                        leftIcon={<Play className="w-3 h-3" />}
+                      >
+                        Start QR
+                      </Button>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-surface-sunken/40">
+                    <td className="py-3 px-3 font-medium text-text">
+                      Spring Boot Doubt Lab
+                      <div className="text-[11px] text-text-muted font-normal mt-0.5">
+                        Topic: Docker containerization Q&A
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 tabular-nums text-text">17:00 - 18:30</td>
+                    <td className="py-3 px-3">
+                      <span className="text-text-muted">Online Room 1</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <StatusPill status="scheduled" />
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        onClick={() => success('Launching Zoom session...')}
+                      >
+                        Open room
+                      </Button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-              <div className="p-4 rounded-card border border-border bg-surface flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-fg-muted">17:00 - 18:30</span>
-                    <span className="text-xs font-semibold text-fg">Spring Boot Doubt Lab</span>
-                    <ReasonChip reason="Virtual Room 1 · Online" variant="info" />
-                  </div>
-                  <p className="text-xs text-fg-muted">
-                    Topic: Q&A on Docker containerization of Spring microservices
-                  </p>
+            {/* Week at a Glance */}
+            <div className="pt-3">
+              <h3 className="text-xs font-semibold text-text mb-2">Week at a glance</h3>
+              <div className="border border-border rounded-card bg-surface p-3">
+                <div className="grid grid-cols-5 gap-2 text-center text-xs">
+                  {['Mon 19 Oct', 'Tue 20 Oct', 'Wed 21 Oct', 'Thu 22 Oct', 'Fri 23 Oct'].map(
+                    (d, i) => (
+                      <div key={i} className="p-2 border border-border rounded bg-surface-sunken/50">
+                        <div className="text-text-muted text-[11px] mb-1">{d}</div>
+                        <div className="font-medium text-text">
+                          {i === 3 ? (
+                            <span className="text-danger flex items-center justify-center gap-1">
+                              <AlertOctagon className="w-3 h-3" /> 2 classes (Clash)
+                            </span>
+                          ) : (
+                            `${i === 1 ? '1 class' : '2 classes'}`
+                          )}
+                        </div>
+                      </div>
+                    )
+                  )}
                 </div>
-                <Button variant="outline" size="sm" onClick={() => success('Launching Zoom session...')}>
-                  Open Room
-                </Button>
               </div>
             </div>
           </div>
 
-          {/* Students Needing Help (4 cols - Strictly Academic) */}
+          {/* Students Needing Academic Attention (4 cols) */}
           <div className="lg:col-span-4 space-y-3">
-            <h3 className="text-sm font-semibold text-fg">Students Needing Help</h3>
-            <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-text">Students needing attention</h2>
+            <div className="border border-border rounded-card bg-surface divide-y divide-border">
               {criticalStudents.slice(0, 3).map((st) => (
                 <div
                   key={st.id}
                   onClick={() => navigate(`/students/${st.id}`)}
-                  className="p-3 rounded-card border border-danger/30 bg-danger/5 hover:bg-danger/10 transition-colors cursor-pointer space-y-1"
+                  className="p-3 hover:bg-surface-sunken/50 cursor-pointer space-y-1 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-xs text-fg">{st.name}</span>
-                    <span className="text-[10px] text-danger font-mono font-bold">
-                      {st.attendanceRate}% Attd
+                    <span className="font-medium text-xs text-text">{st.name}</span>
+                    <span className="text-[11px] tabular-nums text-danger font-medium">
+                      {st.attendanceRate}% attendance
                     </span>
                   </div>
-                  <p className="text-[11px] text-fg-muted">
+                  <p className="text-[11px] text-text-muted">
                     Missed last 4 sessions · Needs Spring JPA catch-up
                   </p>
                 </div>
@@ -215,434 +273,825 @@ export const DashboardView: React.FC = () => {
   }
 
   /* =========================================================================
-     OWNER / ADMIN / GENERAL DASHBOARD
+     2. COUNSELOR DASHBOARD VARIANT
      ========================================================================= */
+  if (role === 'counselor') {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+          <div>
+            <h1 className="text-xl font-semibold text-text">Good afternoon, Snehal</h1>
+            <p className="text-xs text-text-muted mt-0.5">
+              CodeCraft Academy · Student Success & Counseling · Thu, 16 Oct 2026
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate('/students?action=new')}
+              leftIcon={<UserPlus className="w-3.5 h-3.5" />}
+            >
+              New admission
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            label="Admissions this week"
+            value="14"
+            delta={{ value: 'Target: 18 (78%)', isPositive: true }}
+            onClick={() => navigate('/students')}
+          />
+          <KpiCard
+            label="Follow-ups due today"
+            value="8 calls"
+            delta={{ value: '3 high priority', isPositive: false }}
+            onClick={() => navigate('/messages')}
+          />
+          <KpiCard
+            label="Students at critical risk"
+            value="2 students"
+            delta={{ value: 'Priya Nair, Rohan Kulkarni', isPositive: false }}
+            onClick={() => navigate('/risk')}
+          />
+          <KpiCard
+            label="Total active students"
+            value="320"
+            delta={{ value: '+14 this month', isPositive: true }}
+            onClick={() => navigate('/students')}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 space-y-3">
+            <h2 className="text-sm font-semibold text-text">Attention list (Students)</h2>
+            <div className="border border-border rounded-card bg-surface divide-y divide-border">
+              <div className="p-3 flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-medium text-text">
+                    Priya Nair: 5 consecutive missed sessions in Java Full-Stack B3 (Kothrud)
+                  </div>
+                  <div className="text-[11px] text-text-muted">
+                    Documented hospitalization noted; counseling check-in required
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={() => navigate('/students/std-priya-01')}
+                >
+                  Open profile
+                </Button>
+              </div>
+              <div className="p-3 flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-medium text-text">
+                    Rohan Kulkarni: Attendance fell to 62%
+                  </div>
+                  <div className="text-[11px] text-text-muted">
+                    No response to last WhatsApp check-in on 12 Oct
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={() => navigate('/students/std-rohan-02')}
+                >
+                  Schedule call
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-4 space-y-3">
+            <h2 className="text-sm font-semibold text-text">Risk tier overview</h2>
+            <div className="border border-border rounded-card bg-surface p-3 space-y-2">
+              <div
+                onClick={() => navigate('/risk?tier=critical')}
+                className="p-2 border border-border rounded flex items-center justify-between cursor-pointer hover:bg-surface-sunken"
+              >
+                <span className="text-xs font-medium text-danger">Critical risk</span>
+                <span className="text-xs tabular-nums font-medium text-danger">2 students</span>
+              </div>
+              <div
+                onClick={() => navigate('/risk?tier=high')}
+                className="p-2 border border-border rounded flex items-center justify-between cursor-pointer hover:bg-surface-sunken"
+              >
+                <span className="text-xs font-medium text-warning">High risk</span>
+                <span className="text-xs tabular-nums font-medium text-warning">4 students</span>
+              </div>
+              <div
+                onClick={() => navigate('/risk?tier=watch')}
+                className="p-2 border border-border rounded flex items-center justify-between cursor-pointer hover:bg-surface-sunken"
+              >
+                <span className="text-xs font-medium text-text">Watch list</span>
+                <span className="text-xs tabular-nums font-medium text-text-muted">6 students</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /* =========================================================================
+     3. ACCOUNTS DASHBOARD VARIANT
+     ========================================================================= */
+  if (role === 'accounts') {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+          <div>
+            <h1 className="text-xl font-semibold text-text">Good afternoon, Sunita</h1>
+            <p className="text-xs text-text-muted mt-0.5">
+              CodeCraft Academy · Accounts & Collections · Thu, 16 Oct 2026
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate('/payments?action=record')}
+              leftIcon={<CreditCard className="w-3.5 h-3.5" />}
+            >
+              Record payment
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            label="Collected today"
+            value={formatINR(96500)}
+            delta={{ value: '14 transactions', isPositive: true }}
+            onClick={() => navigate('/payments')}
+          />
+          <KpiCard
+            label="Collected this month"
+            value={formatINR(462500)}
+            delta={{ value: 'Target: ₹5,00,000 (92.5%)', isPositive: true }}
+            onClick={() => navigate('/fees')}
+          />
+          <KpiCard
+            label="Overdue instalments"
+            value={formatINR(overdueTotal)}
+            delta={{ value: `${overdueInstalments.length} accounts overdue`, isPositive: false }}
+            onClick={() => navigate('/fees')}
+          />
+          <KpiCard
+            label="Reconciliation queue"
+            value="9 entries"
+            delta={{ value: 'Needs manual UTR review', isPositive: false }}
+            onClick={() => navigate('/payments')}
+          />
+        </div>
+
+        {/* Dues Ageing + Reconciliation Queue */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-6 space-y-3">
+            <h2 className="text-sm font-semibold text-text">Instalment dues ageing</h2>
+            <div className="border border-border rounded-card bg-surface p-4 space-y-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-muted">1–7 days overdue</span>
+                  <span className="tabular-nums font-medium text-text">₹19,500 (3 accounts)</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-muted">8–15 days overdue</span>
+                  <span className="tabular-nums font-medium text-warning">₹13,000 (2 accounts)</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-muted">16–30 days overdue</span>
+                  <span className="tabular-nums font-medium text-danger">₹13,000 (2 accounts)</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-muted">&gt; 30 days overdue</span>
+                  <span className="tabular-nums font-medium text-text-muted">₹0 (0 accounts)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-text">Reconciliation queue</h2>
+              <button
+                onClick={() => navigate('/payments')}
+                className="text-xs text-accent hover:underline"
+              >
+                View all
+              </button>
+            </div>
+            <div className="border border-border rounded-card bg-surface divide-y divide-border">
+              {store.payments.slice(0, 3).map((p) => (
+                <div key={p.id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                  <div>
+                    <div className="font-medium text-text">{p.studentName}</div>
+                    <div className="text-[11px] text-text-muted font-mono">{p.receiptNo} · {p.method}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="tabular-nums font-medium text-text">{formatINR(p.amount)}</div>
+                    <span className="text-[10px] text-text-muted">16 Oct 2026</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /* =========================================================================
+     4. OWNER / ADMIN DASHBOARD (Canonical full operations view)
+     Order strictly follows specifications:
+     1. Header: "Good afternoon, <name>" with date and branch scope + 4 secondary buttons
+     2. "Needs a decision": attention list (sum of rows equals header count)
+     3. Four KPI cards: Collected, Overdue, Attendance, At risk
+     4. Collections vs target line chart + Today's sessions table
+     5. Risk tier counts as text + Attendance matrix on sequential accent scale
+     6. Operational summary, collapsed by default (plain text: "3 or more", no LaTeX)
+     ========================================================================= */
+  const attentionItems = [
+    {
+      id: 'att-1',
+      sentence: `${
+        pendingApprovalsCount === 1
+          ? '1 approval waiting'
+          : `${pendingApprovalsCount} approvals waiting`
+      }: WhatsApp fee reminder notifications staged for review.`,
+      actionLabel: 'Review approvals',
+      action: () => navigate('/approvals'),
+      severity: 'pending' as const,
+    },
+    {
+      id: 'att-2',
+      sentence:
+        '1 timetable conflict: Arjun Mehta double-booked on Thursday 19:00 in Room 3 and Room 1.',
+      actionLabel: 'Resolve clash',
+      action: () => navigate('/timetable'),
+      severity: 'critical' as const,
+    },
+    {
+      id: 'att-3',
+      sentence: '9 bank payments require UTR match verification against student records.',
+      actionLabel: 'Reconcile payments',
+      action: () => navigate('/payments'),
+      severity: 'warning' as const,
+    },
+    {
+      id: 'att-4',
+      sentence:
+        '2 students at critical academic risk: Priya Nair (44% attendance) and Rohan Kulkarni (62% attendance).',
+      actionLabel: 'Open risk board',
+      action: () => navigate('/risk'),
+      severity: 'critical' as const,
+    },
+  ]
+
+  const totalDecisionCount = attentionItems.length
+
   return (
-    <div className="space-y-6 animate-fade-in select-none">
-      {/* Top Greeting & Branch Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="space-y-6">
+      {/* 1. Header: Greeting, date & branch scope + 4 secondary quick actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">
+          <h1 className="text-xl font-semibold text-text">
             Good afternoon, {currentUser.name}
           </h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            CodeCraft Academy · {branch === 'All' ? 'All Campuses (Kothrud & Baner)' : `${branch} Campus`} · Thu, 16 Oct 2026
+          <p className="text-xs text-text-muted mt-0.5">
+            CodeCraft Academy ·{' '}
+            {branch === 'All' ? 'All Campuses (Kothrud & Baner)' : `${branch} Campus`} · Thu, 16
+            Oct 2026
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Four secondary buttons */}
+        <div className="flex flex-wrap items-center gap-2">
           <Button
-            variant="ai"
+            variant="secondary"
             size="sm"
-            onClick={() => setCopilotOpen(true)}
-            leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+            onClick={() => navigate('/payments?action=record')}
           >
-            Ask Copilot anything (⌘J)
+            Record payment
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate('/sessions/sess-m2')}
+          >
+            Mark attendance
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate('/batches?action=new')}
+          >
+            New batch
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate('/timetable?action=generate')}
+          >
+            Generate timetable
           </Button>
         </div>
       </div>
 
-      {/* Full-width "Ask anything about your institute…" Bar */}
-      <div className="rounded-card border border-ai/30 bg-surface shadow-sm p-3.5 space-y-2.5">
-        <div
-          onClick={() => setCopilotOpen(true)}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-btn bg-surface-2 border border-border cursor-pointer hover:border-ai/50 transition-colors"
-        >
-          <Sparkles className="w-4 h-4 text-ai shrink-0" />
-          <span className="text-xs text-fg-muted flex-1">
-            Ask anything about attendance, fee dues, room conflicts, or simulate timetable re-plans…
+      {/* 2. Needs a decision: attention list */}
+      <div className="border border-border rounded-card bg-surface overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-surface-sunken/40 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-semibold text-text uppercase tracking-wider">
+              Needs a decision
+            </h2>
+            <span className="text-[11px] tabular-nums font-medium px-2 py-0.5 rounded-full border border-border bg-surface text-text">
+              {totalDecisionCount} items
+            </span>
+          </div>
+          <span className="text-[11px] text-text-muted">
+            2 critical · 1 warning · 1 review
           </span>
-          <kbd className="font-mono text-[10px] bg-surface border border-border px-1.5 py-0.5 rounded text-fg-muted">
-            ⌘J
-          </kbd>
         </div>
 
-        {/* Suggested Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-          <span className="text-[11px] text-fg-muted font-medium shrink-0">Try asking:</span>
-          {suggestedQuestions.map((q, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCopilotOpen(true)}
-              className="px-2.5 py-1 rounded-full border border-ai/20 bg-ai/5 text-ai hover:bg-ai/10 transition-colors text-[11px] font-medium shrink-0 whitespace-nowrap"
+        <div className="divide-y divide-border">
+          {attentionItems.map((item) => (
+            <div
+              key={item.id}
+              className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-surface-sunken/30 transition-colors"
             >
-              {q}
-            </button>
+              <div className="flex items-start sm:items-center gap-2.5 text-xs text-text">
+                {item.severity === 'critical' ? (
+                  <span className="inline-flex items-center gap-1 text-danger font-medium shrink-0">
+                    <AlertOctagon className="w-3.5 h-3.5 shrink-0" />
+                    Critical
+                  </span>
+                ) : item.severity === 'warning' ? (
+                  <span className="inline-flex items-center gap-1 text-warning font-medium shrink-0">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    Warning
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-text-muted font-medium shrink-0">
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    Pending
+                  </span>
+                )}
+                <span className="text-text leading-snug">{item.sentence}</span>
+              </div>
+              <Button
+                variant="secondary"
+                size="xs"
+                onClick={item.action}
+                className="shrink-0 self-start sm:self-auto"
+              >
+                {item.actionLabel}
+              </Button>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Row 1: Morning Brief (8 cols) + Attention Queue (4 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Morning Brief Card */}
-        <div className="lg:col-span-8 rounded-card border border-ai/25 bg-surface p-4 space-y-3.5 shadow-sm">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-ai/10 text-ai border border-ai/20">
-                <Sparkles className="w-3 h-3" />
-                AI Morning Brief
-              </span>
-              <span className="text-xs font-semibold text-fg">Daily Operational Synthesis</span>
-            </div>
-            <span className="text-[11px] font-mono text-fg-muted">Synthesized 08:30 IST</span>
-          </div>
-
-          <div className="space-y-3 text-xs leading-relaxed text-fg">
-            <div className="flex items-start gap-2.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-ai shrink-0 mt-1.5" />
-              <div className="flex-1">
-                <span>
-                  <strong>Timetable Conflict:</strong> Arjun Mehta has two overlapping sessions scheduled for Thursday 19:00 in Kothrud (Java B3 in Room 3 & Doubt Clearing in Room 1).
-                </span>
-                <div className="mt-1 flex items-center gap-2 text-[11px]">
-                  <button
-                    onClick={() => navigate('/timetable')}
-                    className="text-ai font-medium hover:underline flex items-center gap-0.5"
-                  >
-                    Resolve clash in Timetable <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-ai shrink-0 mt-1.5" />
-              <div className="flex-1">
-                <span>
-                  <strong>Fee Dues & High Risk:</strong> 5 Java Full-Stack students have missed $\ge 3$ classes with EMIs due this week, totaling <strong>₹32,500</strong>.
-                </span>
-                <div className="mt-1 flex items-center gap-2 text-[11px]">
-                  <button
-                    onClick={() => navigate('/approvals')}
-                    className="text-ai font-medium hover:underline flex items-center gap-0.5"
-                  >
-                    Review staged WhatsApp reminder action <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-ai shrink-0 mt-1.5" />
-              <div className="flex-1">
-                <span>
-                  <strong>Over-capacity Room:</strong> Java B3 has 32 registered students in Room 3 (capacity 30). Recommend shifting to Room 4 or capping offline seats.
-                </span>
-                <div className="mt-1 flex items-center gap-2 text-[11px]">
-                  <button
-                    onClick={() => navigate('/batches/batch-java-b3')}
-                    className="text-ai font-medium hover:underline flex items-center gap-0.5"
-                  >
-                    Inspect Batch Capacity <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-ai shrink-0 mt-1.5" />
-              <div className="flex-1">
-                <span>
-                  <strong>Bank Reconciliation:</strong> 1 UPI transfer of ₹6,500 requires student name verification (sender: K. Balakrishnan Nair).
-                </span>
-                <div className="mt-1 flex items-center gap-2 text-[11px]">
-                  <button
-                    onClick={() => navigate('/payments')}
-                    className="text-ai font-medium hover:underline flex items-center gap-0.5"
-                  >
-                    Match payment in Reconciliation Board <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Attention Queue (4 cols) */}
-        <div className="lg:col-span-4 rounded-card border border-border bg-surface p-4 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <h3 className="text-xs font-semibold text-fg uppercase tracking-wider font-mono">
-              Attention Queue
-            </h3>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-danger/10 text-danger border border-danger/30 font-bold">
-              4 critical items
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            <div
-              onClick={() => navigate('/approvals')}
-              className="p-2.5 rounded-btn border border-warning/30 bg-warning/5 hover:bg-warning/10 cursor-pointer transition-colors space-y-1"
-            >
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-fg flex items-center gap-1.5">
-                  <CheckCheck className="w-3.5 h-3.5 text-warning" />
-                  {pendingApprovalsCount} Approvals Waiting
-                </span>
-                <span className="text-[10px] font-mono text-warning font-semibold">Staged</span>
-              </div>
-              <p className="text-[11px] text-fg-muted">WhatsApp reminders, timetable re-plans</p>
-            </div>
-
-            <div
-              onClick={() => navigate('/timetable')}
-              className="p-2.5 rounded-btn border border-danger/30 bg-danger/5 hover:bg-danger/10 cursor-pointer transition-colors space-y-1"
-            >
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-fg flex items-center gap-1.5">
-                  <AlertOctagon className="w-3.5 h-3.5 text-danger" />
-                  Arjun double-booked Thu 7 pm
-                </span>
-                <span className="text-[10px] font-mono text-danger font-semibold">Conflict</span>
-              </div>
-              <p className="text-[11px] text-fg-muted">Room 3 and Room 1 double assignment</p>
-            </div>
-
-            <div
-              onClick={() => navigate('/payments')}
-              className="p-2.5 rounded-btn border border-border bg-surface-2 hover:bg-surface-2/80 cursor-pointer transition-colors space-y-1"
-            >
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-fg flex items-center gap-1.5">
-                  <CreditCard className="w-3.5 h-3.5 text-primary" />
-                  9 Payments Need Review
-                </span>
-                <span className="text-[10px] font-mono text-fg-muted font-semibold">UTR Match</span>
-              </div>
-              <p className="text-[11px] text-fg-muted">Bank NEFT/UPI auto-confidence &lt; 90%</p>
-            </div>
-
-            <div
-              onClick={() => navigate('/risk')}
-              className="p-2.5 rounded-btn border border-danger/30 bg-danger/5 hover:bg-danger/10 cursor-pointer transition-colors space-y-1"
-            >
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-fg flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5 text-danger" />
-                  2 Students at Critical Risk
-                </span>
-                <span className="text-[10px] font-mono text-danger font-semibold">Immediate</span>
-              </div>
-              <p className="text-[11px] text-fg-muted">Priya Nair (44% attd), Rohan Kulkarni</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Row 2: 6 KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      {/* 3. Four KPI cards: Sans tabular numbers, text trends, zero sparklines */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label="Active Students"
-          value="320"
-          delta={{ value: '+14 this mo', isPositive: true }}
-          sparklineData={[280, 290, 298, 305, 312, 320]}
-          onClick={() => navigate('/students')}
+          label="Collected this month"
+          value={formatINR(462500)}
+          delta={{ value: 'Target: ₹5,00,000 (92.5%) · +12.4% vs last month', isPositive: true }}
+          onClick={() => navigate('/fees')}
         />
         <KpiCard
-          label="Today's Sessions"
-          value="6 classes"
-          delta={{ value: '4 offline, 2 online', isNeutral: true }}
-          sparklineData={[4, 5, 6, 6, 7, 6]}
-          onClick={() => navigate('/timetable')}
+          label="Overdue instalments (7 accounts)"
+          value={formatINR(45500)}
+          delta={{ value: '-₹13,000 vs last week', isPositive: false }}
+          onClick={() => navigate('/fees')}
         />
         <KpiCard
-          label="Attendance (7d)"
+          label="Attendance last 7 days"
           value="89.4%"
-          delta={{ value: '+1.8% vs last wk', isPositive: true }}
-          sparklineData={[84, 85, 87, 86, 88, 89.4]}
-          sparklineColor="var(--success)"
+          delta={{ value: '+1.8% vs last week', isPositive: true }}
           onClick={() => navigate('/attendance')}
         />
         <KpiCard
-          label="Collected MTD"
-          value={formatINR(462500)}
-          delta={{ value: '92% of target', isPositive: true }}
-          sparklineData={[120000, 240000, 310000, 390000, 462500]}
-          sparklineColor="var(--primary)"
-          onClick={() => navigate('/fees')}
-        />
-        <KpiCard
-          label="Overdue EMIs"
-          value={formatINR(45500)}
-          delta={{ value: '7 students overdue', isPositive: false }}
-          sparklineData={[24000, 32000, 38000, 41000, 45500]}
-          sparklineColor="var(--danger)"
-          onClick={() => navigate('/fees')}
-        />
-        <KpiCard
-          label="At-Risk Students"
+          label="Students at risk (by tier)"
           value="12"
-          delta={{ value: '2 critical, 4 high', isPositive: false }}
-          sparklineData={[8, 9, 10, 11, 12]}
-          sparklineColor="var(--warning)"
+          delta={{ value: '2 critical · 4 high · 6 watch', isPositive: false }}
           onClick={() => navigate('/risk')}
         />
       </div>
 
-      {/* Row 3: Collections Trend Line (8 cols) + Today's Sessions List (4 cols) */}
+      {/* 4. Collections against target (7 days) + Today's sessions table */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Collections Chart */}
-        <div className="lg:col-span-8 rounded-card border border-border bg-surface p-4 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <div>
-              <h3 className="text-xs font-semibold text-fg">Collections Trend vs Target (7 Days)</h3>
-              <p className="text-[11px] text-fg-muted">Daily cash inflow across UPI and NetBanking</p>
+        {/* Collections Chart (8 cols) */}
+        <div className="lg:col-span-8 border border-border rounded-card bg-surface p-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="text-xs font-semibold text-text">
+                  Collections against target (7 days)
+                </h3>
+                <p className="text-[11px] text-text-muted">
+                  Daily net inflows across UPI and NetBanking
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={() => setShowChartAsTable(!showChartAsTable)}
+                  leftIcon={showChartAsTable ? <LineChartIcon className="w-3.5 h-3.5" /> : <TableIcon className="w-3.5 h-3.5" />}
+                >
+                  {showChartAsTable ? 'View as chart' : 'View as table'}
+                </Button>
+              </div>
             </div>
-            <span className="text-xs font-mono font-bold text-fg">MTD Total: {formatINR(462500)}</span>
+
+            <div className="mt-4 h-60 w-full">
+              {showChartAsTable ? (
+                <div className="overflow-x-auto h-full">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-surface-sunken text-text-muted border-b border-border">
+                      <tr>
+                        <th className="py-2 px-3">Date</th>
+                        <th className="py-2 px-3 text-right">Collected (₹)</th>
+                        <th className="py-2 px-3 text-right">Target (₹)</th>
+                        <th className="py-2 px-3 text-right">Variance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {collectionData.map((row, idx) => {
+                        const variance = row.amount - row.target
+                        return (
+                          <tr key={idx} className="hover:bg-surface-sunken/40">
+                            <td className="py-2 px-3 font-medium text-text">{row.day}</td>
+                            <td className="py-2 px-3 text-right tabular-nums text-text">
+                              {formatINR(row.amount)}
+                            </td>
+                            <td className="py-2 px-3 text-right tabular-nums text-text-muted">
+                              {formatINR(row.target)}
+                            </td>
+                            <td
+                              className={`py-2 px-3 text-right tabular-nums font-medium ${
+                                variance >= 0 ? 'text-success' : 'text-danger'
+                              }`}
+                            >
+                              {variance >= 0 ? `+${formatINR(variance)}` : `-${formatINR(Math.abs(variance))}`}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={collectionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--border)" strokeOpacity={0.08} vertical={false} />
+                    <XAxis
+                      dataKey="day"
+                      stroke="var(--text-muted)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={{ stroke: 'var(--border)' }}
+                    />
+                    <YAxis
+                      stroke="var(--text-muted)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => `₹${val / 1000}k`}
+                    />
+                    <Tooltip
+                      formatter={(val: any, name: any) => [
+                        formatINR(Number(val)),
+                        name === 'amount' ? 'Collected' : 'Target',
+                      ]}
+                      contentStyle={{
+                        backgroundColor: 'var(--surface)',
+                        borderColor: 'var(--border)',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        color: 'var(--text)',
+                      }}
+                    />
+                    {/* Target line: dashed neutral */}
+                    <Line
+                      type="monotone"
+                      dataKey="target"
+                      stroke="var(--text-muted)"
+                      strokeWidth={1.5}
+                      strokeDasharray="4 4"
+                      dot={false}
+                    />
+                    {/* Accent series line: single flat accent line, zero gradient fill */}
+                    <Line
+                      type="monotone"
+                      dataKey="amount"
+                      stroke="var(--accent)"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: 'var(--accent)' }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
           </div>
 
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={collectionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="day" stroke="var(--text-muted)" fontSize={11} tickLine={false} />
-                <YAxis
-                  stroke="var(--text-muted)"
-                  fontSize={11}
-                  tickLine={false}
-                  tickFormatter={(val) => `₹${val / 1000}k`}
-                />
-                <Tooltip
-                  formatter={(val: any) => [formatINR(Number(val)), 'Amount']}
-                  contentStyle={{
-                    backgroundColor: 'var(--surface)',
-                    borderColor: 'var(--border)',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: 'var(--text)',
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="var(--primary)"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorAmount)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="pt-3 border-t border-border mt-2 text-[11px] text-text-muted flex items-center justify-between">
+            <span>Source: Bank reconciliation ledger (HDFC Current Account)</span>
+            <span>Target line: Daily run-rate</span>
           </div>
         </div>
 
-        {/* Today's Sessions List */}
-        <div className="lg:col-span-4 rounded-card border border-border bg-surface p-4 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <h3 className="text-xs font-semibold text-fg">Today's Sessions</h3>
-            <span className="text-xs text-primary font-medium hover:underline cursor-pointer" onClick={() => navigate('/timetable')}>
-              View all
-            </span>
+        {/* Today's sessions as a table (4 cols) */}
+        <div className="lg:col-span-4 border border-border rounded-card bg-surface p-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-xs font-semibold text-text">Today's sessions</h3>
+              <button
+                onClick={() => navigate('/timetable')}
+                className="text-xs text-accent hover:underline"
+              >
+                View all
+              </button>
+            </div>
+
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="text-[11px] text-text-muted border-b border-border bg-surface-sunken/40">
+                  <tr>
+                    <th className="py-2 px-2 font-medium">Batch</th>
+                    <th className="py-2 px-2 font-medium">Time</th>
+                    <th className="py-2 px-2 font-medium">Room</th>
+                    <th className="py-2 px-2 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {store.timetableSessions.slice(0, 4).map((sess) => (
+                    <tr
+                      key={sess.id}
+                      onClick={() => navigate(`/sessions/${sess.id}`)}
+                      className="hover:bg-surface-sunken/50 cursor-pointer transition-colors"
+                    >
+                      <td className="py-2.5 px-2">
+                        <div className="font-medium text-text truncate max-w-[140px]">
+                          {sess.batchName}
+                        </div>
+                        <div className="text-[11px] text-text-muted truncate">
+                          {sess.trainerName}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-2 tabular-nums text-text font-normal whitespace-nowrap">
+                        {sess.startTime}
+                      </td>
+                      <td className="py-2.5 px-2 text-text-muted whitespace-nowrap">
+                        {sess.room}
+                      </td>
+                      <td className="py-2.5 px-2 whitespace-nowrap">
+                        {sess.hasConflict ? (
+                          <span className="inline-flex items-center gap-1 text-danger font-medium text-[11px]">
+                            <AlertOctagon className="w-3 h-3" />
+                            Clash
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-text-muted text-[11px]">
+                            <CheckCircle2 className="w-3 h-3 text-success" />
+                            OK
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="space-y-2.5">
-            {store.timetableSessions.slice(0, 4).map((sess) => (
-              <div
-                key={sess.id}
-                onClick={() => navigate(`/sessions/${sess.id}`)}
-                className="p-2.5 rounded-btn border border-border bg-surface-2 hover:border-primary/40 transition-colors cursor-pointer space-y-1"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-fg truncate">{sess.batchName}</span>
-                  <span className="text-[11px] font-mono text-primary font-bold">
-                    {sess.startTime}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-fg-muted">
-                  <span>{sess.trainerName}</span>
-                  <ReasonChip reason={sess.room} variant={sess.hasConflict ? 'danger' : 'neutral'} />
-                </div>
-              </div>
-            ))}
+          <div className="pt-2 text-[11px] text-text-muted">
+            Click any session row to inspect live check-in roster.
           </div>
         </div>
       </div>
 
-      {/* Row 4: Risk Distribution Bar (6 cols) + Attendance Heatmap (6 cols) */}
+      {/* 5. Risk tier counts as text + Attendance matrix on sequential accent scale */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Risk Distribution */}
-        <div className="lg:col-span-6 rounded-card border border-border bg-surface p-4 space-y-3 shadow-sm">
+        {/* Risk tier counts as text (6 cols) */}
+        <div className="lg:col-span-6 border border-border rounded-card bg-surface p-4 space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-border">
-            <h3 className="text-xs font-semibold text-fg">Student Risk Tier Distribution</h3>
-            <span className="text-xs text-primary font-medium hover:underline cursor-pointer" onClick={() => navigate('/risk')}>
-              View board
-            </span>
+            <h3 className="text-xs font-semibold text-text">Students at risk by tier</h3>
+            <button
+              onClick={() => navigate('/risk')}
+              className="text-xs text-accent hover:underline"
+            >
+              Open risk board
+            </button>
           </div>
 
+          {/* Ordered Critical, High, Watch, Low. Critical visually strongest. None selected by default */}
           <div className="grid grid-cols-4 gap-2 text-center">
-            <div className="p-3 rounded-btn bg-danger/10 border border-danger/30">
-              <div className="text-lg font-bold font-mono text-danger">2</div>
-              <div className="text-[10px] uppercase font-semibold text-danger">Critical</div>
+            <div
+              onClick={() => navigate('/risk?tier=critical')}
+              className="p-3 rounded-card border border-border-strong bg-surface hover:bg-surface-sunken cursor-pointer transition-colors"
+            >
+              <div className="text-xl font-medium tabular-nums text-danger">
+                {criticalStudents.length}
+              </div>
+              <div className="text-[11px] font-medium text-danger mt-0.5">Critical</div>
             </div>
-            <div className="p-3 rounded-btn bg-amber-500/10 border border-amber-500/30">
-              <div className="text-lg font-bold font-mono text-amber-600 dark:text-amber-400">4</div>
-              <div className="text-[10px] uppercase font-semibold text-amber-600 dark:text-amber-400">High</div>
+
+            <div
+              onClick={() => navigate('/risk?tier=high')}
+              className="p-3 rounded-card border border-border bg-surface hover:bg-surface-sunken cursor-pointer transition-colors"
+            >
+              <div className="text-xl font-medium tabular-nums text-warning">
+                {highRiskStudents.length}
+              </div>
+              <div className="text-[11px] font-medium text-warning mt-0.5">High</div>
             </div>
-            <div className="p-3 rounded-btn bg-warning/10 border border-warning/30">
-              <div className="text-lg font-bold font-mono text-warning">6</div>
-              <div className="text-[10px] uppercase font-semibold text-warning">Watch</div>
+
+            <div
+              onClick={() => navigate('/risk?tier=watch')}
+              className="p-3 rounded-card border border-border bg-surface hover:bg-surface-sunken cursor-pointer transition-colors"
+            >
+              <div className="text-xl font-medium tabular-nums text-text">
+                {watchRiskStudents.length}
+              </div>
+              <div className="text-[11px] font-medium text-text-muted mt-0.5">Watch</div>
             </div>
-            <div className="p-3 rounded-btn bg-surface-2 border border-border">
-              <div className="text-lg font-bold font-mono text-fg-muted">308</div>
-              <div className="text-[10px] uppercase font-semibold text-fg-muted">Low</div>
+
+            <div
+              onClick={() => navigate('/risk?tier=low')}
+              className="p-3 rounded-card border border-border bg-surface hover:bg-surface-sunken cursor-pointer transition-colors"
+            >
+              <div className="text-xl font-medium tabular-nums text-text-muted">
+                {lowRiskStudents.length}
+              </div>
+              <div className="text-[11px] font-medium text-text-muted mt-0.5">Low</div>
             </div>
           </div>
 
-          <div className="pt-2 text-[11px] text-fg-muted">
-            Top primary causes: <strong>1.</strong> Consecutive unexcused absences (48%), <strong>2.</strong> Late EMI instalment payments (32%), <strong>3.</strong> Assignment backlogs (20%).
+          <div className="pt-2 text-[11px] text-text-muted leading-relaxed">
+            Primary risk drivers: consecutive absences (&gt; 3 sessions), overdue instalment dates (&gt; 10 days), and assignment backlog.
           </div>
         </div>
 
-        {/* Attendance Heatmap batch x day */}
-        <div className="lg:col-span-6 rounded-card border border-border bg-surface p-4 space-y-3 shadow-sm">
+        {/* Attendance matrix on one sequential accent scale (6 cols) */}
+        <div className="lg:col-span-6 border border-border rounded-card bg-surface p-4 space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-border">
-            <h3 className="text-xs font-semibold text-fg">Attendance Heatmap (Batch × Day)</h3>
-            <span className="text-xs text-primary font-medium hover:underline cursor-pointer" onClick={() => navigate('/attendance')}>
-              Detailed matrix
-            </span>
+            <h3 className="text-xs font-semibold text-text">Attendance matrix (batch × weekday)</h3>
+            <button
+              onClick={() => navigate('/attendance')}
+              className="text-xs text-accent hover:underline"
+            >
+              Detailed ledger
+            </button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="text-[11px] text-fg-muted border-b border-border">
+              <thead className="text-[11px] text-text-muted border-b border-border">
                 <tr>
-                  <th className="py-1.5 px-2">Batch</th>
-                  <th className="py-1.5 px-2 text-center">Mon</th>
-                  <th className="py-1.5 px-2 text-center">Tue</th>
-                  <th className="py-1.5 px-2 text-center">Wed</th>
-                  <th className="py-1.5 px-2 text-center">Thu</th>
-                  <th className="py-1.5 px-2 text-center">Fri</th>
+                  <th className="py-1.5 px-2 font-medium">Batch</th>
+                  <th className="py-1.5 px-2 text-center font-medium">Mon</th>
+                  <th className="py-1.5 px-2 text-center font-medium">Tue</th>
+                  <th className="py-1.5 px-2 text-center font-medium">Wed</th>
+                  <th className="py-1.5 px-2 text-center font-medium">Thu</th>
+                  <th className="py-1.5 px-2 text-center font-medium">Fri</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/60">
+              <tbody className="divide-y divide-border">
                 {attendanceHeatmapData.map((row, idx) => (
                   <tr key={idx}>
-                    <td className="py-2 px-2 font-medium text-fg truncate max-w-[150px]">{row.batch}</td>
-                    {[row.mon, row.tue, row.wed, row.thu, row.fri].map((pct, pIdx) => {
-                      const color =
-                        pct >= 90
-                          ? 'bg-success/20 text-success'
-                          : pct >= 80
-                          ? 'bg-primary/15 text-primary'
-                          : 'bg-warning/20 text-warning'
-                      return (
-                        <td key={pIdx} className="py-1.5 px-2 text-center">
-                          <span className={`inline-block px-1.5 py-0.5 rounded font-mono text-[11px] font-semibold ${color}`}>
-                            {pct}%
-                          </span>
-                        </td>
-                      )
-                    })}
+                    <td className="py-2 px-2 font-medium text-text truncate max-w-[150px]">
+                      {row.batch}
+                    </td>
+                    {[row.mon, row.tue, row.wed, row.thu, row.fri].map((pct, pIdx) => (
+                      <td key={pIdx} className="py-1 px-1.5 text-center">
+                        <span
+                          className={`inline-block w-10 py-1 rounded text-center tabular-nums text-[11px] ${getSequentialAccentClass(
+                            pct
+                          )}`}
+                        >
+                          {pct}%
+                        </span>
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* Sequential Accent Scale Legend */}
+          <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-text-muted">
+            <span>Sequential scale:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded bg-accent/15" /> &lt;80%
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded bg-accent/25" /> 80–84%
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded bg-accent/40" /> 85–89%
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded bg-accent/70" /> 90–94%
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded bg-accent" /> ≥95%
+              </span>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* 6. Operational summary, generated 08:30 IST — Collapsed by default */}
+      <div className="border border-border rounded-card bg-surface overflow-hidden">
+        <button
+          onClick={() => setIsSummaryOpen(!isSummaryOpen)}
+          className="w-full px-4 py-3 bg-surface-sunken/40 flex items-center justify-between text-left hover:bg-surface-sunken transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            {isSummaryOpen ? (
+              <ChevronDown className="w-4 h-4 text-text-muted" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-text-muted" />
+            )}
+            <span className="text-xs font-semibold text-text">
+              Operational summary, generated 08:30 IST
+            </span>
+          </div>
+          <span className="text-[11px] text-text-muted">
+            {isSummaryOpen ? 'Click to collapse' : 'Click to expand'}
+          </span>
+        </button>
+
+        {isSummaryOpen && (
+          <div className="p-4 border-t border-border space-y-2.5 text-xs text-text leading-relaxed">
+            <div className="flex items-start gap-2">
+              <span className="text-text-muted">•</span>
+              <div>
+                <strong>Timetable conflict:</strong> Arjun Mehta has two overlapping sessions
+                scheduled for Thursday 19:00 in Kothrud (Java Full-Stack B3 (Kothrud) in Room 3 &
+                Spring Doubt Clearing in Room 1).{' '}
+                <button
+                  onClick={() => navigate('/timetable')}
+                  className="text-accent font-medium hover:underline inline-flex items-center gap-0.5 ml-1"
+                >
+                  Resolve in timetable <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <span className="text-text-muted">•</span>
+              <div>
+                <strong>Fee dues & risk:</strong> 5 students in Java Full-Stack B3 (Kothrud) have
+                missed 3 or more classes with EMIs due this week, totaling <strong>₹32,500</strong>.{' '}
+                <button
+                  onClick={() => navigate('/approvals')}
+                  className="text-accent font-medium hover:underline inline-flex items-center gap-0.5 ml-1"
+                >
+                  Review approval queue <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <span className="text-text-muted">•</span>
+              <div>
+                <strong>Room capacity:</strong> Java Full-Stack B3 (Kothrud) has 32 registered
+                students in Room 3 (capacity 30). Recommend shifting to Room 4 or capping offline
+                seats.{' '}
+                <button
+                  onClick={() => navigate('/batches/batch-java-b3')}
+                  className="text-accent font-medium hover:underline inline-flex items-center gap-0.5 ml-1"
+                >
+                  Inspect batch capacity <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <span className="text-text-muted">•</span>
+              <div>
+                <strong>Bank reconciliation:</strong> 1 UPI transfer of ₹6,500 requires student name
+                verification (sender: K. Balakrishnan Nair).{' '}
+                <button
+                  onClick={() => navigate('/payments')}
+                  className="text-accent font-medium hover:underline inline-flex items-center gap-0.5 ml-1"
+                >
+                  Reconcile in payments ledger <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

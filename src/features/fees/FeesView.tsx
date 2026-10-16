@@ -1,19 +1,16 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  IndianRupee,
   Clock,
-  AlertTriangle,
-  Sparkles,
   Download,
-  Filter,
-  CheckCircle2,
   Lock,
-  ArrowRight,
+  CheckCircle2,
+  AlertOctagon,
+  AlertTriangle,
+  MessageSquare,
+  X,
 } from 'lucide-react'
 import { KpiCard } from '@/components/app/KpiCard'
-import { StatusPill } from '@/components/ui/StatusPill'
-import { ReasonChip } from '@/components/ui/ReasonChip'
 import { Button } from '@/components/ui/Button'
 import { ApprovalCard } from '@/components/app/ApprovalCard'
 import { useApp } from '@/context/AppContext'
@@ -22,28 +19,28 @@ import { store } from '@/mocks/store'
 import { formatINR } from '@/lib/utils'
 
 export const FeesView: React.FC = () => {
-  const { role, setCopilotOpen } = useApp()
+  const { role } = useApp()
   const { success } = useToast()
   const navigate = useNavigate()
 
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [showBulkApprovalModal, setShowBulkApprovalModal] = useState(false)
 
-  // Trainer Role Access Boundary Guard
+  // Trainer Role Access Boundary Guard: locked panel with no financial data
   if (role === 'trainer') {
     return (
-      <div className="p-8 text-center max-w-md mx-auto space-y-4 animate-fade-in">
-        <div className="w-12 h-12 rounded-full bg-surface-2 border border-border flex items-center justify-center mx-auto text-fg-muted">
-          <Lock className="w-6 h-6" />
+      <div className="p-8 text-center max-w-md mx-auto space-y-4">
+        <div className="w-12 h-12 rounded-full bg-surface-sunken border border-border flex items-center justify-center mx-auto text-text-muted">
+          <Lock className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="text-base font-bold text-fg">Permission Restricted</h2>
-          <p className="text-xs text-fg-muted mt-1">
-            Fee ledgers and financial transactions are restricted to Owner, Accounts, and Counselors.
+          <h2 className="text-base font-semibold text-text">Permission restricted</h2>
+          <p className="text-xs text-text-muted mt-1 leading-relaxed">
+            Financial ledgers and fee instalments are restricted to Owner, Accounts, and Counselor roles.
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => navigate('/')}>
-          Return to Dashboard
+        <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
+          Return to dashboard
         </Button>
       </div>
     )
@@ -64,29 +61,58 @@ export const FeesView: React.FC = () => {
     .filter((f) => f.status === 'due_soon')
     .reduce((acc, curr) => acc + curr.amount, 0)
 
+  const renderStatusGlyph = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return (
+          <span className="inline-flex items-center gap-1 text-success text-xs">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Paid
+          </span>
+        )
+      case 'overdue':
+        return (
+          <span className="inline-flex items-center gap-1 text-danger font-medium text-xs">
+            <AlertOctagon className="w-3.5 h-3.5" /> Overdue
+          </span>
+        )
+      case 'due_soon':
+        return (
+          <span className="inline-flex items-center gap-1 text-warning text-xs font-medium">
+            <Clock className="w-3.5 h-3.5" /> Due soon
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-text-muted text-xs">
+            <Clock className="w-3.5 h-3.5" /> Pending
+          </span>
+        )
+    }
+  }
+
   return (
-    <div className="space-y-5 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">Fees & EMIs Ledger</h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            Real-time instalment tracking · Ageing breakdown & Automated WhatsApp reminders
+          <h1 className="text-xl font-semibold text-text">Fees & EMIs</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Instalment ledger, dues ageing breakdown, and staged payment reminders
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
-            variant="ai"
+            variant="secondary"
             size="sm"
             onClick={() => setShowBulkApprovalModal(true)}
-            leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+            leftIcon={<MessageSquare className="w-3.5 h-3.5" />}
           >
-            Draft Reminders (5 overdue)
+            Review reminders (5 staged)
           </Button>
 
           <Button
-            variant="outline"
+            variant="primary"
             size="sm"
             onClick={() => success('Exporting fee reconciliation sheet...')}
             leftIcon={<Download className="w-3.5 h-3.5" />}
@@ -96,150 +122,138 @@ export const FeesView: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Strip */}
+      {/* KPI Strip: Sans tabular figures, text trends */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
-          label="Due This Week"
+          label="Due this week"
           value={formatINR(totalDueSoon)}
-          delta={{ value: '3 instalments', isNeutral: true }}
-          sparklineData={[15000, 18000, 19500, 19500]}
-          sparklineColor="var(--warning)"
+          delta={{ value: '3 instalments pending', isNeutral: true }}
         />
         <KpiCard
           label="Overdue EMIs"
           value={formatINR(totalOverdue)}
-          delta={{ value: '2 students', isPositive: false }}
-          sparklineData={[6500, 6500, 13000, 13000]}
-          sparklineColor="var(--danger)"
+          delta={{ value: '2 students overdue', isPositive: false }}
         />
         <KpiCard
-          label="Collected MTD"
+          label="Collected this month"
           value={formatINR(462500)}
-          delta={{ value: '+18% vs last month', isPositive: true }}
-          sparklineData={[120000, 240000, 310000, 462500]}
-          sparklineColor="var(--success)"
+          delta={{ value: 'Target: ₹5,00,000 (92.5%)', isPositive: true }}
         />
         <KpiCard
-          label="Collection Rate"
+          label="Collection rate"
           value="94.2%"
-          delta={{ value: 'Target: 95%', isPositive: true }}
-          sparklineData={[89, 91, 92, 94.2]}
-          sparklineColor="var(--primary)"
+          delta={{ value: '+1.4% vs last month', isPositive: true }}
         />
       </div>
 
-      {/* Ageing Stacked Bar */}
-      <div className="p-4 rounded-card border border-border bg-surface space-y-3 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-fg uppercase tracking-wider font-mono">
-            Overdue Ageing Breakdown (₹45,500 total arrears)
+      {/* Flat Ageing Bar */}
+      <div className="p-4 rounded-card border border-border bg-surface space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-text">
+            Overdue dues ageing (₹45,500 total arrears)
           </h3>
-          <span className="text-xs text-fg-muted font-mono">IST Snapshot</span>
+          <span className="text-[11px] text-text-muted">Updated today</span>
         </div>
 
-        <div className="w-full h-3 rounded-full bg-surface-2 overflow-hidden flex border border-border">
-          <div className="bg-amber-400 h-full" style={{ width: '40%' }} title="0-7 Days: ₹19,500" />
-          <div className="bg-amber-600 h-full" style={{ width: '35%' }} title="8-30 Days: ₹13,000" />
-          <div className="bg-danger h-full" style={{ width: '15%' }} title="31-60 Days: ₹6,500" />
-          <div className="bg-red-800 h-full" style={{ width: '10%' }} title="60+ Days: ₹6,500" />
+        {/* Flat neutral/accent segments */}
+        <div className="w-full h-2.5 rounded bg-surface-sunken overflow-hidden flex border border-border">
+          <div className="bg-warning h-full" style={{ width: '42%' }} title="1–7 days: ₹19,500" />
+          <div className="bg-amber-600 h-full" style={{ width: '29%' }} title="8–15 days: ₹13,000" />
+          <div className="bg-danger h-full" style={{ width: '29%' }} title="16–30 days: ₹13,000" />
         </div>
 
-        <div className="grid grid-cols-4 gap-2 text-xs text-fg-muted pt-1">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
-            <span>0–7 Days: <strong>₹19,500</strong></span>
+        <div className="grid grid-cols-3 gap-2 text-xs pt-1">
+          <div className="flex items-center gap-1.5 text-text-muted">
+            <span className="w-2 h-2 rounded bg-warning shrink-0" />
+            <span>1–7 days: <strong className="text-text tabular-nums">₹19,500</strong></span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-600 shrink-0" />
-            <span>8–30 Days: <strong>₹13,000</strong></span>
+          <div className="flex items-center gap-1.5 text-text-muted">
+            <span className="w-2 h-2 rounded bg-amber-600 shrink-0" />
+            <span>8–15 days: <strong className="text-text tabular-nums">₹13,000</strong></span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-danger shrink-0" />
-            <span>31–60 Days: <strong>₹6,500</strong></span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-800 shrink-0" />
-            <span>60+ Days: <strong>₹6,500</strong></span>
+          <div className="flex items-center gap-1.5 text-text-muted">
+            <span className="w-2 h-2 rounded bg-danger shrink-0" />
+            <span>16–30 days: <strong className="text-text tabular-nums">₹13,000</strong></span>
           </div>
         </div>
       </div>
 
       {/* Instalments Table */}
-      <div className="rounded-card border border-border bg-surface overflow-x-auto shadow-sm">
-        <div className="p-3 border-b border-border bg-surface-2 flex items-center justify-between">
+      <div className="rounded-card border border-border bg-surface overflow-x-auto">
+        <div className="p-3 border-b border-border bg-surface-sunken/40 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-fg">Active Instalments</span>
+            <span className="text-xs font-semibold text-text">Instalments</span>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-surface border border-border text-fg rounded-btn px-2 py-1 text-xs outline-none focus:border-primary"
+              className="bg-surface border border-border text-text rounded-control px-2 py-1 text-xs outline-none focus:border-accent"
             >
-              <option value="all">All Statuses</option>
+              <option value="all">All statuses</option>
               <option value="overdue">Overdue</option>
-              <option value="due_soon">Due Soon</option>
+              <option value="due_soon">Due soon</option>
               <option value="paid">Paid</option>
-              <option value="partially_paid">Partially Paid</option>
+              <option value="partially_paid">Partially paid</option>
             </select>
           </div>
-          <span className="text-xs font-mono text-fg-muted">
-            Showing {filtered.length} entries
+          <span className="text-xs text-text-muted tabular-nums">
+            {filtered.length} instalments
           </span>
         </div>
 
         <table className="w-full text-left text-xs">
-          <thead className="bg-surface-2/60 border-b border-border text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
+          <thead className="bg-surface-sunken border-b border-border text-[11px] font-medium text-text-muted sticky top-0">
             <tr>
-              <th className="py-2.5 px-3">Student</th>
-              <th className="py-2.5 px-3">Batch</th>
-              <th className="py-2.5 px-3">Sequence</th>
-              <th className="py-2.5 px-3">Due Date</th>
-              <th className="py-2.5 px-3">Amount</th>
-              <th className="py-2.5 px-3">Paid</th>
-              <th className="py-2.5 px-3">Status</th>
-              <th className="py-2.5 px-3">Overdue Days</th>
-              <th className="py-2.5 px-3 text-right">Action</th>
+              <th className="py-2 px-3">Student</th>
+              <th className="py-2 px-3">Batch</th>
+              <th className="py-2 px-3">Instalment</th>
+              <th className="py-2 px-3">Due date</th>
+              <th className="py-2 px-3 text-right">Amount</th>
+              <th className="py-2 px-3 text-right">Paid</th>
+              <th className="py-2 px-3">Status</th>
+              <th className="py-2 px-3 text-right">Overdue</th>
+              <th className="py-2 px-3 text-right">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/60">
+          <tbody className="divide-y divide-border">
             {filtered.map((inst) => (
-              <tr key={inst.id} className="hover:bg-surface-2/50 transition-colors">
-                <td className="py-2.5 px-3 font-medium text-fg">
+              <tr key={inst.id} className="hover:bg-surface-sunken/40 h-10 transition-colors">
+                <td className="px-3 font-medium text-text">
                   <div className="flex items-center gap-2">
                     <span>{inst.studentName}</span>
                     {inst.isSecondMissed && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-danger/15 text-danger font-mono font-bold">
-                        2nd Missed
+                      <span className="text-[10px] text-danger font-medium">
+                        (2nd missed)
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="py-2.5 px-3 text-fg-muted">{inst.batchName}</td>
-                <td className="py-2.5 px-3 font-mono text-[11px] text-fg-muted">{inst.sequence}</td>
-                <td className="py-2.5 px-3 font-mono">{inst.dueDate}</td>
-                <td className="py-2.5 px-3 font-mono font-bold text-fg">
+                <td className="px-3 text-text-muted truncate max-w-[180px]">
+                  {inst.batchName}
+                </td>
+                <td className="px-3 text-text-muted">{inst.sequence}</td>
+                <td className="px-3 text-text-muted tabular-nums">{inst.dueDate}</td>
+                <td className="px-3 text-right tabular-nums font-medium text-text">
                   {formatINR(inst.amount)}
                 </td>
-                <td className="py-2.5 px-3 font-mono text-fg-muted">
+                <td className="px-3 text-right tabular-nums text-text-muted">
                   {formatINR(inst.paidAmount)}
                 </td>
-                <td className="py-2.5 px-3">
-                  <StatusPill status={inst.status} size="sm" />
+                <td className="px-3">
+                  {renderStatusGlyph(inst.status)}
                 </td>
-                <td className="py-2.5 px-3 font-mono">
+                <td className="px-3 text-right tabular-nums">
                   {inst.daysOverdue > 0 ? (
-                    <span className="text-danger font-semibold">+{inst.daysOverdue} days</span>
+                    <span className="text-danger font-medium">+{inst.daysOverdue}d</span>
                   ) : (
-                    <span className="text-fg-muted">—</span>
+                    <span className="text-text-muted">—</span>
                   )}
                 </td>
-                <td className="py-2.5 px-3 text-right">
+                <td className="px-3 text-right">
                   <button
-                    onClick={() => {
-                      setShowBulkApprovalModal(true)
-                    }}
-                    className="text-xs text-ai font-semibold hover:underline"
+                    onClick={() => setShowBulkApprovalModal(true)}
+                    className="text-xs text-accent hover:underline font-medium"
                   >
-                    Draft WhatsApp
+                    Draft reminder
                   </button>
                 </td>
               </tr>
@@ -251,20 +265,21 @@ export const FeesView: React.FC = () => {
       {/* Bulk Approval Modal */}
       {showBulkApprovalModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={() => setShowBulkApprovalModal(false)}
         >
           <div
-            className="w-full max-w-lg bg-surface border border-border rounded-modal shadow-modal p-6 text-fg relative"
+            className="w-full max-w-lg bg-surface border border-border rounded-dialog shadow-dialog p-6 text-text relative"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-sm font-semibold">Staged AI Action</h3>
+              <h3 className="text-sm font-semibold text-text">Staged reminder approval</h3>
               <button
                 onClick={() => setShowBulkApprovalModal(false)}
-                className="text-fg-muted hover:text-fg p-1 rounded-btn"
+                className="text-text-muted hover:text-text p-1 rounded-control"
+                aria-label="Close dialog"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 

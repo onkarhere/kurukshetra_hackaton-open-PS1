@@ -4,14 +4,12 @@ import {
   Send,
   Clock,
   CheckCircle2,
-  AlertTriangle,
-  Sparkles,
+  AlertOctagon,
   FileText,
-  Filter,
 } from 'lucide-react'
-import { StatusPill } from '@/components/ui/StatusPill'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import { cn } from '@/lib/utils'
 
 interface MessageRecord {
   id: string
@@ -33,7 +31,7 @@ export const MessagesView: React.FC = () => {
       recipient: 'Priya Nair',
       phone: '+91 98201 55432',
       channel: 'WhatsApp',
-      content: 'Hi Priya, your EMI of ₹6,500 for Java Full-Stack B3 was due on 04 Oct. Please clear it online: codecraft.ac.in/pay',
+      content: 'Hi Priya, your EMI of ₹6,500 for Java Full-Stack B3 (Kothrud) was due on 04 Oct. Please clear it online: codecraft.ac.in/pay',
       sentAt: '16 Oct 10:30 IST',
       status: 'read',
     },
@@ -42,7 +40,7 @@ export const MessagesView: React.FC = () => {
       recipient: 'Rohan Kulkarni',
       phone: '+91 98450 11988',
       channel: 'WhatsApp',
-      content: 'Hi Rohan, your 2nd EMI of ₹6,500 for Java Full-Stack B3 is 18 days overdue. Please settle this today.',
+      content: 'Hi Rohan, your 2nd EMI of ₹6,500 for Java Full-Stack B3 (Kothrud) is 18 days overdue. Please settle this today.',
       sentAt: '16 Oct 10:30 IST',
       status: 'delivered',
     },
@@ -51,7 +49,7 @@ export const MessagesView: React.FC = () => {
       recipient: 'Devendra Joshi',
       phone: '+91 98902 44781',
       channel: 'WhatsApp',
-      content: 'Hi Devendra, friendly reminder that your EMI of ₹6,500 for Java Full-Stack B3 is due tomorrow.',
+      content: 'Hi Devendra, friendly reminder that your EMI of ₹6,500 for Java Full-Stack B3 (Kothrud) is due tomorrow.',
       sentAt: '16 Oct 10:30 IST',
       status: 'delivered',
     },
@@ -60,7 +58,7 @@ export const MessagesView: React.FC = () => {
       recipient: 'Amit Sane',
       phone: '+91 97631 88920',
       channel: 'WhatsApp',
-      content: 'Hi Amit, your EMI of ₹6,500 for Java Full-Stack B3 is due on 17 Oct. Pay online: codecraft.ac.in/pay',
+      content: 'Hi Amit, your EMI of ₹6,500 for Java Full-Stack B3 (Kothrud) is due on 17 Oct. Pay online: codecraft.ac.in/pay',
       sentAt: '16 Oct 10:30 IST',
       status: 'queued',
     },
@@ -90,14 +88,43 @@ export const MessagesView: React.FC = () => {
     },
   ]
 
+  const renderStatus = (status: string) => {
+    switch (status) {
+      case 'read':
+        return (
+          <span className="inline-flex items-center gap-1 text-accent text-xs">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Read
+          </span>
+        )
+      case 'delivered':
+        return (
+          <span className="inline-flex items-center gap-1 text-success text-xs">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Delivered
+          </span>
+        )
+      case 'queued':
+        return (
+          <span className="inline-flex items-center gap-1 text-text-muted text-xs">
+            <Clock className="w-3.5 h-3.5" /> Queued
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-danger text-xs">
+            <AlertOctagon className="w-3.5 h-3.5" /> Failed
+          </span>
+        )
+    }
+  }
+
   return (
-    <div className="space-y-4 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">Communications & Outbox</h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            Automated WhatsApp reminders, SMS broadcasts & delivery audit logs
+          <h1 className="text-xl font-semibold text-text">Messages</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Outbound WhatsApp dispatches, automated reminder delivery, and template management
           </p>
         </div>
 
@@ -107,65 +134,63 @@ export const MessagesView: React.FC = () => {
           onClick={() => success('New broadcast composer launched.')}
           leftIcon={<Send className="w-3.5 h-3.5" />}
         >
-          New Broadcast
+          New broadcast
         </Button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border text-xs font-medium">
+      <div className="flex items-center gap-1 border-b border-border text-xs font-medium">
         <button
           onClick={() => setActiveTab('outbox')}
-          className={`py-2 px-3 border-b-2 transition-colors ${
+          className={cn(
+            'py-2 px-3 border-b-2 transition-colors',
             activeTab === 'outbox'
-              ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+              ? 'border-accent text-text font-semibold'
+              : 'border-transparent text-text-muted hover:text-text'
+          )}
         >
-          Message Outbox ({outbox.length})
+          Outbox ({outbox.length})
         </button>
         <button
           onClick={() => setActiveTab('templates')}
-          className={`py-2 px-3 border-b-2 transition-colors ${
+          className={cn(
+            'py-2 px-3 border-b-2 transition-colors',
             activeTab === 'templates'
-              ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+              ? 'border-accent text-text font-semibold'
+              : 'border-transparent text-text-muted hover:text-text'
+          )}
         >
-          Notification Templates ({templates.length})
+          Notification templates ({templates.length})
         </button>
       </div>
 
       {/* Outbox View */}
       {activeTab === 'outbox' && (
-        <div className="rounded-card border border-border bg-surface overflow-x-auto shadow-sm">
+        <div className="rounded-card border border-border bg-surface overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-surface-2 border-b border-border text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
+            <thead className="bg-surface-sunken border-b border-border text-[11px] font-medium text-text-muted sticky top-0">
               <tr>
-                <th className="py-2.5 px-3">Recipient</th>
-                <th className="py-2.5 px-3">Channel</th>
-                <th className="py-2.5 px-3">Message Content</th>
-                <th className="py-2.5 px-3">Timestamp</th>
-                <th className="py-2.5 px-3">Delivery Status</th>
+                <th className="py-2 px-3">Recipient</th>
+                <th className="py-2 px-3">Channel</th>
+                <th className="py-2 px-3">Message</th>
+                <th className="py-2 px-3">Sent time (IST)</th>
+                <th className="py-2 px-3">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/60">
+            <tbody className="divide-y divide-border">
               {outbox.map((msg) => (
-                <tr key={msg.id} className="hover:bg-surface-2/40 transition-colors">
-                  <td className="py-2.5 px-3 font-semibold text-fg">
+                <tr key={msg.id} className="hover:bg-surface-sunken/40 h-10 transition-colors">
+                  <td className="px-3 font-medium text-text">
                     <div>{msg.recipient}</div>
-                    <div className="font-mono text-[11px] text-fg-muted">{msg.phone}</div>
+                    <div className="font-mono text-[10px] text-text-muted">{msg.phone}</div>
                   </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-mono text-primary font-medium">{msg.channel}</span>
-                  </td>
-                  <td className="py-2.5 px-3 text-fg leading-relaxed max-w-md">
-                    {msg.content}
-                  </td>
-                  <td className="py-2.5 px-3 font-mono text-fg-muted text-[11px]">
+                  <td className="px-3 text-text-muted">{msg.channel}</td>
+                  <td className="px-3 text-text max-w-md truncate">{msg.content}</td>
+                  <td className="px-3 text-text-muted text-[11px] tabular-nums whitespace-nowrap">
                     {msg.sentAt}
                   </td>
-                  <td className="py-2.5 px-3">
-                    <StatusPill status={msg.status} size="sm" />
+                  <td className="px-3 whitespace-nowrap">
+                    {renderStatus(msg.status)}
                   </td>
                 </tr>
               ))}
@@ -180,28 +205,28 @@ export const MessagesView: React.FC = () => {
           {templates.map((tmpl) => (
             <div
               key={tmpl.id}
-              className="p-4 rounded-card border border-border bg-surface space-y-3 shadow-sm hover:border-primary/40 transition-colors"
+              className="p-4 rounded-card border border-border bg-surface space-y-3"
             >
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-xs text-fg">{tmpl.title}</span>
-                <span className="text-[10px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                <span className="font-medium text-xs text-text">{tmpl.title}</span>
+                <span className="text-[10px] font-mono text-text-muted border border-border px-1.5 py-0.5 rounded bg-surface-sunken">
                   {tmpl.channel}
                 </span>
               </div>
 
-              <p className="text-xs text-fg-muted leading-relaxed font-sans bg-surface-2 p-2.5 rounded-btn border border-border">
+              <p className="text-xs text-text-muted leading-relaxed font-sans bg-surface-sunken p-2.5 rounded-control border border-border">
                 {tmpl.body}
               </p>
 
               <div className="space-y-1">
-                <div className="text-[10px] font-mono uppercase text-fg-muted font-semibold">
+                <div className="text-[10px] uppercase font-medium text-text-muted">
                   Variables:
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {tmpl.variables.map((v, idx) => (
                     <span
                       key={idx}
-                      className="px-1.5 py-0.5 rounded bg-ai/10 text-ai text-[10px] font-mono"
+                      className="px-1.5 py-0.5 rounded border border-border bg-surface text-text-muted text-[10px] font-mono"
                     >
                       {`{${v}}`}
                     </span>

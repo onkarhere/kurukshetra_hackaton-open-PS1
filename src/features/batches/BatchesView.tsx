@@ -1,33 +1,27 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Layers,
   Users,
   Calendar,
-  Clock,
-  Sparkles,
-  Building2,
-  AlertTriangle,
+  AlertOctagon,
   Plus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { ReasonChip } from '@/components/ui/ReasonChip'
 import { store } from '@/mocks/store'
-import { Batch } from '@/types'
-import { cn } from '@/lib/utils'
 
 export const BatchesView: React.FC = () => {
   const navigate = useNavigate()
   const batches = store.batches
 
   return (
-    <div className="space-y-4 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">Active Batches</h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            Capacity tracking, trainer assignment & weekly cohort schedule patterns
+          <h1 className="text-xl font-semibold text-text">Batches</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Cohort capacity tracking, trainer assignments, and schedule patterns
           </p>
         </div>
 
@@ -37,86 +31,63 @@ export const BatchesView: React.FC = () => {
           onClick={() => navigate('/setup')}
           leftIcon={<Plus className="w-3.5 h-3.5" />}
         >
-          New Batch
+          New batch
         </Button>
       </div>
 
       {/* Batches Table */}
-      <div className="rounded-card border border-border bg-surface overflow-x-auto shadow-sm">
+      <div className="rounded-card border border-border bg-surface overflow-x-auto">
         <table className="w-full text-left text-xs">
-          <thead className="bg-surface-2 border-b border-border text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
+          <thead className="bg-surface-sunken border-b border-border text-[11px] font-medium text-text-muted sticky top-0">
             <tr>
-              <th className="py-2.5 px-3">Batch Name</th>
-              <th className="py-2.5 px-3">Course</th>
-              <th className="py-2.5 px-3">Faculty / Trainer</th>
-              <th className="py-2.5 px-3">Schedule Pattern</th>
-              <th className="py-2.5 px-3">Room / Mode</th>
-              <th className="py-2.5 px-3">Capacity</th>
-              <th className="py-2.5 px-3">Progress</th>
-              <th className="py-2.5 px-3">Health</th>
+              <th className="py-2 px-3">Batch name</th>
+              <th className="py-2 px-3">Course</th>
+              <th className="py-2 px-3">Trainer</th>
+              <th className="py-2 px-3">Schedule pattern</th>
+              <th className="py-2 px-3">Room & mode</th>
+              <th className="py-2 px-3 text-right">Capacity</th>
+              <th className="py-2 px-3 text-right">Progress</th>
+              <th className="py-2 px-3 text-right">Health</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/60">
+          <tbody className="divide-y divide-border">
             {batches.map((b) => {
               const isOverCapacity = b.enrolledCount > b.capacity
               return (
                 <tr
                   key={b.id}
                   onClick={() => navigate(`/batches/${b.id}`)}
-                  className="hover:bg-surface-2/60 cursor-pointer transition-colors h-12"
+                  className="hover:bg-surface-sunken/40 cursor-pointer h-10 transition-colors"
                 >
-                  <td className="py-2.5 px-3 font-semibold text-fg">
+                  <td className="px-3 font-medium text-text">
                     <div className="flex items-center gap-1.5">
-                      <span>{b.name}</span>
+                      <span className="truncate max-w-[200px]">{b.name}</span>
                       {isOverCapacity && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-danger/10 text-danger font-mono font-bold">
-                          Over Capacity
+                        <span className="inline-flex items-center gap-1 text-[10px] text-danger font-medium shrink-0">
+                          <AlertOctagon className="w-3 h-3" />
+                          Over capacity
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="py-2.5 px-3 text-fg-muted">{b.courseName}</td>
-                  <td className="py-2.5 px-3 font-medium text-fg">{b.trainerName}</td>
-                  <td className="py-2.5 px-3 font-mono text-[11px] text-fg-muted">
+                  <td className="px-3 text-text-muted truncate max-w-[160px]">{b.courseName}</td>
+                  <td className="px-3 text-text">{b.trainerName}</td>
+                  <td className="px-3 text-text-muted text-[11px] tabular-nums">
                     {b.schedulePattern}
                   </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-mono text-fg">{b.room}</span>
-                    <span className="text-fg-muted text-[10px] ml-1">({b.mode})</span>
+                  <td className="px-3 text-text-muted">
+                    {b.room} · {b.mode}
                   </td>
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 rounded-full bg-surface-2 overflow-hidden border border-border">
-                        <div
-                          className={`h-full ${isOverCapacity ? 'bg-danger' : 'bg-primary'}`}
-                          style={{ width: `${Math.min(100, (b.enrolledCount / b.capacity) * 100)}%` }}
-                        />
-                      </div>
-                      <span className="font-mono font-bold text-fg">
-                        {b.enrolledCount}/{b.capacity}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-12 h-1.5 rounded-full bg-surface-2 overflow-hidden border border-border">
-                        <div className="h-full bg-success" style={{ width: `${b.progress}%` }} />
-                      </div>
-                      <span className="font-mono text-[11px] text-fg-muted">{b.progress}%</span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span
-                      className={`font-mono font-bold text-xs ${
-                        b.healthScore >= 90
-                          ? 'text-success'
-                          : b.healthScore >= 80
-                          ? 'text-primary'
-                          : 'text-warning'
-                      }`}
-                    >
-                      {b.healthScore}%
+                  <td className="px-3 text-right tabular-nums font-medium text-text">
+                    <span className={isOverCapacity ? 'text-danger' : 'text-text'}>
+                      {b.enrolledCount} / {b.capacity}
                     </span>
+                  </td>
+                  <td className="px-3 text-right tabular-nums text-text-muted">
+                    {b.progress}%
+                  </td>
+                  <td className="px-3 text-right tabular-nums font-medium text-text">
+                    {b.healthScore}%
                   </td>
                 </tr>
               )

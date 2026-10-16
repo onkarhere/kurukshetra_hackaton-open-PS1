@@ -8,82 +8,72 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: 'var(--bg)',
+        canvas: 'var(--canvas)',
         surface: {
           DEFAULT: 'var(--surface)',
-          2: 'var(--surface-2)',
+          sunken: 'var(--surface-sunken)',
         },
-        border: 'var(--border)',
-        fg: {
+        border: {
+          DEFAULT: 'var(--border)',
+          strong: 'var(--border-strong)',
+        },
+        text: {
           DEFAULT: 'var(--text)',
           muted: 'var(--text-muted)',
         },
-        primary: {
-          DEFAULT: 'var(--primary)',
-          hover: 'var(--primary-hover)',
-          surface: 'var(--primary-surface)',
-        },
-        ai: {
-          DEFAULT: 'var(--ai)',
-          surface: 'var(--ai-surface)',
-          border: 'var(--ai-border)',
+        accent: {
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
+          fg: 'var(--accent-fg)',
+          subtle: 'var(--accent-subtle)',
         },
         success: {
           DEFAULT: 'var(--success)',
-          surface: 'var(--success-surface)',
+          subtle: 'var(--success-subtle)',
         },
         warning: {
           DEFAULT: 'var(--warning)',
-          surface: 'var(--warning-surface)',
+          subtle: 'var(--warning-subtle)',
         },
         danger: {
           DEFAULT: 'var(--danger)',
-          surface: 'var(--danger-surface)',
+          subtle: 'var(--danger-subtle)',
         },
         info: {
           DEFAULT: 'var(--info)',
-          surface: 'var(--info-surface)',
+          subtle: 'var(--info-subtle)',
+        },
+        'ai-chip': {
+          DEFAULT: 'var(--ai-chip)',
+          bg: 'var(--ai-chip-bg)',
         },
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+        sans: ['IBM Plex Sans', 'Source Sans 3', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'monospace'],
       },
       borderRadius: {
-        btn: '6px',
-        input: '6px',
-        card: '10px',
-        modal: '14px',
+        control: '6px',
+        card: '8px',
+        dialog: '12px',
         full: '9999px',
       },
       boxShadow: {
-        hover: '0 1px 2px rgb(16 24 40 / 0.06)',
-        popover: '0 8px 24px rgb(16 24 40 / 0.12)',
-        modal: '0 20px 48px rgb(16 24 40 / 0.18)',
+        popover: '0 8px 24px rgba(0, 0, 0, 0.10)',
+        dialog: '0 16px 48px rgba(0, 0, 0, 0.16)',
       },
-      keyframes: {
-        'fade-in': {
-          '0%': { opacity: '0', transform: 'translateY(4px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        'slide-in-right': {
-          '0%': { transform: 'translateX(100%)' },
-          '100%': { transform: 'translateX(0)' },
-        },
-        'scale-in': {
-          '0%': { opacity: '0', transform: 'scale(0.96)' },
-          '100%': { opacity: '1', transform: 'scale(1)' },
-        },
-        pulse_subtle: {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.6' },
-        },
+      transitionDuration: {
+        DEFAULT: '120ms',
+        sheet: '180ms',
       },
-      animation: {
-        'fade-in': 'fade-in 150ms ease-out',
-        'slide-in-right': 'slide-in-right 200ms ease-out',
-        'scale-in': 'scale-in 150ms ease-out',
-        'pulse-subtle': 'pulse_subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      fontSize: {
+        'xs': ['12px', '16px'],
+        'sm': ['13px', '18px'],
+        'base': ['14px', '20px'],
+        'lg': ['16px', '22px'],
+        'xl': ['18px', '24px'],
+        '2xl': ['24px', '30px'],
+        '3xl': ['32px', '38px'],
       },
     },
   },

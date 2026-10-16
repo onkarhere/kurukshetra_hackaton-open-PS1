@@ -695,7 +695,7 @@ export const mockFeeInstalments: FeeInstalment[] = [
     id: 'fee-inst-01',
     studentId: 'std-priya-01',
     studentName: 'Priya Nair',
-    batchName: 'Java Full-Stack B3',
+    batchName: 'Java Full-Stack B3 (Kothrud)',
     sequence: '3 of 6',
     dueDate: '2026-10-04',
     amount: 6500,
@@ -707,7 +707,7 @@ export const mockFeeInstalments: FeeInstalment[] = [
     id: 'fee-inst-02',
     studentId: 'std-rohan-02',
     studentName: 'Rohan Kulkarni',
-    batchName: 'Java Full-Stack B3',
+    batchName: 'Java Full-Stack B3 (Kothrud)',
     sequence: '2 of 6',
     dueDate: '2026-09-28',
     amount: 6500,
@@ -720,7 +720,7 @@ export const mockFeeInstalments: FeeInstalment[] = [
     id: 'fee-inst-03',
     studentId: 'std-devendra-03',
     studentName: 'Devendra Joshi',
-    batchName: 'Java Full-Stack B3',
+    batchName: 'Java Full-Stack B3 (Kothrud)',
     sequence: '3 of 6',
     dueDate: '2026-10-16',
     amount: 6500,
@@ -732,7 +732,7 @@ export const mockFeeInstalments: FeeInstalment[] = [
     id: 'fee-inst-04',
     studentId: 'std-amit-04',
     studentName: 'Amit Sane',
-    batchName: 'Java Full-Stack B3',
+    batchName: 'Java Full-Stack B3 (Kothrud)',
     sequence: '3 of 6',
     dueDate: '2026-10-17',
     amount: 6500,
@@ -744,7 +744,7 @@ export const mockFeeInstalments: FeeInstalment[] = [
     id: 'fee-inst-05',
     studentId: 'std-sunita-05',
     studentName: 'Sunita Rao',
-    batchName: 'Java Full-Stack B3',
+    batchName: 'Java Full-Stack B3 (Kothrud)',
     sequence: '3 of 6',
     dueDate: '2026-10-18',
     amount: 6500,
@@ -918,16 +918,16 @@ export const mockApprovals: ApprovalAction[] = [
     id: 'appr-02',
     type: 'timetable_replan',
     title: 'Re-plan timetable for Thursday 22 Oct (Arjun Mehta on leave)',
-    summary: 'Move Java B3 to Friday 19:00 in Room 3; assign Meera Rao as substitute for Baner session; zero room clashes remaining',
-    requester: 'Copilot Timetable Engine',
-    requesterRole: 'AI Planner',
+    summary: 'Move Java Full-Stack B3 (Kothrud) to Friday 19:00 in Room 3; assign Meera Rao as substitute for Baner session; zero room clashes remaining',
+    requester: 'Timetable Scheduling Engine',
+    requesterRole: 'Scheduler',
     createdAt: '1 hour ago',
     riskLevel: 'high',
     status: 'pending',
     diff: [
       {
-        before: 'Java Full-Stack B3 · Thu 22 Oct 19:00 - 21:00 · Room 3 (Arjun Mehta)',
-        after: 'Java Full-Stack B3 · Fri 23 Oct 19:00 - 21:00 · Room 3 (Arjun Mehta)',
+        before: 'Java Full-Stack B3 (Kothrud) · Thu 22 Oct 19:00 - 21:00 · Room 3 (Arjun Mehta)',
+        after: 'Java Full-Stack B3 (Kothrud) · Fri 23 Oct 19:00 - 21:00 · Room 3 (Arjun Mehta)',
         reason: 'Arjun on approved medical leave Thu; Room 3 is vacant on Friday 19:00',
       },
       {
@@ -977,7 +977,7 @@ export const mockTimetableSessions: TimetableSession[] = [
   {
     id: 'sess-m2',
     batchId: 'batch-java-b3',
-    batchName: 'Java Full-Stack B3',
+    batchName: 'Java Full-Stack B3 (Kothrud)',
     courseName: 'Java Full-Stack Developer',
     trainerId: 'tr-arjun',
     trainerName: 'Arjun Mehta',
@@ -1049,7 +1049,7 @@ export const mockTimetableSessions: TimetableSession[] = [
   {
     id: 'sess-w2',
     batchId: 'batch-java-b3',
-    batchName: 'Java Full-Stack B3',
+    batchName: 'Java Full-Stack B3 (Kothrud)',
     courseName: 'Java Full-Stack Developer',
     trainerId: 'tr-arjun',
     trainerName: 'Arjun Mehta',
@@ -1099,7 +1099,7 @@ export const mockTimetableSessions: TimetableSession[] = [
     isOnline: true,
     isLocked: false,
     hasConflict: true,
-    conflictReason: 'Arjun Mehta double-booked: also assigned to Java Full-Stack B3 in Room 3',
+    conflictReason: 'Arjun Mehta double-booked: also assigned to Java Full-Stack B3 (Kothrud) in Room 3',
     status: 'scheduled',
   },
   // Friday
@@ -1123,7 +1123,7 @@ export const mockTimetableSessions: TimetableSession[] = [
   {
     id: 'sess-f2',
     batchId: 'batch-java-b3',
-    batchName: 'Java Full-Stack B3',
+    batchName: 'Java Full-Stack B3 (Kothrud)',
     courseName: 'Java Full-Stack Developer',
     trainerId: 'tr-arjun',
     trainerName: 'Arjun Mehta',
@@ -1146,7 +1146,7 @@ export const mockSeedCopilotMessage: CopilotMessage = {
   query: 'Which students in the Java batch have missed three or more classes and have an EMI due this week? Draft a WhatsApp reminder for each.',
   content: `I analyzed attendance records and active instalment ledgers for **Java Full-Stack B3 (Kothrud)**. 
 
-Found **5 students** who have missed $\\ge 3$ sessions and have an EMI due or overdue for the week of **12–18 Oct 2026**. 
+Found **5 students** who have missed 3 or more sessions and have an EMI due or overdue for the week of **12–18 Oct 2026**. 
 
 Here is the breakdown with their attendance deficit and outstanding amount. I have prepared a draft WhatsApp reminder action below for your review.`,
   stage: 'completed',

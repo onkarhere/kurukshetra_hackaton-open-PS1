@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  Sparkles,
   LayoutDashboard,
   CheckCheck,
   CalendarDays,
   ClipboardCheck,
   Video,
+  Layers,
   GraduationCap,
   Activity,
   UserCog,
   BookOpen,
-  Layers,
   Award,
   IndianRupee,
   Landmark,
@@ -21,8 +20,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Shield,
-  LogOut,
+  LucideIcon,
 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { UserRole } from '@/types'
@@ -31,9 +29,8 @@ import { cn } from '@/lib/utils'
 interface NavItem {
   label: string
   to: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: LucideIcon
   badge?: number | string
-  isAi?: boolean
   allowedRoles?: UserRole[]
 }
 
@@ -43,7 +40,7 @@ interface NavGroup {
 }
 
 export const Sidebar: React.FC = () => {
-  const { role, unreadApprovalsCount, setCopilotOpen } = useApp()
+  const { role, unreadApprovalsCount } = useApp()
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem('batchwise-sidebar-collapsed') === 'true'
@@ -53,15 +50,12 @@ export const Sidebar: React.FC = () => {
     localStorage.setItem('batchwise-sidebar-collapsed', String(collapsed))
   }, [collapsed])
 
+  // Exact requested groups and order:
+  // Today, Operations, People, Academics, Money, Reports, Admin
   const navGroups: NavGroup[] = [
     {
+      title: 'Today',
       items: [
-        {
-          label: 'AI Copilot',
-          to: '/copilot',
-          icon: Sparkles,
-          isAi: true,
-        },
         {
           label: 'Home',
           to: '/',
@@ -74,19 +68,19 @@ export const Sidebar: React.FC = () => {
           badge: unreadApprovalsCount > 0 ? unreadApprovalsCount : undefined,
           allowedRoles: ['owner', 'admin', 'counselor', 'accounts'],
         },
-      ],
-    },
-    {
-      title: 'OPERATE',
-      items: [
         {
           label: 'Timetable',
           to: '/timetable',
           icon: CalendarDays,
           allowedRoles: ['owner', 'admin', 'trainer', 'counselor'],
         },
+      ],
+    },
+    {
+      title: 'Operations',
+      items: [
         {
-          label: 'Sessions & Attendance',
+          label: 'Sessions & attendance',
           to: '/attendance',
           icon: ClipboardCheck,
           allowedRoles: ['owner', 'admin', 'trainer', 'counselor'],
@@ -97,10 +91,16 @@ export const Sidebar: React.FC = () => {
           icon: Video,
           allowedRoles: ['owner', 'admin', 'trainer', 'student'],
         },
+        {
+          label: 'Batches',
+          to: '/batches',
+          icon: Layers,
+          allowedRoles: ['owner', 'admin', 'trainer', 'counselor'],
+        },
       ],
     },
     {
-      title: 'PEOPLE',
+      title: 'People',
       items: [
         {
           label: 'Students',
@@ -109,7 +109,7 @@ export const Sidebar: React.FC = () => {
           allowedRoles: ['owner', 'admin', 'trainer', 'counselor'],
         },
         {
-          label: 'Risk board',
+          label: 'Risk',
           to: '/risk',
           icon: Activity,
           allowedRoles: ['owner', 'admin', 'trainer', 'counselor'],
@@ -123,18 +123,12 @@ export const Sidebar: React.FC = () => {
       ],
     },
     {
-      title: 'ACADEMICS',
+      title: 'Academics',
       items: [
         {
           label: 'Courses',
           to: '/courses',
           icon: BookOpen,
-          allowedRoles: ['owner', 'admin', 'trainer', 'counselor'],
-        },
-        {
-          label: 'Batches',
-          to: '/batches',
-          icon: Layers,
           allowedRoles: ['owner', 'admin', 'trainer', 'counselor'],
         },
         {
@@ -146,7 +140,7 @@ export const Sidebar: React.FC = () => {
       ],
     },
     {
-      title: 'MONEY',
+      title: 'Money',
       items: [
         {
           label: 'Fees & EMIs',
@@ -155,7 +149,7 @@ export const Sidebar: React.FC = () => {
           allowedRoles: ['owner', 'admin', 'accounts', 'counselor'],
         },
         {
-          label: 'Payments & Reconcile',
+          label: 'Payments',
           to: '/payments',
           icon: Landmark,
           allowedRoles: ['owner', 'admin', 'accounts'],
@@ -163,7 +157,7 @@ export const Sidebar: React.FC = () => {
       ],
     },
     {
-      title: 'INSIGHTS',
+      title: 'Reports',
       items: [
         {
           label: 'Analytics',
@@ -180,7 +174,7 @@ export const Sidebar: React.FC = () => {
       ],
     },
     {
-      title: 'GOVERN',
+      title: 'Admin',
       items: [
         {
           label: 'Audit log',
@@ -198,7 +192,7 @@ export const Sidebar: React.FC = () => {
     },
   ]
 
-  // Filter based on role: Trainer must NEVER see money UI
+  // Filter out items not allowed for role (trainer must NEVER see money items)
   const filteredGroups = navGroups
     .map((grp) => ({
       ...grp,
@@ -212,49 +206,50 @@ export const Sidebar: React.FC = () => {
   return (
     <aside
       className={cn(
-        'h-screen bg-surface border-r border-border flex flex-col justify-between transition-all duration-200 select-none z-30 shrink-0 sticky top-0',
-        collapsed ? 'w-16' : 'w-[248px]'
+        'h-screen bg-surface border-r border-border flex flex-col justify-between transition-all select-none z-30 shrink-0 sticky top-0',
+        collapsed ? 'w-14' : 'w-[240px]'
       )}
     >
-      {/* Top Brand & Institute Header */}
+      {/* Top Header */}
       <div>
-        <div className="h-14 px-3.5 border-b border-border flex items-center justify-between">
+        <div className="h-[52px] px-3 border-b border-border flex items-center justify-between">
           {!collapsed ? (
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                BW
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-control bg-surface-sunken border border-border flex items-center justify-center text-text font-medium text-xs shrink-0">
+                IO
               </div>
               <div className="min-w-0">
-                <div className="font-semibold text-xs tracking-tight text-fg truncate">
+                <div className="font-medium text-xs text-text truncate">
                   CodeCraft Academy
-                </div>
-                <div className="text-[10px] text-fg-muted font-mono flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
-                  Pune · Operations
                 </div>
               </div>
             </div>
           ) : (
-            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs mx-auto">
-              BW
+            <div className="w-6 h-6 rounded-control bg-surface-sunken border border-border flex items-center justify-center text-text font-medium text-xs mx-auto">
+              IO
             </div>
           )}
 
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 text-fg-muted hover:text-fg hover:bg-surface-2 rounded-btn transition-colors shrink-0"
-            title={collapsed ? 'Expand sidebar' : 'Collapse to icon rail'}
+            className="p-1 text-text-muted hover:text-text hover:bg-surface-sunken rounded-control transition-colors shrink-0"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
+            ) : (
+              <ChevronLeft className="w-4 h-4" strokeWidth={1.5} />
+            )}
           </button>
         </div>
 
-        {/* Navigation list */}
-        <nav className="p-2 space-y-4 overflow-y-auto max-h-[calc(100vh-140px)]">
+        {/* Scrollable Navigation List with Scroll Shadow */}
+        <nav className="p-2 space-y-3.5 overflow-y-auto max-h-[calc(100vh-120px)] scroll-shadow-y">
           {filteredGroups.map((grp, gIdx) => (
             <div key={gIdx} className="space-y-0.5">
               {grp.title && !collapsed && (
-                <div className="px-2.5 py-1 text-[10px] font-mono font-semibold text-fg-muted uppercase tracking-wider">
+                <div className="px-2 py-1 text-[11px] font-medium text-text-muted">
                   {grp.title}
                 </div>
               )}
@@ -270,36 +265,26 @@ export const Sidebar: React.FC = () => {
                     key={item.to}
                     to={item.to}
                     title={collapsed ? item.label : undefined}
-                    className={({ isActive: linkActive }) =>
-                      cn(
-                        'flex items-center gap-2.5 px-2.5 py-2 rounded-btn text-xs font-medium transition-colors relative group',
-                        linkActive || isActive
-                          ? item.isAi
-                            ? 'bg-ai/10 text-ai font-semibold'
-                            : 'bg-primary/10 text-primary font-semibold'
-                          : item.isAi
-                          ? 'text-ai hover:bg-ai/5'
-                          : 'text-fg-muted hover:text-fg hover:bg-surface-2'
-                      )
-                    }
+                    className={cn(
+                      'flex items-center gap-2 px-2 py-1.5 rounded-control text-xs transition-colors relative',
+                      isActive
+                        ? 'bg-surface-sunken text-text font-medium border-l-2 border-accent'
+                        : 'text-text-muted hover:text-text hover:bg-surface-sunken'
+                    )}
                   >
-                    <Icon
-                      className={cn(
-                        'w-4 h-4 shrink-0 transition-transform group-hover:scale-105',
-                        item.isAi ? 'text-ai' : ''
-                      )}
-                    />
+                    <Icon className="w-4 h-4 shrink-0" strokeWidth={1.5} />
 
                     {!collapsed && <span className="truncate flex-1">{item.label}</span>}
 
+                    {/* Pill only for counts */}
                     {!collapsed && item.badge !== undefined && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-primary text-white">
+                      <span className="px-1.5 py-0.2 rounded-full text-[11px] font-normal bg-surface-sunken text-text-muted border border-border tnum">
                         {item.badge}
                       </span>
                     )}
 
                     {collapsed && item.badge !== undefined && (
-                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
+                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-accent" />
                     )}
                   </NavLink>
                 )
@@ -309,19 +294,19 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Footer / User Card */}
-      <div className="p-2 border-t border-border bg-surface-2/30">
+      {/* User Card */}
+      <div className="p-2 border-t border-border bg-surface">
         <NavLink
           to="/me"
-          className="flex items-center gap-2.5 p-2 rounded-btn hover:bg-surface-2 transition-colors"
+          className="flex items-center gap-2 p-1.5 rounded-control hover:bg-surface-sunken transition-colors"
           title="Account profile"
         >
-          <div className="w-7 h-7 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+          <div className="w-6 h-6 rounded-full bg-surface-sunken border border-border text-text font-medium text-xs flex items-center justify-center shrink-0">
             {role.substring(0, 2).toUpperCase()}
           </div>
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-semibold text-fg capitalize truncate">
+              <div className="text-xs font-normal text-text truncate capitalize">
                 {role === 'trainer'
                   ? 'Arjun Mehta'
                   : role === 'counselor'
@@ -330,7 +315,7 @@ export const Sidebar: React.FC = () => {
                   ? 'Sunita Accounts'
                   : 'Rajesh Sharma'}
               </div>
-              <div className="text-[10px] text-fg-muted font-mono uppercase tracking-wider">
+              <div className="text-[11px] text-text-muted truncate capitalize">
                 {role}
               </div>
             </div>

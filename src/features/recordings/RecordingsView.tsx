@@ -3,14 +3,11 @@ import {
   Video,
   Play,
   Clock,
-  Sparkles,
   Search,
-  BookOpen,
   Calendar,
-  Share2,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { ReasonChip } from '@/components/ui/ReasonChip'
 import { store } from '@/mocks/store'
 import { Recording } from '@/types'
 import { useToast } from '@/context/ToastContext'
@@ -21,44 +18,44 @@ export const RecordingsView: React.FC = () => {
   const [selectedRecording, setSelectedRecording] = useState<Recording | null>(null)
 
   return (
-    <div className="space-y-5 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">Session Recordings & AI Summaries</h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            Auto-recorded Zoom/Meet lectures with chapter markers and key takeaways
+          <h1 className="text-xl font-semibold text-text">Recordings</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Cloud session archives, chapter markers, and lecture notes
           </p>
         </div>
 
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
-          onClick={() => success('Zoom cloud sync checked. All recordings current.')}
-          leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+          onClick={() => success('Cloud recordings synchronized.')}
+          leftIcon={<Video className="w-3.5 h-3.5" />}
         >
-          Sync Cloud Recordings
+          Sync cloud recordings
         </Button>
       </div>
 
       {/* Grid of Recordings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {recordings.map((rec) => (
           <div
             key={rec.id}
             onClick={() => setSelectedRecording(rec)}
-            className="rounded-card border border-border bg-surface overflow-hidden shadow-sm hover:shadow-hover hover:border-text-muted/40 transition-all cursor-pointer flex flex-col justify-between"
+            className="rounded-card border border-border bg-surface overflow-hidden hover:border-border-strong transition-colors cursor-pointer flex flex-col justify-between"
           >
             <div>
-              <div className="relative aspect-video bg-black/80 overflow-hidden group">
+              <div className="relative aspect-video bg-[#111315] overflow-hidden group">
                 <img
                   src={rec.thumbnailUrl}
                   alt={rec.title}
-                  className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-200"
                 />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full bg-primary/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    <Play className="w-4 h-4 ml-0.5" />
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-full bg-surface text-text flex items-center justify-center shadow-dialog">
+                    <Play className="w-3.5 h-3.5 ml-0.5" />
                   </div>
                 </div>
                 <span className="absolute bottom-2 right-2 bg-black/80 text-white font-mono text-[10px] px-1.5 py-0.5 rounded">
@@ -66,31 +63,30 @@ export const RecordingsView: React.FC = () => {
                 </span>
               </div>
 
-              <div className="p-4 space-y-2">
-                <div className="text-[11px] font-mono text-fg-muted flex items-center justify-between">
-                  <span>{rec.batchName}</span>
-                  <span>{rec.date}</span>
+              <div className="p-3.5 space-y-2">
+                <div className="text-[11px] text-text-muted flex items-center justify-between">
+                  <span className="truncate max-w-[140px]">{rec.batchName}</span>
+                  <span className="tabular-nums">{rec.date}</span>
                 </div>
 
-                <h3 className="text-xs font-bold text-fg leading-snug line-clamp-2">
+                <h3 className="text-xs font-medium text-text leading-snug line-clamp-2">
                   {rec.title}
                 </h3>
 
-                <div className="p-2.5 rounded-btn bg-surface-2 border border-border space-y-1">
-                  <div className="text-[10px] font-mono text-ai font-semibold uppercase flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-ai" />
-                    AI Key Takeaway
+                <div className="p-2.5 rounded-control bg-surface-sunken border border-border space-y-1">
+                  <div className="text-[10px] uppercase font-semibold text-text-muted">
+                    Session overview
                   </div>
-                  <p className="text-[11px] text-fg-muted line-clamp-3 leading-relaxed">
+                  <p className="text-[11px] text-text-muted line-clamp-3 leading-relaxed">
                     {rec.aiSummary}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="px-4 pb-4 pt-1 flex items-center justify-between text-xs text-fg-muted border-t border-border/40">
+            <div className="px-3.5 pb-3.5 pt-1 flex items-center justify-between text-xs text-text-muted border-t border-border">
               <span>{rec.trainerName}</span>
-              <span className="font-mono text-[11px]">{rec.attendanceCount} attended</span>
+              <span className="tabular-nums text-[11px]">{rec.attendanceCount} attended</span>
             </div>
           </div>
         ))}
@@ -99,25 +95,26 @@ export const RecordingsView: React.FC = () => {
       {/* Video Player Modal */}
       {selectedRecording && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={() => setSelectedRecording(null)}
         >
           <div
-            className="w-full max-w-3xl bg-surface border border-border rounded-modal shadow-modal overflow-hidden text-fg"
+            className="w-full max-w-3xl bg-surface border border-border rounded-dialog shadow-dialog overflow-hidden text-text"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-border flex items-center justify-between">
+            <div className="p-3.5 border-b border-border flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-fg">{selectedRecording.title}</h3>
-                <p className="text-xs text-fg-muted">
-                  {selectedRecording.batchName} · Faculty: {selectedRecording.trainerName}
+                <h3 className="text-xs font-semibold text-text">{selectedRecording.title}</h3>
+                <p className="text-[11px] text-text-muted">
+                  {selectedRecording.batchName} · Trainer: {selectedRecording.trainerName}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedRecording(null)}
-                className="text-fg-muted hover:text-fg p-1 rounded-btn"
+                className="text-text-muted hover:text-text p-1 rounded-control"
+                aria-label="Close dialog"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -130,34 +127,31 @@ export const RecordingsView: React.FC = () => {
               />
             </div>
 
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="p-3.5 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div className="space-y-1.5">
-                <div className="text-[11px] font-mono uppercase text-fg-muted font-semibold">
-                  Timestamp Chapters
+                <div className="text-[11px] uppercase tracking-wider text-text-muted font-medium">
+                  Chapter markers
                 </div>
                 <div className="space-y-1">
                   {selectedRecording.chapters.map((ch, idx) => (
                     <div
                       key={idx}
-                      className="p-1.5 rounded bg-surface-2 border border-border flex items-center justify-between cursor-pointer hover:bg-surface-2/80"
+                      className="p-1.5 rounded-control bg-surface-sunken flex items-center justify-between text-[11px]"
                     >
-                      <span className="text-fg font-medium">{ch.title}</span>
-                      <span className="font-mono text-primary font-semibold text-[11px]">
-                        {ch.time}
-                      </span>
+                      <span className="text-text">{ch.title}</span>
+                      <span className="font-mono text-text-muted">{ch.time}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <div className="text-[11px] font-mono uppercase text-ai font-semibold flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-ai" />
-                  AI Structured Synthesis
+                <div className="text-[11px] uppercase tracking-wider text-text-muted font-medium">
+                  Key takeaways
                 </div>
-                <div className="p-3 rounded-btn bg-ai/5 border border-ai/20 text-fg text-xs leading-relaxed">
+                <p className="text-text-muted leading-relaxed text-[11px]">
                   {selectedRecording.aiSummary}
-                </div>
+                </p>
               </div>
             </div>
           </div>

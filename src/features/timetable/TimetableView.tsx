@@ -4,20 +4,17 @@ import {
   ChevronLeft,
   ChevronRight,
   GitCompare,
-  AlertTriangle,
+  AlertOctagon,
   Lock,
   Unlock,
   Check,
   Send,
   Layers,
-  Building2,
-  Users,
-  Sparkles,
   ArrowRight,
   RotateCcw,
-  Plus,
   X,
-  FileSpreadsheet,
+  Clock,
+  UserCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ReasonChip } from '@/components/ui/ReasonChip'
@@ -30,20 +27,40 @@ import { cn } from '@/lib/utils'
 
 export const TimetableView: React.FC = () => {
   const { branch } = useApp()
-  const { success, error } = useToast()
+  const { success } = useToast()
 
-  const [viewMode, setViewMode] = useState<'trainer' | 'room' | 'batch'>('batch')
+  const [viewMode, setViewMode] = useState<'batch' | 'trainer' | 'room'>('batch')
   const [sessions, setSessions] = useState<TimetableSession[]>([...store.timetableSessions])
   const [isDiffMode, setIsDiffMode] = useState(false)
   const [selectedSession, setSelectedSession] = useState<TimetableSession | null>(null)
   const [showPublishApproval, setShowPublishApproval] = useState(false)
   const [showChangeDrawer, setShowChangeDrawer] = useState(false)
 
-  const days = ['Mon 19 Oct', 'Tue 20 Oct', 'Wed 21 Oct', 'Thu 22 Oct', 'Fri 23 Oct', 'Sat 24 Oct', 'Sun 25 Oct']
+  const days = [
+    'Mon 19 Oct',
+    'Tue 20 Oct',
+    'Wed 21 Oct',
+    'Thu 22 Oct',
+    'Fri 23 Oct',
+    'Sat 24 Oct',
+    'Sun 25 Oct',
+  ]
+
   const timeSlots = [
-    '08:00', '09:00', '10:00', '11:00', '12:00',
-    '13:00', '14:00', '15:00', '16:00', '17:00',
-    '18:00', '19:00', '20:00', '21:00'
+    '08:00',
+    '09:00',
+    '10:00',
+    '11:00',
+    '12:00',
+    '13:00',
+    '14:00',
+    '15:00',
+    '16:00',
+    '17:00',
+    '18:00',
+    '19:00',
+    '20:00',
+    '21:00',
   ]
 
   const hasConflicts = sessions.some((s) => s.hasConflict)
@@ -56,7 +73,7 @@ export const TimetableView: React.FC = () => {
     setIsDiffMode(true)
     setShowChangeDrawer(true)
     success(
-      'AI Re-plan Generated (1.8s)',
+      'Schedule re-planned',
       '3 sessions moved, 1 substitute assigned (Meera Rao), 0 conflicts remaining.'
     )
   }
@@ -71,64 +88,76 @@ export const TimetableView: React.FC = () => {
     setSessions((prev) =>
       prev.map((s) => (s.id === sessId ? { ...s, isLocked: !s.isLocked } : s))
     )
-    success('Session lock toggled')
+    success('Session slot lock toggled')
   }
 
   return (
-    <div className="space-y-4 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Controls Toolbar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-2 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-surface-2 border border-border rounded-btn p-0.5">
-            <button className="p-1 hover:text-fg text-fg-muted rounded">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-border">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 border border-border rounded-control p-0.5 bg-surface">
+            <button
+              className="p-1 hover:text-text text-text-muted rounded-control"
+              aria-label="Previous week"
+            >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-2 text-xs font-semibold text-fg">Week of 19 Oct – 25 Oct 2026</span>
-            <button className="p-1 hover:text-fg text-fg-muted rounded">
+            <span className="px-2 text-xs font-semibold text-text">
+              Week of 19 Oct – 25 Oct 2026
+            </span>
+            <button
+              className="p-1 hover:text-text text-text-muted rounded-control"
+              aria-label="Next week"
+            >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
           {/* Segmented View Switcher */}
-          <div className="flex items-center bg-surface-2 border border-border rounded-btn p-0.5 text-xs font-medium">
+          <div className="flex items-center border border-border rounded-control p-0.5 bg-surface text-xs font-medium">
             <button
               onClick={() => setViewMode('batch')}
               className={cn(
-                'px-2.5 py-1 rounded-btn transition-colors',
-                viewMode === 'batch' ? 'bg-surface text-fg font-semibold shadow-sm' : 'text-fg-muted hover:text-fg'
+                'px-2.5 py-1 rounded-control transition-colors',
+                viewMode === 'batch'
+                  ? 'bg-surface-sunken text-text font-semibold'
+                  : 'text-text-muted hover:text-text'
               )}
             >
-              Batch View
+              Batch view
             </button>
             <button
               onClick={() => setViewMode('trainer')}
               className={cn(
-                'px-2.5 py-1 rounded-btn transition-colors',
-                viewMode === 'trainer' ? 'bg-surface text-fg font-semibold shadow-sm' : 'text-fg-muted hover:text-fg'
+                'px-2.5 py-1 rounded-control transition-colors',
+                viewMode === 'trainer'
+                  ? 'bg-surface-sunken text-text font-semibold'
+                  : 'text-text-muted hover:text-text'
               )}
             >
-              Trainer View
+              Trainer view
             </button>
             <button
               onClick={() => setViewMode('room')}
               className={cn(
-                'px-2.5 py-1 rounded-btn transition-colors',
-                viewMode === 'room' ? 'bg-surface text-fg font-semibold shadow-sm' : 'text-fg-muted hover:text-fg'
+                'px-2.5 py-1 rounded-control transition-colors',
+                viewMode === 'room'
+                  ? 'bg-surface-sunken text-text font-semibold'
+                  : 'text-text-muted hover:text-text'
               )}
             >
-              Room View
+              Room view
             </button>
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons: single primary button */}
         <div className="flex items-center gap-2">
-          {/* Arjun on Leave Simulation Button */}
           <Button
-            variant="ai"
+            variant="secondary"
             size="sm"
             onClick={handleSimulateArjunLeave}
-            className="shadow-sm"
           >
             Simulate: Arjun on leave Thursday
           </Button>
@@ -140,7 +169,7 @@ export const TimetableView: React.FC = () => {
               onClick={handleReset}
               leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
             >
-              Revert Diff
+              Revert diff
             </Button>
           )}
 
@@ -150,68 +179,68 @@ export const TimetableView: React.FC = () => {
             onClick={() => setShowPublishApproval(true)}
             leftIcon={<Send className="w-3.5 h-3.5" />}
           >
-            Publish Timetable
+            Publish timetable
           </Button>
         </div>
       </div>
 
-      {/* Conflict Bar (Active when not in resolved diff mode) */}
+      {/* Conflict Bar */}
       {!isDiffMode && hasConflicts && (
-        <div className="p-3 rounded-card border border-danger/40 bg-danger/10 flex items-center justify-between gap-3 text-xs animate-pulse-subtle">
-          <div className="flex items-center gap-2.5">
-            <AlertTriangle className="w-4 h-4 text-danger shrink-0" />
-            <div>
-              <span className="font-bold text-danger">
-                {conflictCount} Operational Conflicts Detected:
+        <div className="p-3 rounded-card border border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <AlertOctagon className="w-4 h-4 text-danger shrink-0" />
+            <div className="text-text">
+              <span className="font-semibold text-danger">
+                {conflictCount} conflicts detected:
               </span>{' '}
-              <span className="text-fg">
-                Arjun double-booked Thu 19:00 (Room 3 & Room 1) · Room 3 capacity exceeded on Mon 19:00
+              <span>
+                Arjun Thu 19:00 (Room 3 & Room 1) · Room 3 over capacity (32 of 30)
               </span>
             </div>
           </div>
           <Button
-            variant="destructive"
-            size="sm"
+            variant="secondary"
+            size="xs"
             onClick={handleSimulateArjunLeave}
-            className="text-xs h-7"
+            className="self-start sm:self-auto shrink-0"
           >
-            Auto Re-plan with AI
+            Simulate clash resolution
           </Button>
         </div>
       )}
 
       {/* Re-plan Summary Banner (Diff Mode) */}
       {isDiffMode && (
-        <div className="p-3 rounded-card border border-success/40 bg-success/10 flex items-center justify-between gap-3 text-xs">
+        <div className="p-3 rounded-card border border-border bg-surface-sunken/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
-            <GitCompare className="w-4 h-4 text-success shrink-0" />
-            <div>
-              <span className="font-bold text-success">
-                Re-planned in 1.8 s · 3 moved · 1 substitute · 0 conflicts
+            <GitCompare className="w-4 h-4 text-accent shrink-0" />
+            <div className="text-text">
+              <span className="font-semibold">
+                Re-planned diff: 3 moved · 1 substitute (Meera Rao) · 0 conflicts
               </span>
-              <p className="text-fg-muted mt-0.5">
-                Ghost boxes show prior conflicting positions. Click any row to inspect substitution rationale.
+              <p className="text-[11px] text-text-muted mt-0.5">
+                Staged adjustments pending owner approval before publication.
               </p>
             </div>
           </div>
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="xs"
             onClick={() => setShowChangeDrawer(true)}
-            className="h-7 text-xs border-success/30 text-success hover:bg-success/20"
+            className="self-start sm:self-auto shrink-0"
           >
-            Inspect Change List
+            Inspect change list
           </Button>
         </div>
       )}
 
-      {/* Timetable Grid (08:00 - 21:00 x Mon - Sun) */}
-      <div className="rounded-card border border-border bg-surface overflow-x-auto shadow-sm">
-        <div className="min-w-[980px]">
+      {/* Timetable Week Grid (08:00 - 21:00 x Mon - Sun) */}
+      <div className="rounded-card border border-border bg-surface overflow-x-auto">
+        <div className="min-w-[960px]">
           {/* Header Days Row */}
-          <div className="grid grid-cols-8 border-b border-border bg-surface-2 text-xs font-semibold text-fg">
-            <div className="p-2.5 border-r border-border text-center text-fg-muted font-mono">
-              IST Time
+          <div className="grid grid-cols-8 border-b border-border bg-surface-sunken text-xs font-semibold text-text">
+            <div className="p-2.5 border-r border-border text-center text-text-muted font-mono">
+              Time (IST)
             </div>
             {days.map((day, dIdx) => (
               <div
@@ -219,7 +248,7 @@ export const TimetableView: React.FC = () => {
                 className={cn(
                   'p-2.5 text-center border-r border-border last:border-r-0',
                   dIdx === 3 && hasConflicts && !isDiffMode
-                    ? 'bg-danger/10 text-danger font-bold'
+                    ? 'text-danger font-semibold bg-danger/5'
                     : ''
                 )}
               >
@@ -229,17 +258,16 @@ export const TimetableView: React.FC = () => {
           </div>
 
           {/* Time Slots */}
-          <div className="divide-y divide-border/60">
+          <div className="divide-y divide-border">
             {timeSlots.map((time) => (
-              <div key={time} className="grid grid-cols-8 min-h-[58px]">
+              <div key={time} className="grid grid-cols-8 min-h-[60px]">
                 {/* Time Column */}
-                <div className="p-2 border-r border-border bg-surface-2/40 text-[11px] font-mono text-fg-muted text-center flex items-center justify-center">
+                <div className="p-2 border-r border-border bg-surface-sunken/40 text-[11px] font-mono text-text-muted text-center flex items-center justify-center">
                   {time}
                 </div>
 
                 {/* Day Columns (1-7) */}
                 {[1, 2, 3, 4, 5, 6, 7].map((dayNum) => {
-                  // Find sessions in this slot
                   const matchingSessions = sessions.filter(
                     (s) => s.dayOfWeek === dayNum && s.startTime === time
                   )
@@ -248,7 +276,7 @@ export const TimetableView: React.FC = () => {
                     <div
                       key={dayNum}
                       className={cn(
-                        'p-1 border-r border-border last:border-r-0 relative hover:bg-surface-2/30 transition-colors',
+                        'p-1 border-r border-border last:border-r-0 relative hover:bg-surface-sunken/30 transition-colors',
                         dayNum === 4 && hasConflicts && !isDiffMode ? 'bg-danger/5' : ''
                       )}
                     >
@@ -257,39 +285,41 @@ export const TimetableView: React.FC = () => {
                           key={sess.id}
                           onClick={() => setSelectedSession(sess)}
                           className={cn(
-                            'p-2 rounded-btn text-xs cursor-pointer shadow-sm border transition-all mb-1',
+                            'p-2 rounded-control text-xs cursor-pointer border transition-all mb-1',
                             sess.hasConflict
-                              ? 'border-danger bg-danger/15 text-danger ring-1 ring-danger'
-                              : isDiffMode && sess.id === 'sess-th1'
-                              ? 'border-ai bg-ai/15 text-fg ring-1 ring-ai'
-                              : 'border-primary/30 bg-primary/10 text-fg hover:border-primary'
+                              ? 'border-danger bg-surface text-text'
+                              : isDiffMode && (sess.id === 'sess-th1' || sess.id === 'sess-f2')
+                              ? 'border-accent bg-surface text-text'
+                              : 'border-border bg-surface hover:border-border-strong text-text'
                           )}
                         >
                           <div className="flex items-center justify-between gap-1">
-                            <span className="font-semibold truncate">{sess.batchName}</span>
+                            <span className="font-medium truncate">{sess.batchName}</span>
                             {sess.isLocked ? (
-                              <Lock className="w-3 h-3 text-fg-muted shrink-0" />
+                              <Lock className="w-3 h-3 text-text-muted shrink-0" />
                             ) : null}
                           </div>
 
-                          <div className="text-[11px] text-fg-muted truncate mt-0.5">
+                          <div className="text-[11px] text-text-muted truncate mt-0.5">
                             {sess.trainerName} · {sess.room}
                           </div>
 
                           {sess.hasConflict && (
-                            <ReasonChip
-                              reason={sess.conflictReason || 'Clash'}
-                              variant="danger"
-                              className="mt-1"
-                            />
+                            <div className="mt-1">
+                              <ReasonChip
+                                reason="Clash: Room double-booked"
+                                variant="danger"
+                              />
+                            </div>
                           )}
 
                           {isDiffMode && sess.id === 'sess-th2' && (
-                            <ReasonChip
-                              reason="Substituted: Meera Rao"
-                              variant="ai"
-                              className="mt-1"
-                            />
+                            <div className="mt-1">
+                              <ReasonChip
+                                reason="Substituted: Meera Rao"
+                                variant="neutral"
+                              />
+                            </div>
                           )}
                         </div>
                       ))}
@@ -309,55 +339,58 @@ export const TimetableView: React.FC = () => {
           onClick={() => setSelectedSession(null)}
         >
           <div
-            className="w-full max-w-md h-full bg-surface border-l border-border p-6 shadow-2xl flex flex-col justify-between animate-slide-in-right"
+            className="w-full max-w-md h-full bg-surface border-l border-border p-6 shadow-dialog flex flex-col justify-between"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-border">
-                <h3 className="text-sm font-semibold text-fg">Session Details</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  Session details
+                </h3>
                 <button
                   onClick={() => setSelectedSession(null)}
-                  className="text-fg-muted hover:text-fg p-1 rounded-btn"
+                  className="text-text-muted hover:text-text p-1 rounded-control"
+                  aria-label="Close drawer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               <div>
-                <h2 className="text-base font-bold text-fg">{selectedSession.batchName}</h2>
-                <p className="text-xs text-fg-muted">{selectedSession.courseName}</p>
+                <h2 className="text-base font-semibold text-text">{selectedSession.batchName}</h2>
+                <p className="text-xs text-text-muted mt-0.5">{selectedSession.courseName}</p>
               </div>
 
               <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between py-1 border-b border-border">
-                  <span className="text-fg-muted">Trainer</span>
-                  <span className="font-medium text-fg">{selectedSession.trainerName}</span>
+                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                  <span className="text-text-muted">Trainer</span>
+                  <span className="font-medium text-text">{selectedSession.trainerName}</span>
                 </div>
-                <div className="flex items-center justify-between py-1 border-b border-border">
-                  <span className="text-fg-muted">Room & Mode</span>
-                  <span className="font-medium text-fg">
+                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                  <span className="text-text-muted">Room & mode</span>
+                  <span className="font-medium text-text">
                     {selectedSession.room} ({selectedSession.isOnline ? 'Hybrid / Zoom' : 'In-person'})
                   </span>
                 </div>
-                <div className="flex items-center justify-between py-1 border-b border-border">
-                  <span className="text-fg-muted">Time Slot</span>
-                  <span className="font-mono text-fg">
+                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                  <span className="text-text-muted">Time slot</span>
+                  <span className="font-mono text-text">
                     {selectedSession.startTime} - {selectedSession.endTime} IST
                   </span>
                 </div>
-                <div className="flex items-center justify-between py-1 border-b border-border">
-                  <span className="text-fg-muted">Campus</span>
-                  <span className="font-medium text-fg">{selectedSession.branch}</span>
+                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                  <span className="text-text-muted">Campus</span>
+                  <span className="font-medium text-text">{selectedSession.branch}</span>
                 </div>
               </div>
 
               {selectedSession.hasConflict && (
-                <div className="p-3 rounded-card border border-danger/40 bg-danger/10 text-xs text-danger space-y-1">
-                  <div className="font-semibold flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Conflict Detected
+                <div className="p-3 rounded-card border border-border bg-surface-sunken text-xs text-text space-y-1">
+                  <div className="font-semibold text-danger flex items-center gap-1.5">
+                    <AlertOctagon className="w-3.5 h-3.5" />
+                    Conflict detected
                   </div>
-                  <p>{selectedSession.conflictReason}</p>
+                  <p className="text-text-muted">{selectedSession.conflictReason}</p>
                 </div>
               )}
             </div>
@@ -367,9 +400,15 @@ export const TimetableView: React.FC = () => {
                 variant="outline"
                 className="w-full"
                 onClick={() => toggleLock(selectedSession.id)}
-                leftIcon={selectedSession.isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                leftIcon={
+                  selectedSession.isLocked ? (
+                    <Unlock className="w-3.5 h-3.5" />
+                  ) : (
+                    <Lock className="w-3.5 h-3.5" />
+                  )
+                }
               >
-                {selectedSession.isLocked ? 'Unlock Session Slot' : 'Lock to Slot (Prevent Auto Move)'}
+                {selectedSession.isLocked ? 'Unlock session slot' : 'Lock to slot'}
               </Button>
               <Button
                 variant="primary"
@@ -390,30 +429,31 @@ export const TimetableView: React.FC = () => {
           onClick={() => setShowChangeDrawer(false)}
         >
           <div
-            className="w-full max-w-md h-full bg-surface border-l border-border p-6 shadow-2xl flex flex-col justify-between animate-slide-in-right"
+            className="w-full max-w-md h-full bg-surface border-l border-border p-6 shadow-dialog flex flex-col justify-between"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-border">
-                <h3 className="text-sm font-semibold text-fg flex items-center gap-1.5">
-                  <GitCompare className="w-4 h-4 text-ai" />
-                  Proposed Timetable Diff
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <GitCompare className="w-3.5 h-3.5 text-accent" />
+                  Proposed timetable adjustments
                 </h3>
                 <button
                   onClick={() => setShowChangeDrawer(false)}
-                  className="text-fg-muted hover:text-fg p-1 rounded-btn"
+                  className="text-text-muted hover:text-text p-1 rounded-control"
+                  aria-label="Close drawer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               <div className="space-y-3">
-                <div className="p-3 rounded-btn bg-surface-2 border border-border text-xs space-y-1">
-                  <div className="line-through text-fg-muted font-mono text-[11px]">
+                <div className="p-3 rounded-card bg-surface-sunken border border-border text-xs space-y-1">
+                  <div className="line-through text-text-muted font-mono text-[11px]">
                     Thu 22 Oct · 19:00 - 21:00 · Room 3 (Arjun Mehta)
                   </div>
-                  <div className="text-success font-semibold font-mono text-[11px] flex items-center gap-1">
-                    <ArrowRight className="w-3 h-3 text-success" />
+                  <div className="text-text font-medium font-mono text-[11px] flex items-center gap-1">
+                    <ArrowRight className="w-3 h-3 text-accent" />
                     Fri 23 Oct · 19:00 - 21:00 · Room 3 (Arjun Mehta)
                   </div>
                   <ReasonChip
@@ -423,12 +463,12 @@ export const TimetableView: React.FC = () => {
                   />
                 </div>
 
-                <div className="p-3 rounded-btn bg-surface-2 border border-border text-xs space-y-1">
-                  <div className="line-through text-fg-muted font-mono text-[11px]">
+                <div className="p-3 rounded-card bg-surface-sunken border border-border text-xs space-y-1">
+                  <div className="line-through text-text-muted font-mono text-[11px]">
                     Spring Doubt Lab · Arjun Mehta
                   </div>
-                  <div className="text-success font-semibold font-mono text-[11px] flex items-center gap-1">
-                    <ArrowRight className="w-3 h-3 text-success" />
+                  <div className="text-text font-medium font-mono text-[11px] flex items-center gap-1">
+                    <ArrowRight className="w-3 h-3 text-accent" />
                     Spring Doubt Lab · Meera Rao (Substitute)
                   </div>
                   <ReasonChip
@@ -448,7 +488,7 @@ export const TimetableView: React.FC = () => {
                 success('Diff accepted into working timetable')
               }}
             >
-              Accept All Adjustments
+              Accept all adjustments
             </Button>
           </div>
         </div>
@@ -457,18 +497,21 @@ export const TimetableView: React.FC = () => {
       {/* Publish Approval Card Modal */}
       {showPublishApproval && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={() => setShowPublishApproval(false)}
         >
           <div
-            className="w-full max-w-lg bg-surface border border-border rounded-modal shadow-modal p-6 text-fg relative"
+            className="w-full max-w-lg bg-surface border border-border rounded-dialog shadow-dialog p-6 text-text relative"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-sm font-semibold">Publish Timetable & Broadcast Notifications</h3>
+              <h3 className="text-sm font-semibold text-text">
+                Publish timetable and broadcast alerts
+              </h3>
               <button
                 onClick={() => setShowPublishApproval(false)}
-                className="text-fg-muted hover:text-fg p-1 rounded-btn"
+                className="text-text-muted hover:text-text p-1 rounded-control"
+                aria-label="Close dialog"
               >
                 <X className="w-4 h-4" />
               </button>

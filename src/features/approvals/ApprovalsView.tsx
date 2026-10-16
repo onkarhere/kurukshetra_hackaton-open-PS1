@@ -1,19 +1,13 @@
 import React, { useState } from 'react'
 import {
   CheckCheck,
-  Filter,
-  Layers,
-  Sparkles,
   Calendar,
   MessageSquare,
   DollarSign,
-  ShieldAlert,
-  Inbox,
-  CheckCircle2,
+  Layers,
 } from 'lucide-react'
 import { ApprovalCard } from '@/components/app/ApprovalCard'
 import { ReasonChip } from '@/components/ui/ReasonChip'
-import { StatusPill } from '@/components/ui/StatusPill'
 import { store } from '@/mocks/store'
 import { ApprovalAction } from '@/types'
 import { cn } from '@/lib/utils'
@@ -38,24 +32,26 @@ export const ApprovalsView: React.FC = () => {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'whatsapp_bulk':
-        return <MessageSquare className="w-4 h-4 text-ai" />
+        return <MessageSquare className="w-3.5 h-3.5 text-text-muted" />
       case 'timetable_replan':
-        return <Calendar className="w-4 h-4 text-primary" />
+        return <Calendar className="w-3.5 h-3.5 text-text-muted" />
       case 'fee_waiver':
-        return <DollarSign className="w-4 h-4 text-warning" />
+        return <DollarSign className="w-3.5 h-3.5 text-text-muted" />
       default:
-        return <Layers className="w-4 h-4 text-fg-muted" />
+        return <Layers className="w-3.5 h-3.5 text-text-muted" />
     }
   }
 
+  const pendingCount = approvals.filter((a) => a.status === 'pending').length
+
   return (
-    <div className="space-y-4 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">Approvals Inbox</h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            Nothing happens without your explicit consent · AI proposed actions, timetable modifications & waivers
+          <h1 className="text-xl font-semibold text-text">Approvals</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            {pendingCount === 1 ? '1 approval waiting' : `${pendingCount} approvals waiting`} · Explicit review required before outbound dispatch or schedule change
           </p>
         </div>
 
@@ -64,33 +60,33 @@ export const ApprovalsView: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="bg-surface-2 border border-border text-fg rounded-btn px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+            className="bg-surface border border-border text-text rounded-control px-2.5 py-1.5 text-xs outline-none focus:border-accent"
           >
-            <option value="pending">Pending Review</option>
+            <option value="pending">Pending review</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
-            <option value="all">All Statuses</option>
+            <option value="all">All statuses</option>
           </select>
         </div>
       </div>
 
       {/* Two-Pane Inbox Layout */}
       {filtered.length === 0 ? (
-        <div className="p-12 text-center rounded-card border border-border bg-surface space-y-3">
-          <div className="w-12 h-12 rounded-full bg-success/10 text-success flex items-center justify-center mx-auto">
-            <CheckCheck className="w-6 h-6" />
+        <div className="p-8 text-center rounded-card border border-border bg-surface space-y-2">
+          <div className="w-10 h-10 rounded-full bg-surface-sunken border border-border text-text-muted flex items-center justify-center mx-auto">
+            <CheckCheck className="w-5 h-5 text-success" />
           </div>
-          <h3 className="text-sm font-semibold text-fg">All Clear! No Approvals Waiting</h3>
-          <p className="text-xs text-fg-muted max-w-sm mx-auto">
-            All AI operations, WhatsApp dispatches and timetable re-plans have been processed.
+          <h3 className="text-sm font-semibold text-text">No approvals waiting</h3>
+          <p className="text-xs text-text-muted max-w-sm mx-auto">
+            All proposed actions, notifications, and timetable adjustments have been processed.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[550px]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[520px]">
           {/* Left List (5 cols) */}
-          <div className="lg:col-span-5 rounded-card border border-border bg-surface p-2 space-y-2 overflow-y-auto max-h-[640px] shadow-sm">
-            <div className="px-2 py-1 text-[11px] font-mono text-fg-muted uppercase tracking-wider font-semibold border-b border-border">
-              Action Proposals ({filtered.length})
+          <div className="lg:col-span-5 rounded-card border border-border bg-surface p-2 space-y-2 overflow-y-auto max-h-[640px]">
+            <div className="px-2 py-1 text-[11px] font-medium text-text-muted uppercase tracking-wider border-b border-border">
+              Action proposals ({filtered.length})
             </div>
 
             <div className="space-y-1.5">
@@ -101,30 +97,30 @@ export const ApprovalsView: React.FC = () => {
                     key={item.id}
                     onClick={() => setSelectedApprovalId(item.id)}
                     className={cn(
-                      'p-3 rounded-btn border text-xs cursor-pointer transition-all space-y-1.5',
+                      'p-3 rounded-control border text-xs cursor-pointer transition-colors space-y-1.5',
                       isSelected
-                        ? 'border-primary/50 bg-primary/5 shadow-sm'
-                        : 'border-border bg-surface hover:bg-surface-2'
+                        ? 'border-border-strong bg-surface-sunken'
+                        : 'border-border bg-surface hover:bg-surface-sunken/50'
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
                         {getTypeIcon(item.type)}
-                        <span className="font-semibold text-fg truncate max-w-[210px]">
+                        <span className="font-medium text-text truncate max-w-[210px]">
                           {item.title}
                         </span>
                       </div>
-                      <span className="text-[10px] font-mono text-fg-muted shrink-0">
+                      <span className="text-[10px] text-text-muted shrink-0 tabular-nums">
                         {item.createdAt}
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-fg-muted line-clamp-2 leading-relaxed">
+                    <p className="text-[11px] text-text-muted line-clamp-2 leading-relaxed">
                       {item.summary}
                     </p>
 
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] text-fg-muted font-mono truncate">
+                      <span className="text-[10px] text-text-muted truncate">
                         By {item.requester}
                       </span>
                       <ReasonChip reason={`${item.riskLevel} risk`} variant="neutral" />
@@ -146,8 +142,8 @@ export const ApprovalsView: React.FC = () => {
                 />
               </div>
             ) : (
-              <div className="p-8 text-center text-fg-muted border border-border rounded-card bg-surface">
-                Select an approval proposal from the left pane to inspect recipients and parameters.
+              <div className="p-8 text-center text-text-muted border border-border rounded-card bg-surface">
+                Select an approval proposal from the left pane to inspect details.
               </div>
             )}
           </div>

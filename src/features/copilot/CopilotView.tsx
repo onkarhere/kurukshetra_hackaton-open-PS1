@@ -1,22 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
-  Sparkles,
+  Command,
   Send,
   Lock,
   Download,
-  BarChart2,
-  Table as TableIcon,
   Copy,
   Check,
   ThumbsUp,
   ThumbsDown,
-  Pin,
-  Paperclip,
-  Maximize2,
-  Minimize2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   ChevronRight,
   ShieldCheck,
-  CornerDownLeft,
+  Table as TableIcon,
+  FileText,
 } from 'lucide-react'
 import { StageTicker, TickerStage } from '@/components/app/StageTicker'
 import { EvidencePanel } from '@/components/app/EvidencePanel'
@@ -26,7 +24,7 @@ import { ReasonChip } from '@/components/ui/ReasonChip'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { store } from '@/mocks/store'
-import { CopilotMessage, UserRole } from '@/types'
+import { CopilotMessage } from '@/types'
 import { cn } from '@/lib/utils'
 
 interface CopilotViewProps {
@@ -35,25 +33,29 @@ interface CopilotViewProps {
   onCloseDrawer?: () => void
 }
 
+type SortField = 'name' | 'phone' | 'missed' | 'instalment' | 'dueDate' | 'amount' | 'risk'
+
 export const CopilotView: React.FC<CopilotViewProps> = ({
-  pageContext = 'On: CodeCraft Academy Dashboard',
+  pageContext = 'Context: Operations',
   isDrawer = false,
   onCloseDrawer,
 }) => {
-  const { role, currentUser } = useApp()
-  const { success, error } = useToast()
+  const { role, pendingAskQuery, setPendingAskQuery } = useApp()
+  const { success } = useToast()
 
   const [messages, setMessages] = useState<CopilotMessage[]>([...store.copilotMessages])
   const [inputValue, setInputValue] = useState('')
   const [activeStage, setActiveStage] = useState<TickerStage>('completed')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [showEvidence, setShowEvidence] = useState(!isDrawer)
+  const [activeTab, setActiveTab] = useState<'answer' | 'evidence'>('answer')
   const [selectedMessageId, setSelectedMessageId] = useState<string>(
     store.copilotMessages[0]?.id || ''
   )
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [pinnedIds, setPinnedIds] = useState<string[]>([])
-  const [activeViewMode, setActiveViewMode] = useState<Record<string, 'table' | 'chart'>>({})
+
+  // Sort state for result table
+  const [sortField, setSortField] = useState<SortField>('missed')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -68,9 +70,18 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     }
   }, [])
 
+  // Auto-scroll on new message
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, activeStage])
+
+  // Handle query forwarded from Command Palette
+  useEffect(() => {
+    if (pendingAskQuery) {
+      handleSend(pendingAskQuery)
+      setPendingAskQuery(null)
+    }
+  }, [pendingAskQuery])
 
   const selectedMessage =
     messages.find((m) => m.id === selectedMessageId) || messages[messages.length - 1]
@@ -82,21 +93,41 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     success('Copied to clipboard')
   }
 
-  const togglePin = (id: string) => {
-    if (pinnedIds.includes(id)) {
-      setPinnedIds(pinnedIds.filter((p) => p !== id))
-      success('Unpinned from dashboard')
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
-      setPinnedIds([...pinnedIds, id])
-      success('Pinned to dashboard insights')
+      setSortField(field)
+      setSortDirection('asc')
     }
+  }
+
+  const getSortedTableData = (data: any[] = []) => {
+    return [...data].sort((a, b) => {
+      let aVal = a[sortField]
+      let bVal = b[sortField]
+
+      if (sortField === 'missed') {
+        aVal = Number(aVal) || 0
+        bVal = Number(bVal) || 0
+      } else if (sortField === 'amount') {
+        aVal = Number(String(aVal).replace(/[^0-9]/g, '')) || 0
+        bVal = Number(String(bVal).replace(/[^0-9]/g, '')) || 0
+      } else {
+        aVal = String(aVal || '').toLowerCase()
+        bVal = String(bVal || '').toLowerCase()
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
   }
 
   const handleSend = (textToSend?: string) => {
     const queryText = (textToSend || inputValue).trim()
     if (!queryText || isGenerating) return
 
-    // Add user message
     const userMsg: CopilotMessage = {
       id: `usr-${Date.now()}`,
       sender: 'user',
@@ -107,25 +138,14 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     setMessages((prev) => [...prev, userMsg])
     setInputValue('')
     setIsGenerating(true)
+    setActiveTab('answer')
 
-    // Stage Ticker progression
+    // Progression of stages with neutral StageTicker
     setActiveStage('understanding')
-
-    setTimeout(() => {
-      setActiveStage('finding_data')
-    }, 600)
-
-    setTimeout(() => {
-      setActiveStage('checking_safety')
-    }, 1200)
-
-    setTimeout(() => {
-      setActiveStage('running_query')
-    }, 1800)
-
-    setTimeout(() => {
-      setActiveStage('writing_answer')
-    }, 2400)
+    setTimeout(() => setActiveStage('finding_data'), 500)
+    setTimeout(() => setActiveStage('checking_safety'), 1000)
+    setTimeout(() => setActiveStage('running_query'), 1500)
+    setTimeout(() => setActiveStage('writing_answer'), 2000)
 
     setTimeout(() => {
       setActiveStage('completed')
@@ -180,7 +200,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
             sender: 'assistant',
             timestamp: 'Just now',
             query: queryText,
-            content: `I analyzed attendance ledgers and outstanding fees for **Java Full-Stack B3 (Kothrud)**.\n\nFound **5 students** with $\\ge 3$ missed sessions and an EMI due/overdue for the week of **12–18 Oct 2026**. An action has been prepared below for your review.`,
+            content: `I analyzed attendance ledgers and outstanding fees for **Java Full-Stack B3 (Kothrud)**.\n\nFound **5 students** with 3 or more missed sessions and an EMI due or overdue for the week of **12–18 Oct 2026**. An action has been prepared below for your review.`,
             stage: 'completed',
             sql: `SELECT s.id, s.name, s.phone, a.missed_sessions, f.due_date, f.amount\nFROM v_active_students s\nJOIN v_attendance_summary a ON s.id = a.student_id\nJOIN v_fee_instalments f ON s.id = f.student_id\nWHERE s.batch_id = 'batch-java-b3'\n  AND a.missed_sessions >= 3\n  AND f.due_date BETWEEN '2026-10-12' AND '2026-10-18'\nLIMIT 500;`,
             dataSources: [
@@ -211,14 +231,14 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
             approvalProposal: store.approvals[0],
             suggestedFollowUps: [
               'Schedule a 1-on-1 counseling call for Priya Nair and Rohan Kulkarni',
-              'Show attendance trend for Java Full-Stack B3 over last 6 weeks',
+              'Show attendance trend for Java Full-Stack B3 (Kothrud) over last 6 weeks',
             ],
           }
 
       setMessages((prev) => [...prev, responseMsg])
       setSelectedMessageId(responseMsg.id)
       store.addCopilotMessage(responseMsg)
-    }, 3000)
+    }, 2500)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -229,163 +249,199 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   }
 
   return (
-    <div className="flex h-full w-full bg-bg text-fg overflow-hidden relative">
-      {/* Center Thread */}
-      <div className="flex-1 flex flex-col h-full min-w-0 border-r border-border">
-        {/* Thread Header */}
-        <div className="h-12 px-4 border-b border-border bg-surface flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-ai/10 text-ai flex items-center justify-center font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <span className="font-semibold text-xs text-fg">Operations Copilot</span>
-              <span className="text-[11px] text-fg-muted ml-2 font-mono">{pageContext}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowEvidence(!showEvidence)}
-              className={cn(
-                'text-xs font-medium px-2 py-1 rounded-btn border transition-colors flex items-center gap-1',
-                showEvidence
-                  ? 'bg-ai/10 border-ai/30 text-ai'
-                  : 'bg-surface-2 border-border text-fg-muted hover:text-fg'
-              )}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Evidence ({showEvidence ? 'Hide' : 'Show'})</span>
-            </button>
-            {onCloseDrawer && (
-              <button
-                onClick={onCloseDrawer}
-                className="text-fg-muted hover:text-fg p-1 rounded-btn hover:bg-surface-2 transition-colors"
-                aria-label="Close copilot drawer"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+    <div className="flex flex-col h-full w-full bg-surface text-text overflow-hidden select-none">
+      {/* Sheet Top Bar: 52px */}
+      <div className="h-[52px] px-4 border-b border-border bg-surface flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <Command className="w-4 h-4 text-text-muted" />
+          <h2 className="text-xs font-semibold text-text">Ask</h2>
+          <span className="text-[11px] text-text-muted truncate max-w-[180px]">
+            {pageContext}
+          </span>
         </div>
 
-        {/* Message Thread */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-5">
-          {messages.map((msg) => {
-            if (msg.sender === 'user') {
-              return (
-                <div key={msg.id} className="flex justify-end animate-fade-in">
-                  <div className="max-w-xl rounded-card bg-primary text-white px-4 py-2.5 text-xs font-sans leading-relaxed shadow-sm">
-                    {msg.content}
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center rounded-control border border-border p-0.5 bg-surface-sunken">
+            <button
+              onClick={() => setActiveTab('answer')}
+              className={cn(
+                'px-2 py-0.5 text-xs rounded-control transition-colors font-medium',
+                activeTab === 'answer'
+                  ? 'bg-surface text-text shadow-xs'
+                  : 'text-text-muted hover:text-text'
+              )}
+            >
+              Answer
+            </button>
+            <button
+              onClick={() => setActiveTab('evidence')}
+              className={cn(
+                'px-2 py-0.5 text-xs rounded-control transition-colors font-medium flex items-center gap-1',
+                activeTab === 'evidence'
+                  ? 'bg-surface text-text shadow-xs'
+                  : 'text-text-muted hover:text-text'
+              )}
+            >
+              <ShieldCheck className="w-3 h-3 text-text-muted" />
+              Evidence
+            </button>
+          </div>
+
+          {onCloseDrawer && (
+            <button
+              onClick={onCloseDrawer}
+              className="p-1.5 text-text-muted hover:text-text rounded-control hover:bg-surface-sunken transition-colors ml-1"
+              aria-label="Close sheet"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Body */}
+      {activeTab === 'evidence' ? (
+        <div className="flex-1 overflow-y-auto">
+          {selectedMessage ? (
+            <EvidencePanel
+              sql={selectedMessage.sql}
+              dataSources={selectedMessage.dataSources}
+              filters={selectedMessage.filters}
+              safetyChecks={selectedMessage.safetyChecks}
+              executionTimeMs={selectedMessage.executionTimeMs}
+              rowsCount={selectedMessage.rowsCount}
+              viewsCount={selectedMessage.viewsCount}
+              confidence={selectedMessage.confidence}
+              className="max-w-none border-l-0"
+            />
+          ) : (
+            <div className="p-4 text-xs text-text-muted">No evidence available for this item.</div>
+          )}
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Messages Thread */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((msg) => {
+              if (msg.sender === 'user') {
+                return (
+                  <div key={msg.id} className="flex justify-end">
+                    <div className="max-w-[85%] rounded-card bg-surface-sunken border border-border px-3.5 py-2 text-xs text-text leading-relaxed">
+                      {msg.content}
+                    </div>
                   </div>
-                </div>
-              )
-            }
+                )
+              }
 
-            // Assistant Message
-            const viewMode = activeViewMode[msg.id] || 'table'
-            const isRefused = msg.refusal?.isRefused
+              const isRefused = msg.refusal?.isRefused
+              const sortedRows = getSortedTableData(msg.tableData)
 
-            return (
-              <div
-                key={msg.id}
-                onClick={() => setSelectedMessageId(msg.id)}
-                className="flex items-start gap-3 animate-fade-in group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-ai/10 border border-ai/20 text-ai flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-
-                <div className="flex-1 space-y-3 max-w-2xl min-w-0">
-                  {/* Refusal Card if restricted role */}
+              return (
+                <div
+                  key={msg.id}
+                  onClick={() => setSelectedMessageId(msg.id)}
+                  className="space-y-3"
+                >
+                  {/* Refusal Card: neutral grey with lock glyph */}
                   {isRefused && (
-                    <div className="rounded-card border border-border bg-surface-2 p-3 flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full bg-border/60 flex items-center justify-center shrink-0 mt-0.5">
-                        <Lock className="w-3.5 h-3.5 text-fg-muted" />
-                      </div>
+                    <div className="rounded-card border border-border bg-surface-sunken p-3 flex items-start gap-2.5">
+                      <Lock className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
                       <div className="text-xs">
-                        <div className="font-semibold text-fg">Role-based Access Boundary</div>
-                        <div className="text-fg-muted mt-0.5">{msg.refusal?.reason}</div>
+                        <div className="font-medium text-text">Access boundary</div>
+                        <div className="text-text-muted mt-0.5 leading-snug">
+                          {msg.refusal?.reason}
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Prose */}
-                  <div className="text-xs text-fg leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                  {/* Prose answer */}
+                  <div className="text-xs text-text leading-relaxed whitespace-pre-line">
                     {msg.content}
                   </div>
 
-                  {/* Table Result Block */}
+                  {/* Sortable Result Table */}
                   {msg.tableData && msg.tableData.length > 0 && (
-                    <div className="rounded-card border border-border bg-surface overflow-hidden shadow-sm">
-                      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface-2/40 text-[11px] font-medium">
-                        <span className="text-fg-muted">
-                          Result View ({msg.tableData.length} students matching criteria)
+                    <div className="rounded-card border border-border bg-surface overflow-hidden">
+                      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface-sunken/40 text-[11px] text-text-muted">
+                        <span>
+                          {msg.tableData.length} records returned
                         </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() =>
-                              setActiveViewMode({
-                                ...activeViewMode,
-                                [msg.id]: viewMode === 'table' ? 'chart' : 'table',
-                              })
-                            }
-                            className="p-1 text-fg-muted hover:text-fg rounded hover:bg-surface-2"
-                            title="Toggle Table/Chart"
-                          >
-                            {viewMode === 'table' ? (
-                              <BarChart2 className="w-3.5 h-3.5" />
-                            ) : (
-                              <TableIcon className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => success('Exporting CSV download...')}
-                            className="p-1 text-fg-muted hover:text-fg rounded hover:bg-surface-2"
-                            title="Export CSV"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => success('Exporting CSV...')}
+                          className="hover:text-text flex items-center gap-1"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>CSV</span>
+                        </button>
                       </div>
 
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-surface-2/80 text-[11px] font-semibold text-fg-muted border-b border-border">
+                      <div className="overflow-x-auto max-h-56">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-surface-sunken border-b border-border text-[11px] text-text-muted sticky top-0">
                             <tr>
-                              <th className="py-2 px-3">Student</th>
-                              <th className="py-2 px-3">Phone</th>
-                              <th className="py-2 px-3">Missed</th>
-                              {role !== 'trainer' && <th className="py-2 px-3">Instalment</th>}
-                              {role !== 'trainer' && <th className="py-2 px-3">Due Date</th>}
-                              {role !== 'trainer' && <th className="py-2 px-3">Amount</th>}
-                              <th className="py-2 px-3">Risk Tier</th>
+                              <th
+                                onClick={() => handleSort('name')}
+                                className="py-1.5 px-2.5 font-medium cursor-pointer hover:text-text"
+                              >
+                                <span className="inline-flex items-center gap-1">
+                                  Student
+                                  {sortField === 'name' ? (
+                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                  ) : (
+                                    <ArrowUpDown className="w-2.5 h-2.5 opacity-50" />
+                                  )}
+                                </span>
+                              </th>
+                              <th
+                                onClick={() => handleSort('missed')}
+                                className="py-1.5 px-2.5 font-medium cursor-pointer hover:text-text text-right"
+                              >
+                                <span className="inline-flex items-center gap-1 justify-end">
+                                  Missed
+                                  {sortField === 'missed' ? (
+                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                  ) : (
+                                    <ArrowUpDown className="w-2.5 h-2.5 opacity-50" />
+                                  )}
+                                </span>
+                              </th>
+                              {role !== 'trainer' && (
+                                <th
+                                  onClick={() => handleSort('amount')}
+                                  className="py-1.5 px-2.5 font-medium cursor-pointer hover:text-text text-right"
+                                >
+                                  <span className="inline-flex items-center gap-1 justify-end">
+                                    Due
+                                    {sortField === 'amount' ? (
+                                      sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                    ) : (
+                                      <ArrowUpDown className="w-2.5 h-2.5 opacity-50" />
+                                    )}
+                                  </span>
+                                </th>
+                              )}
+                              <th className="py-1.5 px-2.5 font-medium">Status</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
-                            {msg.tableData.map((row, rIdx) => (
-                              <tr key={rIdx} className="hover:bg-surface-2/50 transition-colors">
-                                <td className="py-2 px-3 font-medium text-fg">{row.name}</td>
-                                <td className="py-2 px-3 font-mono text-[11px] text-fg-muted">
-                                  {row.phone}
+                            {sortedRows.map((row, rIdx) => (
+                              <tr key={rIdx} className="hover:bg-surface-sunken/40">
+                                <td className="py-2 px-2.5 font-medium text-text">
+                                  {row.name}
+                                  <div className="text-[10px] text-text-muted font-mono">
+                                    {row.phone}
+                                  </div>
                                 </td>
-                                <td className="py-2 px-3 font-mono text-danger font-semibold">
-                                  {row.missed} sessions
+                                <td className="py-2 px-2.5 text-right tabular-nums text-text font-normal">
+                                  {row.missed}
                                 </td>
                                 {role !== 'trainer' && (
-                                  <td className="py-2 px-3 text-fg-muted">{row.instalment}</td>
-                                )}
-                                {role !== 'trainer' && (
-                                  <td className="py-2 px-3 font-medium text-amber-600 dark:text-amber-400">
-                                    {row.dueDate}
-                                  </td>
-                                )}
-                                {role !== 'trainer' && (
-                                  <td className="py-2 px-3 font-mono font-bold text-fg">
+                                  <td className="py-2 px-2.5 text-right tabular-nums font-medium text-text">
                                     {row.amount}
                                   </td>
                                 )}
-                                <td className="py-2 px-3">
+                                <td className="py-2 px-2.5">
                                   <ReasonChip
                                     reason={row.risk || row.academicStatus}
                                     variant={
@@ -405,30 +461,28 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                     </div>
                   )}
 
-                  {/* Inline Approval Card */}
+                  {/* Actions requiring approval render as ApprovalCard */}
                   {msg.approvalProposal && role !== 'trainer' && (
                     <div className="pt-1">
                       <ApprovalCard approval={msg.approvalProposal} />
                     </div>
                   )}
 
-                  {/* Meta Row: time, rows, views, role, buttons */}
-                  <div className="flex items-center justify-between text-[11px] font-mono text-fg-muted pt-1">
-                    <div className="flex items-center gap-2">
-                      <span>◷ {msg.executionTimeMs || 312} ms</span>
+                  {/* Metadata line & actions */}
+                  <div className="flex items-center justify-between text-[11px] text-text-muted pt-1">
+                    <div className="flex items-center gap-1.5 font-mono">
+                      <span>{msg.executionTimeMs || 312} ms</span>
                       <span>·</span>
                       <span>{msg.rowsCount || 5} rows</span>
                       <span>·</span>
-                      <span>{msg.viewsCount || 3} views</span>
-                      <span>·</span>
-                      <span className="text-ai font-semibold">{msg.confidence || 'High'} confidence</span>
+                      <span>{msg.confidence || 'High'} confidence</span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleCopyText(msg.id, msg.content)}
-                        className="p-1 hover:text-fg rounded"
-                        title="Copy answer"
+                        className="p-1 hover:text-text rounded-control"
+                        aria-label="Copy answer"
                       >
                         {copiedId === msg.id ? (
                           <Check className="w-3.5 h-3.5 text-success" />
@@ -437,134 +491,77 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                         )}
                       </button>
                       <button
-                        onClick={() => togglePin(msg.id)}
-                        className={cn(
-                          'p-1 rounded transition-colors',
-                          pinnedIds.includes(msg.id) ? 'text-primary' : 'hover:text-fg'
-                        )}
-                        title="Pin to Dashboard"
-                      >
-                        <Pin className="w-3.5 h-3.5" />
-                      </button>
-                      <button
                         onClick={() => success('Feedback noted')}
-                        className="p-1 hover:text-fg rounded"
-                        title="Helpful"
+                        className="p-1 hover:text-text rounded-control"
+                        aria-label="Helpful"
                       >
                         <ThumbsUp className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => success('Feedback noted')}
-                        className="p-1 hover:text-fg rounded"
-                        title="Not helpful"
+                        className="p-1 hover:text-text rounded-control"
+                        aria-label="Not helpful"
                       >
                         <ThumbsDown className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Follow-up Suggestion Chips */}
+                  {/* Plain text follow-up suggestions */}
                   {msg.suggestedFollowUps && (
-                    <div className="pt-2 flex flex-wrap gap-1.5">
+                    <div className="pt-1 flex flex-wrap gap-1.5">
                       {msg.suggestedFollowUps.map((chip, cIdx) => (
                         <button
                           key={cIdx}
                           onClick={() => handleSend(chip)}
-                          className="px-2.5 py-1 rounded-full border border-ai/25 bg-ai/5 text-ai hover:bg-ai/10 text-xs text-left transition-colors font-medium flex items-center gap-1"
+                          className="px-2 py-1 rounded-control border border-border bg-surface hover:bg-surface-sunken text-xs text-text-muted hover:text-text transition-colors text-left"
                         >
-                          <Sparkles className="w-3 h-3 shrink-0" />
-                          <span>{chip}</span>
+                          {chip}
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
+              )
+            })}
+
+            {/* Stage Ticker progression */}
+            {isGenerating && (
+              <div className="py-2">
+                <StageTicker currentStage={activeStage} />
               </div>
-            )
-          })}
+            )}
 
-          {/* Active Generation Stage Ticker */}
-          {isGenerating && (
-            <div className="flex items-center gap-3 animate-fade-in pl-10">
-              <StageTicker currentStage={activeStage} />
-            </div>
-          )}
+            <div ref={chatEndRef} />
+          </div>
 
-          <div ref={chatEndRef} />
-        </div>
+          {/* Composer */}
+          <div className="p-3 border-t border-border bg-surface">
+            <div className="border border-border-strong rounded-control bg-surface focus-within:border-accent transition-colors">
+              <textarea
+                ref={inputRef}
+                rows={2}
+                placeholder="Ask about students, schedule, or fees… (⌘↵ to send)"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full bg-transparent p-2.5 text-xs text-text outline-none resize-none placeholder:text-text-muted font-sans"
+              />
 
-        {/* Composer Bar */}
-        <div className="p-3 border-t border-border bg-surface">
-          <div className="relative rounded-card border border-border bg-surface-2 focus-within:border-ai transition-colors">
-            <textarea
-              ref={inputRef}
-              rows={2}
-              placeholder="Ask anything about students, timetable, fees, or use /commands, @entities (⌘Enter to send)..."
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="w-full bg-transparent p-3 text-xs text-fg outline-none resize-none placeholder:text-fg-muted font-sans"
-            />
-
-            <div className="flex items-center justify-between px-3 py-2 border-t border-border/40 text-[11px] text-fg-muted">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setInputValue((prev) => prev + '/students ')}
-                  className="font-mono text-[10px] bg-surface border border-border px-1.5 py-0.5 rounded hover:text-fg"
-                >
-                  /students
-                </button>
-                {role !== 'trainer' && (
-                  <button
-                    type="button"
-                    onClick={() => setInputValue((prev) => prev + '/fees ')}
-                    className="font-mono text-[10px] bg-surface border border-border px-1.5 py-0.5 rounded hover:text-fg"
-                  >
-                    /fees
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setInputValue((prev) => prev + '/schedule ')}
-                  className="font-mono text-[10px] bg-surface border border-border px-1.5 py-0.5 rounded hover:text-fg"
-                >
-                  /schedule
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] text-fg-muted hidden sm:inline">
-                  ⌘↵ to send
-                </span>
+              <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-border bg-surface-sunken/30 text-[11px] text-text-muted">
+                <span className="font-mono text-[10px]">⌘↵ to send</span>
                 <Button
-                  variant="ai"
-                  size="sm"
+                  variant="primary"
+                  size="xs"
                   onClick={() => handleSend()}
                   disabled={!inputValue.trim() || isGenerating}
-                  className="h-7 px-2.5 text-xs"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-3 h-3" />
                 </Button>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Right Evidence Panel (360px) */}
-      {showEvidence && selectedMessage && (
-        <EvidencePanel
-          sql={selectedMessage.sql}
-          dataSources={selectedMessage.dataSources}
-          filters={selectedMessage.filters}
-          safetyChecks={selectedMessage.safetyChecks}
-          executionTimeMs={selectedMessage.executionTimeMs}
-          rowsCount={selectedMessage.rowsCount}
-          viewsCount={selectedMessage.viewsCount}
-          confidence={selectedMessage.confidence}
-          onClose={() => setShowEvidence(false)}
-        />
       )}
     </div>
   )

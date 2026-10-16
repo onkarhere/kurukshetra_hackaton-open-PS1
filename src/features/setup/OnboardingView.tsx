@@ -9,7 +9,7 @@ import {
   Upload,
   UserPlus,
   ArrowRight,
-  Sparkles,
+  Database,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
@@ -18,53 +18,55 @@ export const OnboardingView: React.FC = () => {
   const navigate = useNavigate()
   const { success } = useToast()
 
-  const [activeStep, setActiveStep] = useState(4) // e.g. at student import
+  const [activeStep, setActiveStep] = useState(4)
 
   const steps = [
-    { title: 'Institute Profile', desc: 'CodeCraft Academy, Pune', isDone: true },
-    { title: 'Branches & Rooms', desc: 'Kothrud & Baner (8 rooms setup)', isDone: true },
-    { title: 'Courses & Curricula', desc: '6 structured technical courses', isDone: true },
-    { title: 'Faculty & Trainers', desc: '8 instructors with availability grids', isDone: true },
-    { title: 'Import Students', desc: 'CSV column mapper & deduplication', isDone: false },
-    { title: 'Invite Staff Team', desc: 'Accounts & counseling staff', isDone: false },
+    { title: 'Institute profile', desc: 'CodeCraft Academy, Pune', isDone: true },
+    { title: 'Branches & rooms', desc: 'Kothrud & Baner (8 rooms configured)', isDone: true },
+    { title: 'Courses & syllabus', desc: '6 technical diploma & stack courses', isDone: true },
+    { title: 'Faculty & trainers', desc: '8 instructors with availability grids', isDone: true },
+    { title: 'Import students', desc: 'CSV column mapper & deduplication', isDone: false },
+    { title: 'Invite staff team', desc: 'Accounts & counseling staff roles', isDone: false },
   ]
 
   const completionPct = Math.round((4 / 6) * 100)
 
   const handleUseSampleData = () => {
-    success('Sample data loaded', 'Imported 320 students and 14 batches into CodeCraft Academy.')
+    success('Sample data loaded', 'Loaded 320 students and 14 batches into CodeCraft Academy.')
     navigate('/')
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-fade-in select-none py-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-3xl mx-auto space-y-6 select-none py-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">Institute Onboarding Setup</h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            Configure campuses, cohorts, and import rosters to activate operations copilot
+          <h1 className="text-xl font-semibold tracking-tight text-text">Institute setup</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Configure campuses, cohorts, and import rosters to initialize operations
           </p>
         </div>
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={handleUseSampleData}
-          leftIcon={<Sparkles className="w-3.5 h-3.5 text-ai" />}
+          leftIcon={<Database className="w-3.5 h-3.5 text-text-muted" />}
         >
-          Use Sample Pune Data
+          Load Pune sample dataset
         </Button>
       </div>
 
       {/* Progress Card */}
-      <div className="p-5 rounded-card border border-border bg-surface flex items-center justify-between gap-4 shadow-sm">
+      <div className="p-5 rounded-card border border-border bg-surface flex items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="text-xs font-semibold text-fg">Setup Progress: 4 of 6 Steps Finished</div>
-          <div className="text-[11px] text-fg-muted">
-            All core infrastructure configured. Complete student import to launch.
+          <div className="text-xs font-medium text-text">
+            Setup progress: <span className="tabular-nums font-medium">4 of 6</span> steps completed
+          </div>
+          <div className="text-[11px] text-text-muted">
+            All core infrastructure configured. Import student roster to launch live operations.
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-12 h-12 rounded-full border-4 border-primary flex items-center justify-center font-mono font-bold text-xs text-primary">
+          <div className="w-12 h-12 rounded-full border-2 border-accent flex items-center justify-center tabular-nums text-xs font-medium text-accent">
             {completionPct}%
           </div>
         </div>
@@ -77,32 +79,32 @@ export const OnboardingView: React.FC = () => {
             key={idx}
             className={`p-4 rounded-card border flex items-center justify-between transition-colors ${
               st.isDone
-                ? 'border-success/30 bg-success/5'
+                ? 'border-border bg-surface'
                 : idx === activeStep
-                ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                : 'border-border bg-surface'
+                ? 'border-border-strong bg-surface ring-1 ring-accent'
+                : 'border-border bg-surface opacity-75'
             }`}
           >
             <div className="flex items-center gap-3">
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                className={`w-7 h-7 rounded-control flex items-center justify-center text-xs font-medium ${
                   st.isDone
-                    ? 'bg-success text-white'
+                    ? 'bg-surface-sunken text-success border border-border'
                     : idx === activeStep
-                    ? 'bg-primary text-white'
-                    : 'bg-surface-2 text-fg-muted border border-border'
+                    ? 'bg-accent text-accent-fg'
+                    : 'bg-surface-sunken text-text-muted border border-border'
                 }`}
               >
-                {st.isDone ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
+                {st.isDone ? <CheckCircle2 className="w-4 h-4" /> : <span className="tabular-nums">{idx + 1}</span>}
               </div>
               <div>
-                <h4 className="text-xs font-semibold text-fg">{st.title}</h4>
-                <p className="text-[11px] text-fg-muted">{st.desc}</p>
+                <h4 className="text-xs font-medium text-text">{st.title}</h4>
+                <p className="text-[11px] text-text-muted">{st.desc}</p>
               </div>
             </div>
 
             <Button
-              variant={st.isDone ? 'ghost' : 'primary'}
+              variant={idx === activeStep ? 'primary' : 'secondary'}
               size="sm"
               onClick={() => {
                 if (st.isDone) {

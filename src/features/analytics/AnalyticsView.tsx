@@ -1,18 +1,15 @@
 import React, { useState } from 'react'
 import {
-  BarChart3,
-  TrendingUp,
-  DollarSign,
-  Users,
-  Sparkles,
   Code2,
   Table as TableIcon,
+  LineChart as LineChartIcon,
   Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SqlBlock } from '@/components/ui/SqlBlock'
+import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
-import { formatINR } from '@/lib/utils'
+import { formatINR, cn } from '@/lib/utils'
 import {
   ResponsiveContainer,
   BarChart,
@@ -20,26 +17,35 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
+  CartesianGrid,
+  LineChart,
+  Line,
 } from 'recharts'
 
 export const AnalyticsView: React.FC = () => {
-  const { success, ai } = useToast()
-  const [activeReport, setActiveReport] = useState<'collections' | 'attendance' | 'trainer_load' | 'room_utilization'>('collections')
+  const { role } = useApp()
+  const { success } = useToast()
+  const [activeReport, setActiveReport] = useState<
+    'collections' | 'attendance' | 'trainer_load' | 'room_utilization'
+  >(role === 'trainer' ? 'attendance' : 'collections')
   const [showSql, setShowSql] = useState(false)
   const [viewAsTable, setViewAsTable] = useState(false)
 
   const collectionsData = [
-    { name: 'May 26', amount: 320000 },
-    { name: 'Jun 26', amount: 390000 },
-    { name: 'Jul 26', amount: 410000 },
-    { name: 'Aug 26', amount: 480000 },
-    { name: 'Sep 26', amount: 510000 },
-    { name: 'Oct 26 (MTD)', amount: 462500 },
+    { name: 'May 2026', amount: 320000, target: 300000 },
+    { name: 'Jun 2026', amount: 390000, target: 350000 },
+    { name: 'Jul 2026', amount: 410000, target: 400000 },
+    { name: 'Aug 2026', amount: 480000, target: 450000 },
+    { name: 'Sep 2026', amount: 510000, target: 500000 },
+    { name: 'Oct 2026 (MTD)', amount: 462500, target: 500000 },
+  ]
+
+  const attendanceData = [
+    { name: 'Java Full-Stack B3 (Kothrud)', turnout: 82, target: 80 },
+    { name: 'Java Full-Stack B4 (Baner)', turnout: 94, target: 80 },
+    { name: 'Python Data B1 (Baner)', turnout: 89, target: 80 },
+    { name: 'Data Analytics B2 (Kothrud)', turnout: 98, target: 80 },
+    { name: 'React Frontend B1 (Online)', turnout: 91, target: 80 },
   ]
 
   const trainerLoadData = [
@@ -80,180 +86,270 @@ JOIN v_timetable_sessions s ON r.id = s.room_id
 GROUP BY r.id, r.room_number;`,
   }
 
-  const handleExplain = () => {
-    ai(
-      'AI Analysis Insight',
-      'Collections increased 28% quarter-over-quarter driven by high enrolment in Java Full-Stack B3 and Advanced Data Analytics cohorts in Pune.'
-    )
-  }
-
   return (
-    <div className="space-y-5 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">Operations Analytics & Reports</h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            Holistic data intelligence · Every chart backed by deterministic SQL queries and AI explanations
+          <h1 className="text-xl font-semibold text-text">Analytics</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Operational reporting backed by SQL analytical views and deterministic audits
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
-            variant="ai"
-            size="sm"
-            onClick={handleExplain}
-            leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-          >
-            Explain This Chart
-          </Button>
-          <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => setShowSql(!showSql)}
             leftIcon={<Code2 className="w-3.5 h-3.5" />}
           >
-            {showSql ? 'Hide SQL' : 'Show SQL'}
+            {showSql ? 'Hide SQL' : 'View SQL query'}
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => setViewAsTable(!viewAsTable)}
-            leftIcon={<TableIcon className="w-3.5 h-3.5" />}
+            leftIcon={viewAsTable ? <LineChartIcon className="w-3.5 h-3.5" /> : <TableIcon className="w-3.5 h-3.5" />}
           >
-            {viewAsTable ? 'View as Chart' : 'View as Table'}
+            {viewAsTable ? 'View as chart' : 'View as table'}
           </Button>
         </div>
       </div>
 
-      {/* Report Gallery Navigation Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-medium border-b border-border">
+      {/* Report Switcher Tabs */}
+      <div className="flex items-center gap-1 border-b border-border text-xs font-medium overflow-x-auto">
+        {role !== 'trainer' && (
+          <button
+            onClick={() => setActiveReport('collections')}
+            className={cn(
+              'py-2 px-3 border-b-2 transition-colors whitespace-nowrap',
+              activeReport === 'collections'
+                ? 'border-accent text-text font-semibold'
+                : 'border-transparent text-text-muted hover:text-text'
+            )}
+          >
+            Collections trend
+          </button>
+        )}
         <button
-          onClick={() => setActiveReport('collections')}
-          className={`py-2 px-3 border-b-2 transition-colors whitespace-nowrap ${
-            activeReport === 'collections'
-              ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+          onClick={() => setActiveReport('attendance')}
+          className={cn(
+            'py-2 px-3 border-b-2 transition-colors whitespace-nowrap',
+            activeReport === 'attendance'
+              ? 'border-accent text-text font-semibold'
+              : 'border-transparent text-text-muted hover:text-text'
+          )}
         >
-          Tuition Collections MTD
+          Cohort attendance
         </button>
         <button
           onClick={() => setActiveReport('trainer_load')}
-          className={`py-2 px-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={cn(
+            'py-2 px-3 border-b-2 transition-colors whitespace-nowrap',
             activeReport === 'trainer_load'
-              ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+              ? 'border-accent text-text font-semibold'
+              : 'border-transparent text-text-muted hover:text-text'
+          )}
         >
-          Trainer Utilisation Hours
+          Trainer workload
         </button>
       </div>
 
-      {/* SQL Drawer */}
+      {/* SQL Provenance Drawer / Accordion */}
       {showSql && (
-        <div className="animate-scale-in">
-          <SqlBlock sql={reportSqls[activeReport]} />
+        <div className="p-4 rounded-card border border-border bg-surface space-y-2">
+          <div className="flex items-center justify-between text-xs text-text-muted">
+            <span className="font-medium text-text">SQL Query Provenance</span>
+            <span className="font-mono text-[11px]">Read-only execution · 0 mutation risk</span>
+          </div>
+          <SqlBlock sql={reportSqls[activeReport] || ''} />
         </div>
       )}
 
-      {/* Main Chart Canvas or Table View */}
-      <div className="p-5 rounded-card border border-border bg-surface space-y-4 shadow-sm">
+      {/* Main Chart/Table Card */}
+      <div className="p-4 rounded-card border border-border bg-surface space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-border">
-          <h3 className="text-xs font-semibold uppercase tracking-wider font-mono text-fg">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text">
             {activeReport === 'collections'
-              ? 'Monthly Gross Collections Trend (INR)'
-              : 'Weekly Assigned Hours vs Capacity'}
-          </h3>
-          <span className="text-[11px] font-mono text-fg-muted">Source: Analytic Views</span>
+              ? 'Tuition collections (6 months)'
+              : activeReport === 'attendance'
+              ? 'Cohort turnout rates vs 80% target'
+              : 'Weekly teaching hours vs max capacity'}
+          </h2>
+          <span className="text-[11px] text-text-muted">
+            {viewAsTable ? 'Tabular format' : 'One accent series with neutral baseline'}
+          </span>
         </div>
 
-        {viewAsTable ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface-2 border-b border-border text-[11px] font-semibold text-fg-muted">
-                <tr>
-                  <th className="py-2 px-3">Dimension</th>
-                  <th className="py-2 px-3 text-right">Primary Metric</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {activeReport === 'collections'
-                  ? collectionsData.map((d, i) => (
-                      <tr key={i}>
-                        <td className="py-2 px-3 font-medium text-fg">{d.name}</td>
-                        <td className="py-2 px-3 font-mono font-bold text-fg text-right">
-                          {formatINR(d.amount)}
-                        </td>
-                      </tr>
-                    ))
-                  : trainerLoadData.map((t, i) => (
-                      <tr key={i}>
-                        <td className="py-2 px-3 font-medium text-fg">{t.name}</td>
-                        <td className="py-2 px-3 font-mono font-bold text-fg text-right">
-                          {t.hours}h of {t.max}h
-                        </td>
-                      </tr>
-                    ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
+        {/* Chart View */}
+        {!viewAsTable && (
           <div className="h-72 w-full">
-            {activeReport === 'collections' ? (
+            {activeReport === 'collections' && (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={collectionsData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} />
+                <LineChart data={collectionsData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="var(--border)" strokeOpacity={0.08} vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--text-muted)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: 'var(--border)' }}
+                  />
                   <YAxis
                     stroke="var(--text-muted)"
                     fontSize={11}
                     tickLine={false}
+                    axisLine={false}
                     tickFormatter={(val) => `₹${val / 1000}k`}
                   />
                   <Tooltip
-                    formatter={(val: any) => [formatINR(Number(val)), 'Total Inflow']}
+                    formatter={(val: any, name: any) => [
+                      formatINR(Number(val)),
+                      name === 'amount' ? 'Collected' : 'Target',
+                    ]}
                     contentStyle={{
                       backgroundColor: 'var(--surface)',
                       borderColor: 'var(--border)',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       fontSize: '12px',
+                      color: 'var(--text)',
                     }}
                   />
-                  <Area
+                  <Line
+                    type="monotone"
+                    dataKey="target"
+                    stroke="var(--text-muted)"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                    dot={false}
+                  />
+                  <Line
                     type="monotone"
                     dataKey="amount"
-                    stroke="var(--primary)"
+                    stroke="var(--accent)"
                     strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#chartGrad)"
+                    dot={{ r: 3, fill: 'var(--accent)' }}
                   />
-                </AreaChart>
+                </LineChart>
               </ResponsiveContainer>
-            ) : (
+            )}
+
+            {activeReport === 'attendance' && (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={trainerLoadData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} />
-                  <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} />
+                <BarChart data={attendanceData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="var(--border)" strokeOpacity={0.08} vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--text-muted)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: 'var(--border)' }}
+                  />
+                  <YAxis
+                    stroke="var(--text-muted)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    domain={[0, 100]}
+                    tickFormatter={(val) => `${val}%`}
+                  />
                   <Tooltip
+                    formatter={(val: any) => [`${val}%`, 'Turnout']}
                     contentStyle={{
                       backgroundColor: 'var(--surface)',
                       borderColor: 'var(--border)',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       fontSize: '12px',
+                      color: 'var(--text)',
                     }}
                   />
-                  <Bar dataKey="hours" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="turnout" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+
+            {activeReport === 'trainer_load' && (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={trainerLoadData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="var(--border)" strokeOpacity={0.08} vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--text-muted)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: 'var(--border)' }}
+                  />
+                  <YAxis
+                    stroke="var(--text-muted)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(val) => `${val}h`}
+                  />
+                  <Tooltip
+                    formatter={(val: any) => [`${val} hrs`, 'Weekly Hours']}
+                    contentStyle={{
+                      backgroundColor: 'var(--surface)',
+                      borderColor: 'var(--border)',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: 'var(--text)',
+                    }}
+                  />
+                  <Bar dataKey="hours" fill="var(--accent)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
         )}
+
+        {/* Table View */}
+        {viewAsTable && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-surface-sunken text-text-muted border-b border-border">
+                <tr>
+                  <th className="py-2 px-3">Dimension</th>
+                  <th className="py-2 px-3 text-right">Metric Value</th>
+                  <th className="py-2 px-3 text-right">Target / Limit</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {activeReport === 'collections' &&
+                  collectionsData.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-surface-sunken/40 h-9">
+                      <td className="px-3 font-medium text-text">{row.name}</td>
+                      <td className="px-3 text-right tabular-nums text-text">{formatINR(row.amount)}</td>
+                      <td className="px-3 text-right tabular-nums text-text-muted">{formatINR(row.target)}</td>
+                    </tr>
+                  ))}
+                {activeReport === 'attendance' &&
+                  attendanceData.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-surface-sunken/40 h-9">
+                      <td className="px-3 font-medium text-text">{row.name}</td>
+                      <td className="px-3 text-right tabular-nums text-text">{row.turnout}%</td>
+                      <td className="px-3 text-right tabular-nums text-text-muted">{row.target}%</td>
+                    </tr>
+                  ))}
+                {activeReport === 'trainer_load' &&
+                  trainerLoadData.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-surface-sunken/40 h-9">
+                      <td className="px-3 font-medium text-text">{row.name}</td>
+                      <td className="px-3 text-right tabular-nums text-text">{row.hours} hrs</td>
+                      <td className="px-3 text-right tabular-nums text-text-muted">{row.max} hrs</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Source Line */}
+        <div className="pt-3 border-t border-border flex items-center justify-between text-[11px] text-text-muted">
+          <span>Source: Analytical views materialized in Postgres schema · Updated every hour</span>
+          <span>Dashed line: Operational target</span>
+        </div>
       </div>
     </div>
   )

@@ -17,6 +17,8 @@ interface AppContextType {
   shortcutsOpen: boolean
   setShortcutsOpen: (open: boolean) => void
   unreadApprovalsCount: number
+  pendingAskQuery: string | null
+  setPendingAskQuery: (query: string | null) => void
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -32,6 +34,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [copilotOpen, setCopilotOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [pendingAskQuery, setPendingAskQuery] = useState<string | null>(null)
 
   useEffect(() => {
     const unsub = store.subscribe(() => {
@@ -58,17 +61,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeEl?.tagName === 'TEXTAREA' ||
         (activeEl as HTMLElement)?.isContentEditable
 
-      // ⌘K / Ctrl+K: Command Palette
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      // ⌘K / Ctrl+K and ⌘J / Ctrl+J both open the command bar
+      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'k' || e.key.toLowerCase() === 'j')) {
         e.preventDefault()
-        setCommandPaletteOpen((prev) => !prev)
-        return
-      }
-
-      // ⌘J / Ctrl+J: Copilot Drawer
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
-        e.preventDefault()
-        setCopilotOpen((prev) => !prev)
+        setCommandPaletteOpen(true)
         return
       }
 
@@ -144,6 +140,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         shortcutsOpen,
         setShortcutsOpen,
         unreadApprovalsCount,
+        pendingAskQuery,
+        setPendingAskQuery,
       }}
     >
       {children}

@@ -1,28 +1,48 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Upload,
   CheckCircle2,
   AlertTriangle,
   HelpCircle,
-  FileSpreadsheet,
-  ArrowRight,
-  Sparkles,
   Download,
-  Building2,
   Check,
+  Lock,
 } from 'lucide-react'
-import { StatusPill } from '@/components/ui/StatusPill'
-import { ReasonChip } from '@/components/ui/ReasonChip'
 import { Button } from '@/components/ui/Button'
+import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { store } from '@/mocks/store'
-import { formatINR } from '@/lib/utils'
+import { formatINR, cn } from '@/lib/utils'
 
 export const PaymentsView: React.FC = () => {
+  const { role } = useApp()
   const { success } = useToast()
+  const navigate = useNavigate()
+
   const [activeTab, setActiveTab] = useState<'reconcile' | 'all'>('reconcile')
   const [bankFormat, setBankFormat] = useState('HDFC Bank NetBanking CSV')
   const [payments, setPayments] = useState([...store.payments])
+
+  // Trainer access lockdown
+  if (role === 'trainer') {
+    return (
+      <div className="p-8 text-center max-w-md mx-auto space-y-4">
+        <div className="w-12 h-12 rounded-full bg-surface-sunken border border-border flex items-center justify-center mx-auto text-text-muted">
+          <Lock className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="text-base font-semibold text-text">Permission restricted</h2>
+          <p className="text-xs text-text-muted mt-1 leading-relaxed">
+            Payment transactions and bank reconciliation records are restricted to Owner and Accounts roles.
+          </p>
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
+          Return to dashboard
+        </Button>
+      </div>
+    )
+  }
 
   const handleConfirmMatch = (paymentId: string) => {
     store.reconcilePayment(paymentId)
@@ -35,65 +55,67 @@ export const PaymentsView: React.FC = () => {
   const unmatchedItems = payments.filter((p) => p.status === 'unmatched')
 
   return (
-    <div className="space-y-5 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">Payments & Reconciliation</h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            Auto-match incoming bank statements, UPI collections & NEFT transfers with student EMIs
+          <h1 className="text-xl font-semibold text-text">Payments & reconciliation</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Auto-match incoming bank statements, UPI collections, and NEFT transfers with student EMIs
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
-            onClick={() => success('Exporting bank reconciliation report...')}
+            onClick={() => success('Exporting bank reconciliation audit sheet...')}
             leftIcon={<Download className="w-3.5 h-3.5" />}
           >
-            Export Audit Sheet
+            Export audit sheet
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border text-xs font-medium">
+      <div className="flex items-center gap-1 border-b border-border text-xs font-medium">
         <button
           onClick={() => setActiveTab('reconcile')}
-          className={`py-2 px-3 border-b-2 transition-colors ${
+          className={cn(
+            'py-2 px-3 border-b-2 transition-colors',
             activeTab === 'reconcile'
-              ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+              ? 'border-accent text-text font-semibold'
+              : 'border-transparent text-text-muted hover:text-text'
+          )}
         >
-          Reconciliation Board
+          Reconciliation board (3 columns)
         </button>
         <button
           onClick={() => setActiveTab('all')}
-          className={`py-2 px-3 border-b-2 transition-colors ${
+          className={cn(
+            'py-2 px-3 border-b-2 transition-colors',
             activeTab === 'all'
-              ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+              ? 'border-accent text-text font-semibold'
+              : 'border-transparent text-text-muted hover:text-text'
+          )}
         >
-          All Payments Table ({payments.length})
+          All payments ({payments.length})
         </button>
       </div>
 
       {/* RECONCILE BOARD */}
       {activeTab === 'reconcile' && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* File Upload Dropzone */}
-          <div className="p-4 rounded-card border-2 border-dashed border-border bg-surface-2/40 hover:bg-surface-2 transition-colors flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="p-3.5 rounded-card border border-border bg-surface-sunken/40 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                <Upload className="w-5 h-5" />
+              <div className="w-8 h-8 rounded border border-border bg-surface flex items-center justify-center text-text-muted shrink-0">
+                <Upload className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-semibold text-fg">Upload Bank Statement or UPI Settlement</h3>
-                <p className="text-[11px] text-fg-muted">
-                  Drag and drop HDFC, ICICI, SBI or Razorpay CSV/XLSX
+                <h3 className="text-xs font-semibold text-text">Import bank statement</h3>
+                <p className="text-[11px] text-text-muted">
+                  Drag and drop HDFC, ICICI, SBI or Razorpay CSV settlement file
                 </p>
               </div>
             </div>
@@ -102,7 +124,7 @@ export const PaymentsView: React.FC = () => {
               <select
                 value={bankFormat}
                 onChange={(e) => setBankFormat(e.target.value)}
-                className="bg-surface border border-border text-fg rounded-btn px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                className="bg-surface border border-border text-text rounded-control px-2.5 py-1.5 text-xs outline-none focus:border-accent"
               >
                 <option value="HDFC Bank NetBanking CSV">HDFC Bank NetBanking CSV</option>
                 <option value="ICICI Corporate Export">ICICI Corporate Export</option>
@@ -112,37 +134,42 @@ export const PaymentsView: React.FC = () => {
 
               <Button
                 variant="primary"
-                size="sm"
+                size="xs"
                 onClick={() => success('Bank statement parsed: 4 records imported.')}
               >
-                Upload File
+                Upload file
               </Button>
             </div>
           </div>
 
           {/* Three-Column Board */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Column 1: Auto-Matched */}
-            <div className="rounded-card border border-border bg-surface p-4 space-y-3 shadow-sm">
+            <div className="rounded-card border border-border bg-surface p-3.5 space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-border">
-                <h3 className="text-xs font-semibold text-fg flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-success" />
-                  Auto-Matched ({autoMatchedItems.length})
+                <h3 className="text-xs font-semibold text-text flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+                  Auto-matched ({autoMatchedItems.length})
                 </h3>
-                <span className="text-[10px] font-mono font-semibold text-success bg-success/10 px-1.5 py-0.5 rounded">
+                <span className="text-[11px] font-mono text-text-muted">
                   100% confidence
                 </span>
               </div>
 
               <div className="space-y-2">
                 {autoMatchedItems.map((p) => (
-                  <div key={p.id} className="p-2.5 rounded-btn bg-surface-2 border border-border text-xs space-y-1">
+                  <div
+                    key={p.id}
+                    className="p-2.5 rounded-control bg-surface-sunken border border-border text-xs space-y-1"
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-fg">{p.studentName}</span>
-                      <span className="font-mono font-bold text-fg">{formatINR(p.amount)}</span>
+                      <span className="font-medium text-text">{p.studentName}</span>
+                      <span className="tabular-nums font-medium text-text">
+                        {formatINR(p.amount)}
+                      </span>
                     </div>
-                    <div className="text-[11px] font-mono text-fg-muted">{p.utrNo}</div>
-                    <div className="text-[10px] text-success font-semibold flex items-center gap-1 pt-0.5">
+                    <div className="text-[11px] font-mono text-text-muted">{p.utrNo}</div>
+                    <div className="text-[10px] text-success font-medium flex items-center gap-1 pt-0.5">
                       ✓ UTR verified against student registered phone
                     </div>
                   </div>
@@ -151,49 +178,52 @@ export const PaymentsView: React.FC = () => {
             </div>
 
             {/* Column 2: Needs Review */}
-            <div className="rounded-card border border-warning/40 bg-surface p-4 space-y-3 shadow-sm">
+            <div className="rounded-card border border-border bg-surface p-3.5 space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-border">
-                <h3 className="text-xs font-semibold text-fg flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-warning" />
-                  Needs Review ({needsReviewItems.length})
+                <h3 className="text-xs font-semibold text-text flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+                  Needs review ({needsReviewItems.length})
                 </h3>
-                <span className="text-[10px] font-mono font-semibold text-warning bg-warning/10 px-1.5 py-0.5 rounded">
+                <span className="text-[11px] font-mono text-text-muted">
                   85% match
                 </span>
               </div>
 
               <div className="space-y-3">
                 {needsReviewItems.map((p) => (
-                  <div key={p.id} className="p-3 rounded-btn bg-surface-2 border border-warning/30 text-xs space-y-2">
+                  <div
+                    key={p.id}
+                    className="p-3 rounded-control bg-surface-sunken border border-border text-xs space-y-2"
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-fg">{p.studentName}</span>
-                      <span className="font-mono font-bold text-fg">{formatINR(p.amount)}</span>
+                      <span className="font-medium text-text">{p.studentName}</span>
+                      <span className="tabular-nums font-medium text-text">
+                        {formatINR(p.amount)}
+                      </span>
                     </div>
 
                     <div className="p-2 rounded bg-surface border border-border space-y-1">
-                      <div className="text-[11px] font-mono text-fg-muted">Bank line: {p.utrNo}</div>
-                      <div className="text-[11px] text-primary font-medium">
-                        Suggested: Priya Nair (Instalment #3 of Java B3)
+                      <div className="text-[11px] font-mono text-text-muted">Bank line: {p.utrNo}</div>
+                      <div className="text-[11px] text-accent font-medium">
+                        Suggested: Priya Nair (Instalment #3 of Java Full-Stack B3 (Kothrud))
                       </div>
                     </div>
 
-                    {/* Confidence Bar */}
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-mono">
-                        <span className="text-fg-muted">Match Confidence</span>
-                        <span className="font-bold text-warning">{p.confidence}%</span>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-text-muted">Match confidence</span>
+                        <span className="font-medium text-text tabular-nums">{p.confidence}%</span>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-surface overflow-hidden border border-border">
-                        <div className="h-full bg-warning" style={{ width: `${p.confidence}%` }} />
+                      <div className="w-full h-1 rounded bg-surface overflow-hidden border border-border">
+                        <div className="h-full bg-accent" style={{ width: `${p.confidence}%` }} />
                       </div>
                     </div>
 
-                    {/* Reasons list */}
                     {p.reconcileReasons && (
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         {p.reconcileReasons.map((r, rIdx) => (
-                          <div key={rIdx} className="text-[11px] text-fg-muted flex items-start gap-1">
-                            <span className="text-warning">•</span>
+                          <div key={rIdx} className="text-[11px] text-text-muted flex items-start gap-1">
+                            <span>•</span>
                             <span>{r}</span>
                           </div>
                         ))}
@@ -203,20 +233,18 @@ export const PaymentsView: React.FC = () => {
                     <div className="pt-2 flex items-center justify-between gap-2 border-t border-border">
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="text-[11px] h-7 px-2"
+                        size="xs"
                         onClick={() => success('Marked as non-fee deposit')}
                       >
                         Not a fee
                       </Button>
                       <Button
                         variant="primary"
-                        size="sm"
-                        className="text-[11px] h-7 px-3"
+                        size="xs"
                         onClick={() => handleConfirmMatch(p.id)}
                         leftIcon={<Check className="w-3 h-3" />}
                       >
-                        Confirm Match
+                        Confirm match
                       </Button>
                     </div>
                   </div>
@@ -225,33 +253,38 @@ export const PaymentsView: React.FC = () => {
             </div>
 
             {/* Column 3: Unmatched */}
-            <div className="rounded-card border border-border bg-surface p-4 space-y-3 shadow-sm">
+            <div className="rounded-card border border-border bg-surface p-3.5 space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-border">
-                <h3 className="text-xs font-semibold text-fg flex items-center gap-1.5">
-                  <HelpCircle className="w-4 h-4 text-fg-muted" />
+                <h3 className="text-xs font-semibold text-text flex items-center gap-1.5">
+                  <HelpCircle className="w-3.5 h-3.5 text-text-muted" />
                   Unmatched ({unmatchedItems.length})
                 </h3>
-                <span className="text-[10px] font-mono text-fg-muted">No student match</span>
+                <span className="text-[11px] text-text-muted">Manual lookup</span>
               </div>
 
               <div className="space-y-2">
                 {unmatchedItems.map((p) => (
-                  <div key={p.id} className="p-2.5 rounded-btn bg-surface-2 border border-border text-xs space-y-2">
+                  <div
+                    key={p.id}
+                    className="p-2.5 rounded-control bg-surface-sunken border border-border text-xs space-y-2"
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-fg">{p.studentName}</span>
-                      <span className="font-mono font-bold text-fg">{formatINR(p.amount)}</span>
+                      <span className="font-medium text-text">{p.studentName}</span>
+                      <span className="tabular-nums font-medium text-text">
+                        {formatINR(p.amount)}
+                      </span>
                     </div>
-                    <div className="text-[11px] font-mono text-fg-muted">{p.utrNo}</div>
-                    <p className="text-[11px] text-fg-muted">
+                    <div className="text-[11px] font-mono text-text-muted">{p.utrNo}</div>
+                    <p className="text-[11px] text-text-muted">
                       No matching phone or roll number found in transaction remarks.
                     </p>
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="w-full text-[11px] h-7"
+                      size="xs"
+                      className="w-full"
                       onClick={() => success('Lookup student directory drawer opened')}
                     >
-                      Assign Manually
+                      Assign manually
                     </Button>
                   </div>
                 ))}
@@ -263,30 +296,40 @@ export const PaymentsView: React.FC = () => {
 
       {/* ALL PAYMENTS TABLE */}
       {activeTab === 'all' && (
-        <div className="rounded-card border border-border bg-surface overflow-x-auto shadow-sm">
+        <div className="rounded-card border border-border bg-surface overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-surface-2 border-b border-border text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
+            <thead className="bg-surface-sunken border-b border-border text-[11px] font-medium text-text-muted sticky top-0">
               <tr>
-                <th className="py-2.5 px-3">Receipt No</th>
-                <th className="py-2.5 px-3">Student Name</th>
-                <th className="py-2.5 px-3">Date</th>
-                <th className="py-2.5 px-3">Amount</th>
-                <th className="py-2.5 px-3">Payment Method</th>
-                <th className="py-2.5 px-3">UTR Reference</th>
-                <th className="py-2.5 px-3">Status</th>
+                <th className="py-2 px-3">Receipt no</th>
+                <th className="py-2 px-3">Student name</th>
+                <th className="py-2 px-3">Date</th>
+                <th className="py-2 px-3 text-right">Amount</th>
+                <th className="py-2 px-3">Payment method</th>
+                <th className="py-2 px-3">UTR reference</th>
+                <th className="py-2 px-3">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/60">
+            <tbody className="divide-y divide-border">
               {payments.map((p) => (
-                <tr key={p.id} className="hover:bg-surface-2/50 transition-colors">
-                  <td className="py-2.5 px-3 font-mono font-medium text-primary">{p.receiptNo}</td>
-                  <td className="py-2.5 px-3 font-semibold text-fg">{p.studentName}</td>
-                  <td className="py-2.5 px-3 font-mono text-fg-muted">{p.date}</td>
-                  <td className="py-2.5 px-3 font-mono font-bold text-fg">{formatINR(p.amount)}</td>
-                  <td className="py-2.5 px-3">{p.method}</td>
-                  <td className="py-2.5 px-3 font-mono text-[11px] text-fg-muted">{p.utrNo}</td>
-                  <td className="py-2.5 px-3">
-                    <StatusPill status={p.status} size="sm" />
+                <tr key={p.id} className="hover:bg-surface-sunken/40 h-10 transition-colors">
+                  <td className="px-3 font-mono text-[11px] text-text-muted">{p.receiptNo}</td>
+                  <td className="px-3 font-medium text-text">{p.studentName}</td>
+                  <td className="px-3 text-text-muted tabular-nums">{p.date}</td>
+                  <td className="px-3 text-right tabular-nums font-medium text-text">
+                    {formatINR(p.amount)}
+                  </td>
+                  <td className="px-3 text-text-muted">{p.method}</td>
+                  <td className="px-3 font-mono text-[11px] text-text-muted">{p.utrNo}</td>
+                  <td className="px-3">
+                    {p.status === 'verified' ? (
+                      <span className="inline-flex items-center gap-1 text-success text-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-warning text-xs">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Needs review
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

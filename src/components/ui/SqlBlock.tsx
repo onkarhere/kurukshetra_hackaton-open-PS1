@@ -16,7 +16,7 @@ export const SqlBlock: React.FC<SqlBlockProps> = ({ sql, readOnly = true, classN
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Basic syntax highlight tokenizer for SQL keywords
+  // Syntax highlight for SQL keywords
   const highlightSql = (text: string) => {
     const keywords = [
       'SELECT',
@@ -39,23 +39,27 @@ export const SqlBlock: React.FC<SqlBlockProps> = ({ sql, readOnly = true, classN
       'IS',
       'NOT',
       'NULL',
+      'ROUND',
+      'AVG',
+      'SUM',
+      'COUNT',
+      'DATE_TRUNC',
     ]
 
     const pattern = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g')
-
     const parts = text.split(pattern)
+
     return parts.map((part, index) => {
       if (keywords.includes(part)) {
         return (
-          <span key={index} className="text-primary font-semibold">
+          <span key={index} className="text-accent font-medium">
             {part}
           </span>
         )
       }
-      // Highlight string literals
       if (part.startsWith("'") && part.endsWith("'")) {
         return (
-          <span key={index} className="text-success">
+          <span key={index} className="text-text-muted">
             {part}
           </span>
         )
@@ -65,28 +69,28 @@ export const SqlBlock: React.FC<SqlBlockProps> = ({ sql, readOnly = true, classN
   }
 
   return (
-    <div className={`rounded-btn border border-border bg-surface-2 font-mono text-xs overflow-hidden ${className}`}>
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-surface text-fg-muted text-[11px]">
-        <div className="flex items-center gap-1.5">
+    <div className={`rounded-card border border-border bg-surface-sunken font-mono text-xs overflow-hidden ${className}`}>
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-surface text-text-muted text-xs">
+        <div className="flex items-center gap-2">
           {readOnly && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded">
-              <ShieldCheck className="w-3 h-3 text-success" />
+            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-text-muted bg-surface-sunken border border-border px-1.5 py-0.5 rounded-control">
+              <ShieldCheck className="w-3 h-3 text-accent" strokeWidth={1.5} />
               Read-only
             </span>
           )}
-          <span className="font-mono text-[11px] text-fg-muted">PostgreSQL 15</span>
+          <span className="text-[11px] text-text-muted font-mono">PostgreSQL</span>
         </div>
         <button
           onClick={handleCopy}
-          className="inline-flex items-center gap-1 hover:text-fg text-fg-muted p-1 rounded transition-colors text-[11px]"
+          className="inline-flex items-center gap-1 hover:text-text text-text-muted p-1 rounded transition-colors text-xs"
           title="Copy SQL"
         >
-          {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? <Check className="w-3 h-3 text-success" strokeWidth={1.5} /> : <Copy className="w-3 h-3" strokeWidth={1.5} />}
+          <span>{copied ? 'Copied' : 'Copy'}</span>
         </button>
       </div>
 
-      <pre className="p-3 overflow-x-auto text-fg text-xs leading-relaxed whitespace-pre font-mono selection:bg-primary/20">
+      <pre className="p-3 overflow-x-auto text-text text-xs leading-relaxed whitespace-pre font-mono">
         <code>{highlightSql(sql.trim())}</code>
       </pre>
     </div>

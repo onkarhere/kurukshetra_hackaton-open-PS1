@@ -1,23 +1,22 @@
 import React, { useState } from 'react'
 import {
-  CheckCheck,
+  Check,
   X,
   Edit3,
   Send,
   Clock,
-  ShieldAlert,
   ChevronDown,
   ChevronUp,
   CheckCircle2,
   GitCompare,
-  FileText,
+  Lock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ReasonChip } from '@/components/ui/ReasonChip'
 import { ApprovalAction } from '@/types'
 import { store } from '@/mocks/store'
 import { useToast } from '@/context/ToastContext'
-import { cn } from '@/lib/utils'
+import { cn, formatINR } from '@/lib/utils'
 
 interface ApprovalCardProps {
   approval: ApprovalAction
@@ -36,15 +35,15 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
   const [isEditing, setIsEditing] = useState(false)
   const [expandedRecipientId, setExpandedRecipientId] = useState<string | null>(null)
   const [selectedChannel, setSelectedChannel] = useState(approval.channel || 'whatsapp')
-  const [isMorphed, setIsMorphed] = useState(approval.status === 'approved')
+  const [isApproved, setIsApproved] = useState(approval.status === 'approved')
 
   const selectedRecipients = approval.recipients?.filter((r) => r.selected) || []
   const selectedCount = selectedRecipients.length
 
   const handleApprove = () => {
     store.approveProposal(approval.id)
-    setIsMorphed(true)
-    success('Action Approved & Executed', `${approval.title} has been dispatched.`)
+    setIsApproved(true)
+    success('Action approved', `${approval.title} dispatched.`)
     onApproved?.()
   }
 
@@ -61,63 +60,49 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
     store.updateRecipientMessage(approval.id, recipientId, val)
   }
 
-  // Morphed State (spring animation to tick list)
-  if (isMorphed || approval.status === 'approved') {
+  // Approved State (Clean state change, no bouncing)
+  if (isApproved || approval.status === 'approved') {
     return (
-      <div className="rounded-card border border-success/30 bg-success/5 p-4 transition-all duration-300 animate-scale-in">
-        <div className="flex items-center justify-between pb-3 border-b border-success/20">
+      <div className="rounded-card border border-border bg-surface p-4 text-xs space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-success/20 text-success flex items-center justify-center">
-              <CheckCheck className="w-3.5 h-3.5" />
-            </div>
+            <CheckCircle2 className="w-4 h-4 text-success" strokeWidth={1.5} />
             <div>
-              <div className="text-xs font-semibold text-fg">Action Approved & Dispatched</div>
-              <div className="text-[11px] text-fg-muted">
-                Approved by {approval.approvedBy || 'Owner'} · Just now
+              <div className="font-medium text-text">Action approved and dispatched</div>
+              <div className="text-text-muted text-[11px]">
+                Approved by {approval.approvedBy || 'Owner'} · Today
               </div>
             </div>
           </div>
-          <span className="text-[11px] font-mono text-success font-medium">STATUS: 200 OK</span>
+          <span className="text-[11px] font-mono text-text-muted">Status: 200 OK</span>
         </div>
 
         {approval.recipients && (
-          <div className="mt-3 space-y-2">
-            <div className="text-[11px] font-medium text-fg-muted uppercase tracking-wider">
-              Dispatched Delivery Receipts ({approval.recipients.length})
-            </div>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {approval.recipients.map((rec) => (
-                <div
-                  key={rec.id}
-                  className="flex items-center justify-between py-1.5 px-2.5 rounded-btn bg-surface border border-success/20 text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-success" />
-                    <span className="font-medium text-fg">{rec.name}</span>
-                    <span className="text-fg-muted font-mono text-[11px]">{rec.phone}</span>
-                  </div>
-                  <span className="text-[11px] text-success font-medium flex items-center gap-1">
-                    Delivered
-                  </span>
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {approval.recipients.map((rec) => (
+              <div
+                key={rec.id}
+                className="flex items-center justify-between py-1.5 px-2.5 rounded-control bg-surface-sunken border border-border text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-success" strokeWidth={1.5} />
+                  <span className="text-text">{rec.name}</span>
+                  <span className="text-text-muted font-mono text-[11px]">{rec.phone}</span>
                 </div>
-              ))}
-            </div>
+                <span className="text-text-muted text-[11px]">Delivered</span>
+              </div>
+            ))}
           </div>
         )}
 
         {approval.diff && (
-          <div className="mt-3 space-y-2">
-            <div className="text-[11px] font-medium text-fg-muted uppercase tracking-wider">
-              Timetable Changes Applied
-            </div>
-            <div className="space-y-1.5 text-xs text-fg">
-              {approval.diff.map((d, i) => (
-                <div key={i} className="p-2 rounded bg-surface border border-success/20">
-                  <div className="font-medium text-success">✓ {d.after}</div>
-                  <ReasonChip reason={d.reason} variant="neutral" className="mt-1" />
-                </div>
-              ))}
-            </div>
+          <div className="space-y-1.5 text-xs text-text">
+            {approval.diff.map((d, i) => (
+              <div key={i} className="p-2 rounded-control bg-surface-sunken border border-border">
+                <div className="font-normal text-text">{d.after}</div>
+                <ReasonChip reason={d.reason} variant="neutral" className="mt-1" />
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -127,12 +112,12 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
   // Rejected State
   if (approval.status === 'rejected') {
     return (
-      <div className="rounded-card border border-border bg-surface-2 p-4 opacity-75">
-        <div className="flex items-center gap-2 text-xs font-medium text-danger">
-          <X className="w-4 h-4" />
-          <span>Action Proposal Rejected</span>
+      <div className="rounded-card border border-border bg-surface-sunken p-4 text-xs">
+        <div className="flex items-center gap-2 font-medium text-text-muted">
+          <X className="w-4 h-4 text-danger" strokeWidth={1.5} />
+          <span>Proposal rejected</span>
         </div>
-        <p className="text-xs text-fg-muted mt-1">{approval.title}</p>
+        <p className="text-text-muted mt-1">{approval.title}</p>
       </div>
     )
   }
@@ -141,54 +126,48 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
   return (
     <div
       className={cn(
-        'rounded-card border border-ai/30 bg-surface shadow-hover transition-all overflow-hidden',
+        'rounded-card border border-border bg-surface overflow-hidden',
         compact ? 'p-3' : 'p-4'
       )}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-ai font-semibold bg-ai/10 px-2 py-0.5 rounded-full border border-ai/20">
-              Proposed Action
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono text-text-muted bg-surface-sunken border border-border px-1.5 py-0.5 rounded-control">
+              Action proposed
             </span>
-            <span
-              className={cn(
-                'text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full border flex items-center gap-1',
-                approval.riskLevel === 'high'
-                  ? 'bg-danger/10 text-danger border-danger/30'
-                  : approval.riskLevel === 'medium'
-                  ? 'bg-warning/10 text-warning border-warning/30'
-                  : 'bg-surface-2 text-fg-muted border-border'
-              )}
-            >
-              <ShieldAlert className="w-2.5 h-2.5" />
-              {approval.riskLevel} risk
+            <span className="text-xs text-text-muted">
+              {approval.riskLevel === 'high'
+                ? 'High risk'
+                : approval.riskLevel === 'medium'
+                ? 'Medium risk'
+                : 'Low risk'}
             </span>
           </div>
-          <h4 className="text-sm font-semibold text-fg mt-1.5">{approval.title}</h4>
-          <p className="text-xs text-fg-muted mt-0.5">{approval.summary}</p>
+          <h4 className="text-sm font-semibold text-text mt-1.5">{approval.title}</h4>
+          <p className="text-xs text-text-muted mt-0.5">{approval.summary}</p>
         </div>
-        <div className="text-[11px] text-fg-muted shrink-0 text-right">
+        <div className="text-xs text-text-muted shrink-0 text-right">
           <div>{approval.requester}</div>
-          <div className="text-[10px] text-fg-muted/70">{approval.createdAt}</div>
+          <div className="text-[11px] text-text-muted">{approval.createdAt}</div>
         </div>
       </div>
 
-      {/* WhatsApp / Message Recipients List */}
+      {/* Recipients List */}
       {approval.recipients && (
         <div className="mt-3.5 space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium">
-            <span className="text-fg-muted">
+          <div className="flex items-center justify-between text-xs text-text-muted">
+            <span>
               Recipients ({selectedCount} of {approval.recipients.length} selected)
             </span>
             <div className="flex items-center gap-2">
-              <label className="text-[11px] text-fg-muted flex items-center gap-1">
+              <label className="text-xs text-text-muted flex items-center gap-1">
                 Channel:
                 <select
                   value={selectedChannel}
                   onChange={(e) => setSelectedChannel(e.target.value as any)}
-                  className="bg-surface-2 border border-border text-fg rounded px-1.5 py-0.5 text-xs outline-none focus:border-primary"
+                  className="bg-surface-sunken border border-border-strong text-text rounded-control px-2 py-0.5 text-xs outline-none focus:border-accent"
                 >
                   <option value="whatsapp">WhatsApp</option>
                   <option value="sms">SMS</option>
@@ -204,7 +183,7 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
               return (
                 <div
                   key={rec.id}
-                  className="rounded-btn border border-border bg-surface-2/60 p-2.5 text-xs transition-colors hover:bg-surface-2"
+                  className="rounded-control border border-border bg-surface-sunken p-2.5 text-xs"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -212,29 +191,29 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
                         type="checkbox"
                         checked={rec.selected}
                         onChange={() => toggleRecipientSelect(rec.id)}
-                        className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
+                        className="rounded-control border-border-strong text-accent focus:ring-accent w-3.5 h-3.5"
                       />
-                      <span className="font-medium text-fg">{rec.name}</span>
-                      <span className="text-fg-muted font-mono text-[11px]">{rec.phone}</span>
+                      <span className="font-medium text-text">{rec.name}</span>
+                      <span className="text-text-muted font-mono text-[11px]">{rec.phone}</span>
                     </label>
 
                     <div className="flex items-center gap-2">
                       {rec.amountDue && (
-                        <span className="text-xs font-mono font-medium text-amber-600 dark:text-amber-400">
-                          Due: ₹{rec.amountDue.toLocaleString('en-IN')}
+                        <span className="text-xs text-text tnum">
+                          {formatINR(rec.amountDue)}
                         </span>
                       )}
                       <button
                         onClick={() => setExpandedRecipientId(isExpanded ? null : rec.id)}
-                        className="text-fg-muted hover:text-fg p-0.5 rounded flex items-center gap-0.5 text-[11px]"
+                        className="text-text-muted hover:text-text p-0.5 rounded text-xs flex items-center gap-0.5"
                       >
                         {isExpanded ? (
                           <>
-                            Less <ChevronUp className="w-3 h-3" />
+                            Less <ChevronUp className="w-3 h-3" strokeWidth={1.5} />
                           </>
                         ) : (
                           <>
-                            Preview <ChevronDown className="w-3 h-3" />
+                            Edit <ChevronDown className="w-3 h-3" strokeWidth={1.5} />
                           </>
                         )}
                       </button>
@@ -243,18 +222,18 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
 
                   {isExpanded && (
                     <div className="mt-2.5 pt-2 border-t border-border">
-                      <label className="block text-[10px] text-fg-muted mb-1 font-mono uppercase">
-                        Message Content (Variables highlighted)
+                      <label className="block text-[11px] text-text-muted mb-1 font-mono">
+                        Draft message text
                       </label>
                       <textarea
                         value={rec.customizedMessage || rec.messagePreview}
                         onChange={(e) => handleMessageChange(rec.id, e.target.value)}
                         rows={3}
-                        className="w-full bg-surface border border-border rounded-btn p-2 text-xs font-sans text-fg focus:outline-none focus:border-ai leading-relaxed resize-none"
+                        className="w-full bg-surface border border-border-strong rounded-control p-2 text-xs font-sans text-text focus:outline-none focus:border-accent leading-relaxed resize-none"
                       />
-                      <div className="flex items-center justify-between text-[10px] text-fg-muted mt-1">
-                        <span>Variables: {'{first_name}'}, {'{amount}'}, {'{due_date}'}</span>
-                        <span className="font-mono">{(rec.customizedMessage || rec.messagePreview).length} chars</span>
+                      <div className="flex items-center justify-between text-[11px] text-text-muted mt-1 font-mono">
+                        <span>Variables: {`{first_name}`}, {`{amount}`}, {`{due_date}`}</span>
+                        <span>{(rec.customizedMessage || rec.messagePreview).length} chars</span>
                       </div>
                     </div>
                   )}
@@ -264,12 +243,12 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
           </div>
 
           {/* Delivery & Quiet Hours Meta */}
-          <div className="flex items-center justify-between text-[11px] text-fg-muted bg-surface-2 px-3 py-2 rounded-btn border border-border">
+          <div className="flex items-center justify-between text-xs text-text-muted bg-surface-sunken px-3 py-2 rounded-control border border-border">
             <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-warning" />
+              <Clock className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.5} />
               <span>{approval.sendTime || 'Queued for delivery'}</span>
             </div>
-            <div className="font-mono text-fg">{approval.estimatedCost || 'Est. cost: ₹0.85'}</div>
+            <div className="text-text tnum">{approval.estimatedCost || 'Est. cost: ₹0.85'}</div>
           </div>
         </div>
       )}
@@ -277,36 +256,35 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
       {/* Timetable Diff Details */}
       {approval.diff && (
         <div className="mt-3.5 space-y-2">
-          <div className="text-xs font-medium text-fg-muted">Planned Changes & Conflicts Resolved</div>
+          <div className="text-xs text-text-muted">Planned adjustments</div>
           <div className="space-y-2">
             {approval.diff.map((d, i) => (
-              <div key={i} className="p-2.5 rounded-btn bg-surface-2 border border-border text-xs space-y-1">
-                <div className="text-fg-muted line-through font-mono text-[11px]">Old: {d.before}</div>
-                <div className="text-fg font-medium flex items-center gap-1.5 font-mono text-[11px]">
-                  <GitCompare className="w-3.5 h-3.5 text-ai shrink-0" />
+              <div key={i} className="p-2.5 rounded-control bg-surface-sunken border border-border text-xs space-y-1">
+                <div className="text-text-muted line-through font-mono text-[11px]">Old: {d.before}</div>
+                <div className="text-text font-normal flex items-center gap-1.5 font-mono text-[11px]">
+                  <GitCompare className="w-3.5 h-3.5 text-accent shrink-0" strokeWidth={1.5} />
                   <span>New: {d.after}</span>
                 </div>
-                <ReasonChip reason={d.reason} variant="warning" className="mt-1" />
+                <ReasonChip reason={d.reason} variant="neutral" className="mt-1" />
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Footer Controls: Reject, Edit, Approve */}
+      {/* Footer Controls: EXACTLY ONE primary button per card */}
       <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" onClick={handleReject} className="text-danger hover:text-danger hover:bg-danger/10">
-          Reject Proposal
+        <Button variant="ghost" size="sm" onClick={handleReject} className="text-danger hover:text-danger hover:bg-danger-subtle">
+          Reject
         </Button>
 
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => setIsEditing(!isEditing)}
-            leftIcon={<Edit3 className="w-3.5 h-3.5" />}
           >
-            {isEditing ? 'Done Editing' : 'Edit Draft'}
+            {isEditing ? 'Done' : 'Edit details'}
           </Button>
 
           <Button
@@ -314,10 +292,8 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
             size="sm"
             onClick={handleApprove}
             disabled={approval.recipients ? selectedCount === 0 : false}
-            leftIcon={<Send className="w-3.5 h-3.5" />}
-            className="bg-primary hover:bg-primary-hover shadow-sm"
           >
-            {approval.recipients ? `Approve & Send (${selectedCount})` : 'Approve & Apply'}
+            {approval.recipients ? `Approve and send (${selectedCount})` : 'Approve and apply'}
           </Button>
         </div>
       </div>

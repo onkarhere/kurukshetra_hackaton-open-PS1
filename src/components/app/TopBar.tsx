@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import {
   Search,
-  Sparkles,
   Bell,
   Sun,
   Moon,
@@ -11,8 +10,7 @@ import {
   User,
   Shield,
   Check,
-  Keyboard,
-  HelpCircle,
+  Command,
 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { useTheme } from '@/context/ThemeContext'
@@ -28,7 +26,6 @@ export const TopBar: React.FC = () => {
     setBranch,
     toggleCopilot,
     setCommandPaletteOpen,
-    setShortcutsOpen,
     unreadApprovalsCount,
   } = useApp()
   const { resolvedTheme, toggleTheme } = useTheme()
@@ -39,7 +36,6 @@ export const TopBar: React.FC = () => {
   const avatarRef = useRef<HTMLDivElement>(null)
   const branchRef = useRef<HTMLDivElement>(null)
 
-  // Close menus on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) {
@@ -53,46 +49,44 @@ export const TopBar: React.FC = () => {
     return () => window.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Dynamic breadcrumbs
   const pathnames = location.pathname.split('/').filter((x) => x)
   const breadcrumbNameMap: Record<string, string> = {
-    copilot: 'AI Copilot',
-    approvals: 'Approvals Inbox',
+    approvals: 'Approvals',
     timetable: 'Timetable',
-    attendance: 'Sessions & Attendance',
+    attendance: 'Sessions & attendance',
     recordings: 'Recordings',
     students: 'Students',
-    risk: 'Risk Board',
+    risk: 'Risk',
     trainers: 'Trainers',
     courses: 'Courses',
     batches: 'Batches',
     certificates: 'Certificates',
     fees: 'Fees & EMIs',
-    payments: 'Payments & Reconcile',
+    payments: 'Payments',
     analytics: 'Analytics',
     messages: 'Messages',
-    audit: 'Audit Log',
+    audit: 'Audit log',
     settings: 'Settings',
-    setup: 'Onboarding Setup',
+    setup: 'Setup',
     me: 'Profile',
   }
 
   const allRoles: { id: UserRole; label: string; desc: string }[] = [
-    { id: 'owner', label: 'Owner (Rajesh Sharma)', desc: 'Full unrestricted institute control' },
-    { id: 'admin', label: 'Admin (System Admin)', desc: 'Operations & academic manager' },
-    { id: 'trainer', label: 'Trainer (Arjun Mehta)', desc: 'Strictly zero financial/fee access' },
-    { id: 'counselor', label: 'Counselor (Snehal K.)', desc: 'Student risk & admissions follow-up' },
-    { id: 'accounts', label: 'Accounts (Sunita A.)', desc: 'Dues, reconciliation & collections' },
-    { id: 'student', label: 'Student (Priya Nair)', desc: 'Mobile-first student portal view' },
+    { id: 'owner', label: 'Owner (Rajesh Sharma)', desc: 'Full institute operations' },
+    { id: 'admin', label: 'Admin (System Admin)', desc: 'Academic and operations coordinator' },
+    { id: 'trainer', label: 'Trainer (Arjun Mehta)', desc: 'Zero fee visibility' },
+    { id: 'counselor', label: 'Counselor (Snehal K.)', desc: 'Student risk and attendance' },
+    { id: 'accounts', label: 'Accounts (Sunita A.)', desc: 'Dues and reconciliation' },
+    { id: 'student', label: 'Student (Priya Nair)', desc: 'Student portal view' },
   ]
 
   const branches: (Branch | 'All')[] = ['All', 'Kothrud', 'Baner']
 
   return (
-    <header className="h-14 border-b border-border bg-surface px-4 flex items-center justify-between gap-4 sticky top-0 z-20 select-none">
+    <header className="h-[52px] border-b border-border bg-surface px-4 flex items-center justify-between gap-4 sticky top-0 z-20 select-none">
       {/* Left: Breadcrumbs */}
-      <div className="flex items-center gap-1.5 text-xs min-w-0">
-        <Link to="/" className="text-fg-muted hover:text-fg font-medium transition-colors">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs min-w-0">
+        <Link to="/" className="text-text-muted hover:text-text transition-colors">
           Home
         </Link>
         {pathnames.map((value, index) => {
@@ -102,32 +96,32 @@ export const TopBar: React.FC = () => {
 
           return (
             <React.Fragment key={to}>
-              <span className="text-border">/</span>
+              <span className="text-border" aria-hidden="true">/</span>
               {isLast ? (
-                <span className="font-semibold text-fg truncate capitalize">{title}</span>
+                <span className="font-medium text-text truncate" aria-current="page">
+                  {title}
+                </span>
               ) : (
-                <Link to={to} className="text-fg-muted hover:text-fg transition-colors truncate capitalize">
+                <Link to={to} className="text-text-muted hover:text-text transition-colors truncate">
                   {title}
                 </Link>
               )}
             </React.Fragment>
           )
         })}
-      </div>
+      </nav>
 
-      {/* Centre: Search field "Search or ask... ⌘K" */}
+      {/* Centre: Search field "Search or ask… ⌘K" */}
       <div className="flex-1 max-w-md hidden md:block">
         <button
           onClick={() => setCommandPaletteOpen(true)}
-          className="w-full flex items-center justify-between px-3 py-1.5 rounded-btn bg-surface-2 border border-border text-xs text-fg-muted hover:text-fg hover:border-text-muted/40 transition-all shadow-sm"
+          className="w-full flex items-center justify-between px-3 py-1.5 rounded-control bg-surface-sunken border border-border text-xs text-text-muted hover:text-text hover:border-border-strong transition-colors"
         >
           <div className="flex items-center gap-2">
-            <Search className="w-3.5 h-3.5 text-fg-muted" />
-            <span>Search or ask Copilot…</span>
+            <Search className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.5} />
+            <span>Search or ask…</span>
           </div>
-          <kbd className="font-mono text-[10px] bg-surface border border-border px-1.5 py-0.5 rounded text-fg-muted shadow-sm">
-            ⌘K
-          </kbd>
+          <kbd className="font-mono text-[11px] text-text-muted">⌘K</kbd>
         </button>
       </div>
 
@@ -137,19 +131,17 @@ export const TopBar: React.FC = () => {
         <div className="relative" ref={branchRef}>
           <button
             onClick={() => setBranchMenuOpen(!branchMenuOpen)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn bg-surface-2 hover:bg-surface border border-border text-xs font-medium text-fg transition-colors"
-            title="Switch Branch Filter"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-control bg-surface hover:bg-surface-sunken border border-border text-xs font-normal text-text transition-colors"
+            title="Branch scope"
           >
-            <Building2 className="w-3.5 h-3.5 text-primary" />
-            <span>{branch === 'All' ? 'All Branches' : branch}</span>
-            <ChevronDown className="w-3 h-3 text-fg-muted" />
+            <Building2 className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.5} />
+            <span>{branch === 'All' ? 'All branches' : branch}</span>
+            <ChevronDown className="w-3 h-3 text-text-muted" strokeWidth={1.5} />
           </button>
 
           {branchMenuOpen && (
-            <div className="absolute right-0 mt-1.5 w-44 rounded-card border border-border bg-surface shadow-popover py-1 z-50 animate-scale-in text-xs">
-              <div className="px-3 py-1 text-[10px] uppercase font-mono text-fg-muted font-semibold">
-                Pune Campus
-              </div>
+            <div className="absolute right-0 mt-1 w-44 rounded-card border border-border bg-surface shadow-popover py-1 z-50 text-xs">
+              <div className="px-3 py-1 text-[11px] text-text-muted">Pune branches</div>
               {branches.map((b) => (
                 <button
                   key={b}
@@ -157,93 +149,79 @@ export const TopBar: React.FC = () => {
                     setBranch(b)
                     setBranchMenuOpen(false)
                   }}
-                  className="w-full flex items-center justify-between px-3 py-1.5 text-left hover:bg-surface-2 text-fg transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-1.5 text-left hover:bg-surface-sunken text-text transition-colors"
                 >
-                  <span>{b === 'All' ? 'All Branches (Kothrud & Baner)' : `${b} Campus`}</span>
-                  {branch === b && <Check className="w-3.5 h-3.5 text-primary" />}
+                  <span>{b === 'All' ? 'All branches' : `${b} campus`}</span>
+                  {branch === b && <Check className="w-3.5 h-3.5 text-accent" strokeWidth={1.5} />}
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Ask Copilot Button (violet outline, ⌘J) */}
+        {/* Neutral "Ask" Button (⌘J) */}
         <Button
-          variant="ai"
+          variant="secondary"
           size="sm"
           onClick={toggleCopilot}
-          className="shadow-sm"
-          rightIcon={
-            <kbd className="hidden sm:inline font-mono text-[10px] bg-ai/10 border border-ai/30 px-1 rounded ml-1 text-ai">
-              ⌘J
-            </kbd>
-          }
+          leftIcon={<Command className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.5} />}
+          rightIcon={<kbd className="font-mono text-[10px] text-text-muted ml-0.5">⌘J</kbd>}
         >
-          Ask Copilot
+          Ask
         </Button>
 
-        {/* Notifications Bell */}
+        {/* Notifications */}
         <Link
           to="/approvals"
-          className="relative p-2 text-fg-muted hover:text-fg hover:bg-surface-2 rounded-btn transition-colors"
+          className="relative p-1.5 text-text-muted hover:text-text hover:bg-surface-sunken rounded-control transition-colors"
           title="Approvals and alerts"
+          aria-label="Approvals and alerts"
         >
-          <Bell className="w-4 h-4" />
+          <Bell className="w-4 h-4" strokeWidth={1.5} />
           {unreadApprovalsCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger animate-pulse" />
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-danger" />
           )}
         </Link>
 
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
-          className="p-2 text-fg-muted hover:text-fg hover:bg-surface-2 rounded-btn transition-colors"
-          title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} mode`}
+          className="p-1.5 text-text-muted hover:text-text hover:bg-surface-sunken rounded-control transition-colors"
+          title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
           aria-label="Toggle theme"
         >
           {resolvedTheme === 'dark' ? (
-            <Sun className="w-4 h-4 text-warning" />
+            <Sun className="w-4 h-4" strokeWidth={1.5} />
           ) : (
-            <Moon className="w-4 h-4 text-fg-muted" />
+            <Moon className="w-4 h-4" strokeWidth={1.5} />
           )}
         </button>
 
-        {/* Shortcuts Button */}
-        <button
-          onClick={() => setShortcutsOpen(true)}
-          className="p-2 text-fg-muted hover:text-fg hover:bg-surface-2 rounded-btn transition-colors hidden sm:block"
-          title="Keyboard shortcuts (?)"
-        >
-          <Keyboard className="w-4 h-4" />
-        </button>
-
-        {/* Avatar Menu with DEMO ROLE SWITCHER */}
+        {/* Avatar Menu with Demo Role Switcher */}
         <div className="relative" ref={avatarRef}>
           <button
             onClick={() => setAvatarMenuOpen(!avatarMenuOpen)}
-            className="flex items-center gap-1.5 pl-1 pr-1.5 py-1 rounded-btn hover:bg-surface-2 transition-colors border border-transparent hover:border-border"
+            className="flex items-center gap-1 p-1 rounded-control hover:bg-surface-sunken transition-colors"
+            aria-label="User account and role menu"
           >
-            <div className="w-7 h-7 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center border border-primary/30">
+            <div className="w-6 h-6 rounded-full bg-surface-sunken border border-border text-text font-medium text-xs flex items-center justify-center">
               {role.substring(0, 2).toUpperCase()}
             </div>
-            <ChevronDown className="w-3 h-3 text-fg-muted" />
+            <ChevronDown className="w-3 h-3 text-text-muted" strokeWidth={1.5} />
           </button>
 
           {avatarMenuOpen && (
-            <div className="absolute right-0 mt-1.5 w-72 rounded-card border border-border bg-surface shadow-popover py-2 z-50 animate-scale-in text-xs">
+            <div className="absolute right-0 mt-1 w-64 rounded-card border border-border bg-surface shadow-popover py-2 z-50 text-xs">
               <div className="px-3 pb-2 border-b border-border">
-                <div className="font-semibold text-fg">CodeCraft Academy</div>
-                <div className="text-[11px] text-fg-muted font-mono">Current role: {role}</div>
+                <div className="font-medium text-text">CodeCraft Academy</div>
+                <div className="text-[11px] text-text-muted font-mono">Role: {role}</div>
               </div>
 
-              {/* DEMO ROLE SWITCHER */}
-              <div className="py-2 px-1">
-                <div className="px-2.5 pb-1 text-[10px] font-mono uppercase tracking-wider text-primary font-bold flex items-center gap-1">
-                  <Shield className="w-3 h-3 text-primary" />
-                  Demo Role Switcher
-                </div>
-                <div className="text-[10px] text-fg-muted px-2.5 pb-1.5">
-                  Test role-based access & permissions instantly:
+              {/* Demo Role Switcher */}
+              <div className="py-1 px-1">
+                <div className="px-2 pb-1 text-[11px] text-text-muted font-medium flex items-center gap-1">
+                  <Shield className="w-3 h-3 text-text-muted" strokeWidth={1.5} />
+                  Demo role switcher
                 </div>
                 {allRoles.map((r) => {
                   const isCurrent = role === r.id
@@ -255,40 +233,30 @@ export const TopBar: React.FC = () => {
                         setAvatarMenuOpen(false)
                       }}
                       className={cn(
-                        'w-full flex items-start gap-2.5 px-2.5 py-1.5 rounded-btn text-left transition-colors',
-                        isCurrent ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-surface-2 text-fg'
+                        'w-full flex items-start gap-2 px-2 py-1.5 rounded-control text-left transition-colors',
+                        isCurrent ? 'bg-surface-sunken font-medium text-text' : 'hover:bg-surface-sunken text-text-muted'
                       )}
                     >
-                      <div className="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5">
-                        {isCurrent && <div className="w-2 h-2 rounded-full bg-primary" />}
-                      </div>
+                      <span className="w-3.5 h-3.5 rounded-full border border-border-strong flex items-center justify-center shrink-0 mt-0.5">
+                        {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-accent" />}
+                      </span>
                       <div className="min-w-0">
-                        <div className="text-xs leading-tight">{r.label}</div>
-                        <div className="text-[10px] text-fg-muted font-normal leading-tight">
-                          {r.desc}
-                        </div>
+                        <div className="text-xs text-text">{r.label}</div>
+                        <div className="text-[11px] text-text-muted">{r.desc}</div>
                       </div>
                     </button>
                   )
                 })}
               </div>
 
-              <div className="pt-2 border-t border-border px-1">
+              <div className="pt-1 border-t border-border px-1">
                 <Link
                   to="/settings"
                   onClick={() => setAvatarMenuOpen(false)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-btn hover:bg-surface-2 text-fg transition-colors"
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-control hover:bg-surface-sunken text-text transition-colors"
                 >
-                  <User className="w-3.5 h-3.5 text-fg-muted" />
-                  <span>Account & Institute Settings</span>
-                </Link>
-                <Link
-                  to="/login"
-                  onClick={() => setAvatarMenuOpen(false)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-btn hover:bg-surface-2 text-danger transition-colors"
-                >
-                  <HelpCircle className="w-3.5 h-3.5 text-danger" />
-                  <span>Logout / Switch User</span>
+                  <User className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.5} />
+                  <span>Settings</span>
                 </Link>
               </div>
             </div>

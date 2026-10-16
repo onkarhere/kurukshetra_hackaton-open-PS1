@@ -5,243 +5,172 @@ import {
   AlertTriangle,
   XCircle,
   HelpCircle,
-  Laptop,
   AlertOctagon,
   ShieldAlert,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { AttendanceStatus, FeeStatus, RiskLevel } from '@/types'
 
-export type StatusType = AttendanceStatus | FeeStatus | RiskLevel | 'active' | 'completed' | 'verified' | 'unmatched' | 'needs_review'
+export type StatusType =
+  | 'present'
+  | 'partial'
+  | 'late'
+  | 'absent'
+  | 'excused'
+  | 'online'
+  | 'paid'
+  | 'due_soon'
+  | 'overdue'
+  | 'partially_paid'
+  | 'waived'
+  | 'critical'
+  | 'high'
+  | 'watch'
+  | 'low'
+  | 'verified'
+  | 'unmatched'
+  | 'needs_review'
+  | 'active'
+  | 'scheduled'
+  | 'completed'
 
-interface StatusPillProps {
+interface StatusIndicatorProps {
   status: StatusType | string
   label?: string
   className?: string
-  size?: 'sm' | 'md'
+  asPill?: boolean // Only for counts!
 }
 
-export const StatusPill: React.FC<StatusPillProps> = ({
+export const StatusPill: React.FC<StatusIndicatorProps> = ({
   status,
   label,
   className,
-  size = 'md',
+  asPill = false,
 }) => {
-  const normalized = status.toLowerCase()
+  const s = status.toLowerCase()
 
   // Attendance
-  if (normalized === 'present') {
+  if (s === 'present') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full font-medium border bg-success/10 text-success border-success/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
-        {label || 'Present'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-text', className)}>
+        <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" aria-hidden="true" />
+        <span>{label || 'Present'}</span>
       </span>
     )
   }
-  if (normalized === 'partial') {
+  if (s === 'partial') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full font-medium border bg-warning/10 text-warning border-warning/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <span className="text-[10px] shrink-0 leading-none">◐</span>
-        {label || 'Partial'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-warning', className)}>
+        <span className="text-[11px] leading-none shrink-0" aria-hidden="true">◐</span>
+        <span>{label || 'Partial'}</span>
       </span>
     )
   }
-  if (normalized === 'late') {
+  if (s === 'late') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full font-medium border bg-warning/10 text-warning border-warning/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <Clock className="w-3 h-3 shrink-0" />
-        {label || 'Late'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-warning', className)}>
+        <Clock className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>{label || 'Late'}</span>
       </span>
     )
   }
-  if (normalized === 'absent') {
+  if (s === 'absent') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full font-medium border bg-danger/10 text-danger border-danger/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <span className="w-1.5 h-1.5 rounded-full border border-danger shrink-0" />
-        {label || 'Absent'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-danger', className)}>
+        <span className="w-1.5 h-1.5 rounded-full border border-danger shrink-0" aria-hidden="true" />
+        <span>{label || 'Absent'}</span>
       </span>
     )
   }
-  if (normalized === 'online') {
+  if (s === 'online') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full font-medium border bg-info/10 text-info border-info/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <span className="text-[10px] shrink-0 leading-none text-info">◆</span>
-        {label || 'Online'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-info', className)}>
+        <span className="text-[10px] leading-none text-info shrink-0" aria-hidden="true">◆</span>
+        <span>{label || 'Online'}</span>
       </span>
     )
   }
-  if (normalized === 'excused') {
+  if (s === 'excused') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full font-medium border bg-surface-2 text-fg-muted border-border',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <HelpCircle className="w-3 h-3 shrink-0" />
-        {label || 'Excused'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-text-muted', className)}>
+        <HelpCircle className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>{label || 'Excused'}</span>
       </span>
     )
   }
 
   // Fees
-  if (normalized === 'paid' || normalized === 'verified') {
+  if (s === 'paid' || s === 'verified') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full font-medium border bg-success/10 text-success border-success/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <CheckCircle2 className="w-3 h-3 shrink-0" />
-        {label || 'Paid'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-success', className)}>
+        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>{label || (s === 'verified' ? 'Verified' : 'Paid')}</span>
       </span>
     )
   }
-  if (normalized === 'due_soon' || normalized === 'partially_paid' || normalized === 'needs_review') {
+  if (s === 'due_soon' || s === 'partially_paid' || s === 'needs_review') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full font-medium border bg-warning/10 text-warning border-warning/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <Clock className="w-3 h-3 shrink-0" />
-        {label || (normalized === 'due_soon' ? 'Due soon' : normalized === 'partially_paid' ? 'Partially paid' : 'Needs review')}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-warning', className)}>
+        <Clock className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>{label || (s === 'due_soon' ? 'Due soon' : s === 'partially_paid' ? 'Partially paid' : 'Needs review')}</span>
       </span>
     )
   }
-  if (normalized === 'overdue' || normalized === 'unmatched') {
+  if (s === 'overdue' || s === 'unmatched') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full font-medium border bg-danger/10 text-danger border-danger/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <AlertTriangle className="w-3 h-3 shrink-0" />
-        {label || (normalized === 'overdue' ? 'Overdue' : 'Unmatched')}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-danger', className)}>
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>{label || (s === 'overdue' ? 'Overdue' : 'Unmatched')}</span>
       </span>
     )
   }
-  if (normalized === 'waived') {
+  if (s === 'waived') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full font-medium border bg-surface-2 text-fg-muted border-border',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-fg-muted/40 shrink-0" />
-        {label || 'Waived'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-text-muted', className)}>
+        <span className="w-1.5 h-1.5 rounded-full bg-border-strong shrink-0" aria-hidden="true" />
+        <span>{label || 'Waived'}</span>
       </span>
     )
   }
 
-  // Risk Tiers
-  if (normalized === 'critical') {
+  // Risk Tiers: Critical, High, Watch, Low
+  if (s === 'critical') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full font-semibold border bg-danger/15 text-danger border-danger/40',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <ShieldAlert className="w-3 h-3 shrink-0 text-danger animate-pulse" />
-        {label || 'Critical'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-medium text-danger', className)}>
+        <ShieldAlert className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>{label || 'Critical'}</span>
       </span>
     )
   }
-  if (normalized === 'high') {
+  if (s === 'high') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full font-medium border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <AlertTriangle className="w-3 h-3 shrink-0" />
-        {label || 'High Risk'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-medium text-warning', className)}>
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>{label || 'High'}</span>
       </span>
     )
   }
-  if (normalized === 'watch') {
+  if (s === 'watch') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full font-medium border bg-warning/10 text-warning border-warning/30',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <Clock className="w-3 h-3 shrink-0" />
-        {label || 'Watch'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-warning', className)}>
+        <Clock className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>{label || 'Watch'}</span>
       </span>
     )
   }
-  if (normalized === 'low') {
+  if (s === 'low') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full font-medium border bg-surface-2 text-fg-muted border-border',
-          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-          className
-        )}
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-fg-muted/40 shrink-0" />
-        {label || 'Low Risk'}
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-text-muted', className)}>
+        <span className="w-1.5 h-1.5 rounded-full bg-border-strong shrink-0" aria-hidden="true" />
+        <span>{label || 'Low'}</span>
       </span>
     )
   }
 
-  // Fallback
+  // Generic status
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full font-medium border bg-surface-2 text-fg-muted border-border',
-        size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
-        className
-      )}
-    >
-      <span className="w-1.5 h-1.5 rounded-full bg-fg-muted/40 shrink-0" />
-      {label || status}
+    <span className={cn('inline-flex items-center gap-1.5 text-xs font-normal text-text-muted', className)}>
+      <span className="w-1.5 h-1.5 rounded-full bg-border-strong shrink-0" aria-hidden="true" />
+      <span>{label || status}</span>
     </span>
   )
 }

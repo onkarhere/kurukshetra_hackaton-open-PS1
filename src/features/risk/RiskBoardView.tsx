@@ -1,25 +1,23 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Activity,
+  AlertOctagon,
   AlertTriangle,
-  ShieldAlert,
-  Sparkles,
+  Clock,
+  CheckCircle2,
   MessageSquare,
-  Check,
-  TrendingDown,
-  Info,
+  ShieldAlert,
 } from 'lucide-react'
-import { StatusPill } from '@/components/ui/StatusPill'
 import { ReasonChip } from '@/components/ui/ReasonChip'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { store } from '@/mocks/store'
 import { RiskLevel } from '@/types'
+import { cn } from '@/lib/utils'
 
 export const RiskBoardView: React.FC = () => {
-  const { role, setCopilotOpen } = useApp()
+  const { role, setPendingAskQuery, setCopilotOpen } = useApp()
   const { success } = useToast()
   const navigate = useNavigate()
 
@@ -33,7 +31,19 @@ export const RiskBoardView: React.FC = () => {
     return s.riskLevel === activeTier
   })
 
-  const sorted = [...filtered].sort((a, b) => b.riskScore - a.riskScore)
+  // Order Critical, High, Watch, Low
+  const tierWeight: Record<RiskLevel, number> = {
+    critical: 4,
+    high: 3,
+    watch: 2,
+    low: 1,
+  }
+
+  const sorted = [...filtered].sort((a, b) => {
+    const diff = tierWeight[b.riskLevel] - tierWeight[a.riskLevel]
+    if (diff !== 0) return diff
+    return b.riskScore - a.riskScore
+  })
 
   const toggleAcknowledge = (id: string) => {
     setAcknowledgedIds((prev) =>
@@ -47,82 +57,139 @@ export const RiskBoardView: React.FC = () => {
   const watchCount = students.filter((s) => s.riskLevel === 'watch').length
   const lowCount = students.filter((s) => s.riskLevel === 'low').length
 
+  const renderRiskGlyph = (risk: RiskLevel) => {
+    switch (risk) {
+      case 'critical':
+        return (
+          <span className="inline-flex items-center gap-1 text-danger font-medium text-xs">
+            <AlertOctagon className="w-3.5 h-3.5" /> Critical
+          </span>
+        )
+      case 'high':
+        return (
+          <span className="inline-flex items-center gap-1 text-warning font-medium text-xs">
+            <AlertTriangle className="w-3.5 h-3.5" /> High
+          </span>
+        )
+      case 'watch':
+        return (
+          <span className="inline-flex items-center gap-1 text-text-muted text-xs">
+            <Clock className="w-3.5 h-3.5" /> Watch
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-text-muted text-xs">
+            <CheckCircle2 className="w-3.5 h-3.5 text-success" /> Low
+          </span>
+        )
+    }
+  }
+
   return (
-    <div className="space-y-5 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-fg">Student Retention & Risk Board</h1>
-          <p className="text-xs text-fg-muted mt-0.5">
-            Predictive dropout & absenteeism monitoring · Continuous automated risk scoring
+          <h1 className="text-xl font-semibold text-text">Risk board</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Student retention monitoring, automated risk diagnostics, and intervention workflows
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
-            variant="ai"
+            variant="secondary"
             size="sm"
-            onClick={() => setCopilotOpen(true)}
-            leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+            onClick={() => {
+              setPendingAskQuery('Analyze dropout risk drivers across all batches')
+              setCopilotOpen(true)
+            }}
           >
-            Ask Copilot to analyze risk causes
+            Analyze risk drivers
           </Button>
         </div>
       </div>
 
-      {/* Tier Tabs with Counts */}
-      <div className="flex items-center gap-2 border-b border-border text-xs font-medium">
-        <button
-          onClick={() => setActiveTier('all')}
-          className={`py-2 px-3 border-b-2 transition-colors ${
-            activeTier === 'all'
-              ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
-        >
-          All Students ({students.length})
-        </button>
-        <button
-          onClick={() => setActiveTier('critical')}
-          className={`py-2 px-3 border-b-2 transition-colors ${
+      {/* Risk Tiers: No tile selected by default, ordered Critical, High, Watch, Low with Critical visually strongest */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div
+          onClick={() => setActiveTier(activeTier === 'critical' ? 'all' : 'critical')}
+          className={cn(
+            'p-3.5 rounded-card border cursor-pointer transition-colors text-center',
             activeTier === 'critical'
-              ? 'border-danger text-danger font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+              ? 'border-border-strong bg-surface-sunken'
+              : 'border-border-strong bg-surface hover:bg-surface-sunken'
+          )}
         >
-          Critical ({criticalCount})
-        </button>
-        <button
-          onClick={() => setActiveTier('high')}
-          className={`py-2 px-3 border-b-2 transition-colors ${
+          <div className="text-2xl font-semibold tabular-nums text-danger">
+            {criticalCount}
+          </div>
+          <div className="text-xs font-semibold text-danger mt-1">Critical</div>
+          <div className="text-[11px] text-text-muted mt-0.5">Immediate intervention</div>
+        </div>
+
+        <div
+          onClick={() => setActiveTier(activeTier === 'high' ? 'all' : 'high')}
+          className={cn(
+            'p-3.5 rounded-card border cursor-pointer transition-colors text-center',
             activeTier === 'high'
-              ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+              ? 'border-border-strong bg-surface-sunken'
+              : 'border-border bg-surface hover:bg-surface-sunken'
+          )}
         >
-          High Risk ({highCount})
-        </button>
-        <button
-          onClick={() => setActiveTier('watch')}
-          className={`py-2 px-3 border-b-2 transition-colors ${
+          <div className="text-2xl font-semibold tabular-nums text-warning">
+            {highCount}
+          </div>
+          <div className="text-xs font-medium text-warning mt-1">High</div>
+          <div className="text-[11px] text-text-muted mt-0.5">Follow-up needed</div>
+        </div>
+
+        <div
+          onClick={() => setActiveTier(activeTier === 'watch' ? 'all' : 'watch')}
+          className={cn(
+            'p-3.5 rounded-card border cursor-pointer transition-colors text-center',
             activeTier === 'watch'
-              ? 'border-warning text-warning font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+              ? 'border-border-strong bg-surface-sunken'
+              : 'border-border bg-surface hover:bg-surface-sunken'
+          )}
         >
-          Watchlist ({watchCount})
-        </button>
-        <button
-          onClick={() => setActiveTier('low')}
-          className={`py-2 px-3 border-b-2 transition-colors ${
+          <div className="text-2xl font-semibold tabular-nums text-text">
+            {watchCount}
+          </div>
+          <div className="text-xs font-medium text-text mt-1">Watch</div>
+          <div className="text-[11px] text-text-muted mt-0.5">Early warning</div>
+        </div>
+
+        <div
+          onClick={() => setActiveTier(activeTier === 'low' ? 'all' : 'low')}
+          className={cn(
+            'p-3.5 rounded-card border cursor-pointer transition-colors text-center',
             activeTier === 'low'
-              ? 'border-success text-success font-semibold'
-              : 'border-transparent text-fg-muted hover:text-fg'
-          }`}
+              ? 'border-border-strong bg-surface-sunken'
+              : 'border-border bg-surface hover:bg-surface-sunken'
+          )}
         >
-          Low Risk ({lowCount})
-        </button>
+          <div className="text-2xl font-semibold tabular-nums text-text-muted">
+            {lowCount}
+          </div>
+          <div className="text-xs font-medium text-text-muted mt-1">Low</div>
+          <div className="text-[11px] text-text-muted mt-0.5">On track</div>
+        </div>
       </div>
+
+      {/* Filter status row */}
+      {activeTier !== 'all' && (
+        <div className="flex items-center justify-between text-xs text-text-muted pb-1">
+          <span>Filtering by tier: <strong className="text-text capitalize">{activeTier}</strong></span>
+          <button
+            onClick={() => setActiveTier('all')}
+            className="text-accent hover:underline"
+          >
+            Show all tiers
+          </button>
+        </div>
+      )}
 
       {/* Risk Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -133,13 +200,12 @@ export const RiskBoardView: React.FC = () => {
           return (
             <div
               key={st.id}
-              className={`p-4 rounded-card border bg-surface space-y-3.5 shadow-sm transition-all hover:shadow-hover ${
+              className={cn(
+                'p-4 rounded-card border bg-surface space-y-3 transition-colors',
                 st.riskLevel === 'critical'
-                  ? 'border-danger/40'
-                  : st.riskLevel === 'high'
-                  ? 'border-amber-500/40'
+                  ? 'border-border-strong'
                   : 'border-border'
-              }`}
+              )}
             >
               {/* Card Header: Student & Score Gauge */}
               <div className="flex items-start justify-between gap-3">
@@ -147,46 +213,38 @@ export const RiskBoardView: React.FC = () => {
                   onClick={() => navigate(`/students/${st.id}`)}
                   className="cursor-pointer group flex items-center gap-2.5"
                 >
-                  <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full border border-border bg-surface-sunken text-text font-medium text-xs flex items-center justify-center shrink-0">
                     {st.avatar || st.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-fg group-hover:text-primary transition-colors">
+                    <h3 className="text-xs font-medium text-text group-hover:underline">
                       {st.name}
                     </h3>
-                    <p className="text-[11px] text-fg-muted truncate max-w-[170px]">
+                    <p className="text-[11px] text-text-muted truncate max-w-[160px]">
                       {st.batchNames[0]}
                     </p>
                   </div>
                 </div>
 
-                {/* Score Gauge */}
                 <div className="text-right shrink-0">
-                  <div
-                    className={`text-lg font-bold font-mono ${
-                      st.riskScore >= 80
-                        ? 'text-danger'
-                        : st.riskScore >= 60
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : st.riskScore >= 40
-                        ? 'text-warning'
-                        : 'text-fg-muted'
-                    }`}
-                  >
+                  <div className="text-sm font-semibold tabular-nums text-text">
                     {st.riskScore}
-                    <span className="text-[10px] text-fg-muted font-normal">/100</span>
+                    <span className="text-[10px] text-text-muted font-normal"> / 100</span>
                   </div>
-                  <StatusPill status={st.riskLevel} size="sm" />
+                  <div className="mt-0.5">{renderRiskGlyph(st.riskLevel)}</div>
                 </div>
               </div>
 
-              {/* Top 3 Reason Chips (Financial reasons masked for trainer) */}
-              <div className="space-y-1.5 pt-1">
+              {/* Reasons list (Financial details masked for trainer) */}
+              <div className="space-y-1 pt-1">
                 {st.riskReasons.map((reason, rIdx) => {
-                  const isFinancial = reason.toLowerCase().includes('emi') || reason.toLowerCase().includes('due')
+                  const isFinancial =
+                    reason.toLowerCase().includes('emi') ||
+                    reason.toLowerCase().includes('due') ||
+                    reason.toLowerCase().includes('₹')
                   const displayedReason =
                     isTrainer && isFinancial
-                      ? 'Non-academic factor — counselor informed'
+                      ? 'Non-academic factor — counselor notified'
                       : reason
 
                   return (
@@ -208,30 +266,29 @@ export const RiskBoardView: React.FC = () => {
 
               {/* Action Buttons & Acknowledge Checkbox */}
               <div className="pt-3 border-t border-border flex items-center justify-between gap-2 text-xs">
-                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-fg-muted select-none">
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-text-muted select-none">
                   <input
                     type="checkbox"
                     checked={isAck}
                     onChange={() => toggleAcknowledge(st.id)}
-                    className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
+                    className="rounded border-border-strong text-accent focus:ring-accent w-3.5 h-3.5"
                   />
                   <span>Acknowledge</span>
                 </label>
 
                 <Button
-                  variant="ai"
-                  size="sm"
-                  className="h-7 text-xs px-2.5"
+                  variant="secondary"
+                  size="xs"
                   onClick={() => {
                     success(
                       `Drafting check-in reminder for ${st.name.split(' ')[0]}`,
-                      'Opening Copilot approval staging.'
+                      'Opening approval staging.'
                     )
-                    setCopilotOpen(true)
+                    navigate('/approvals')
                   }}
-                  leftIcon={<Sparkles className="w-3 h-3" />}
+                  leftIcon={<MessageSquare className="w-3 h-3" />}
                 >
-                  Draft Check-in
+                  Draft reminder
                 </Button>
               </div>
             </div>

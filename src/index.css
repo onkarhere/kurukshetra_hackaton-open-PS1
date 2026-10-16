@@ -4,63 +4,63 @@
 
 @layer base {
   :root {
-    --bg: #FFFFFF;
-    --surface: #F8F9FB;
-    --surface-2: #F1F3F6;
-    --border: #E4E7EC;
-    --text: #0F1729;
-    --text-muted: #5B6475;
+    --canvas: #F7F6F3;
+    --surface: #FFFFFF;
+    --surface-sunken: #F1F0EC;
+    --border: #E3E1DB;
+    --border-strong: #8C8A84;
+    --text: #1C1F23;
+    --text-muted: #5F6670;
     
-    --primary: #4F46E5;
-    --primary-hover: #4338CA;
-    --primary-surface: #EEF2FF;
+    --accent: #1F5C4A;
+    --accent-hover: #174739;
+    --accent-fg: #FFFFFF;
+    --accent-subtle: #EBF3F0;
 
-    /* RESERVED for AI surfaces only */
-    --ai: #7C3AED;
-    --ai-surface: #F5F3FF;
-    --ai-border: #DDD6FE;
+    --success: #2F6B3A;
+    --success-subtle: #EDF6EE;
 
-    --success: #15803D;
-    --success-surface: #F0FDF4;
+    --warning: #8A5A00;
+    --warning-subtle: #FAF4E8;
 
-    --warning: #B45309;
-    --warning-surface: #FFFBEB;
+    --danger: #A3262B;
+    --danger-subtle: #FBEFF0;
 
-    --danger: #B91C1C;
-    --danger-surface: #FEF2F2;
+    --info: #2A5D8F;
+    --info-subtle: #EDF4FA;
 
-    --info: #0369A1;
-    --info-surface: #F0F9FF;
+    --ai-chip: #3B3F4A;
+    --ai-chip-bg: #EAEBED;
   }
 
   .dark {
-    --bg: #0B0D12;
-    --surface: #12151C;
-    --surface-2: #191D26;
-    --border: #262B36;
-    --text: #E7EAF0;
-    --text-muted: #9AA3B2;
+    --canvas: #111315;
+    --surface: #181A1D;
+    --surface-sunken: #1E2125;
+    --border: #2A2E33;
+    --border-strong: #646A73;
+    --text: #E8EAED;
+    --text-muted: #9AA1AB;
 
-    --primary: #6366F1;
-    --primary-hover: #4F46E5;
-    --primary-surface: #1E1B4B;
+    --accent: #5FB39A;
+    --accent-hover: #4FA38A;
+    --accent-fg: #111315;
+    --accent-subtle: #172B24;
 
-    /* RESERVED for AI surfaces only */
-    --ai: #A78BFA;
-    --ai-surface: #2E1065;
-    --ai-border: #4C1D95;
+    --success: #6FBF7D;
+    --success-subtle: #182C1B;
 
-    --success: #22C55E;
-    --success-surface: #052E16;
+    --warning: #E0A93B;
+    --warning-subtle: #2E220D;
 
-    --warning: #F59E0B;
-    --warning-surface: #451A03;
+    --danger: #E5676B;
+    --danger-subtle: #2F1618;
 
-    --danger: #EF4444;
-    --danger-surface: #450A0A;
+    --info: #7AAEDB;
+    --info-subtle: #172433;
 
-    --info: #38BDF8;
-    --info-surface: #082F49;
+    --ai-chip: #B8BCC6;
+    --ai-chip-bg: #22252B;
   }
 
   * {
@@ -68,47 +68,61 @@
   }
 
   html {
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-family: 'IBM Plex Sans', 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: "tnum" 1;
+    font-variant-numeric: tabular-nums;
   }
 
   body {
-    background-color: var(--bg);
+    background-color: var(--canvas);
     color: var(--text);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: inherit;
     line-height: 1.5;
     overflow-x: hidden;
   }
 
-  /* Numbers tabular formatting */
+  /* Global tabular numbers for sans-serif */
   .tnum {
-    font-feature-settings: "tnum", "cv11";
+    font-feature-settings: "tnum" 1;
     font-variant-numeric: tabular-nums;
   }
 }
 
-/* Custom crisp scrollbar */
+/* Scroll shadow utilities */
+.scroll-shadow-y {
+  background: 
+    linear-gradient(var(--surface) 30%, rgba(255, 255, 255, 0)),
+    linear-gradient(rgba(255, 255, 255, 0), var(--surface) 70%) 0 100%,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0)),
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0)) 0 100%;
+  background-repeat: no-repeat;
+  background-color: var(--surface);
+  background-size: 100% 40px, 100% 40px, 100% 12px, 100% 12px;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Restrained scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 9999px;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--border-strong);
 }
 
-/* Focus styles */
+/* High-contrast accessible focus ring */
 :focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;

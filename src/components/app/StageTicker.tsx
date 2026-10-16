@@ -1,5 +1,5 @@
 import React from 'react'
-import { Sparkles, Check, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type TickerStage =
@@ -17,10 +17,10 @@ interface StageTickerProps {
 
 export const STAGES: { id: TickerStage; label: string }[] = [
   { id: 'understanding', label: 'Understanding query' },
-  { id: 'finding_data', label: 'Finding data views' },
-  { id: 'checking_safety', label: 'Checking safety checks' },
-  { id: 'running_query', label: 'Running analytical query' },
-  { id: 'writing_answer', label: 'Synthesizing response' },
+  { id: 'finding_data', label: 'Locating records' },
+  { id: 'checking_safety', label: 'Evaluating permissions' },
+  { id: 'running_query', label: 'Executing read-only query' },
+  { id: 'writing_answer', label: 'Formatting results' },
 ]
 
 export const StageTicker: React.FC<StageTickerProps> = ({ currentStage, className }) => {
@@ -32,15 +32,12 @@ export const StageTicker: React.FC<StageTickerProps> = ({ currentStage, classNam
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full border border-ai/30 bg-ai/5 text-ai text-xs font-mono shadow-sm animate-fade-in select-none',
+        'inline-flex items-center gap-2 px-2.5 py-1 rounded-control border border-border bg-surface-sunken text-text-muted text-xs font-mono select-none',
         className
       )}
     >
-      <Loader2 className="w-3.5 h-3.5 animate-spin text-ai" />
-      <div className="flex items-center gap-1.5">
-        <span className="font-semibold text-fg">Step {stageIndex + 1}/5:</span>
-        <span className="text-ai animate-pulse">{activeStage.label}…</span>
-      </div>
+      <Loader2 className="w-3 h-3 animate-spin text-text-muted" strokeWidth={1.5} />
+      <span>{activeStage.label}…</span>
     </div>
   )
 }

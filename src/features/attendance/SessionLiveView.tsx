@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  QrCode,
   Maximize2,
   Clock,
   CheckCircle2,
@@ -9,17 +8,12 @@ import {
   Video,
   Upload,
   UserX,
-  FileSpreadsheet,
   ArrowLeft,
-  Sparkles,
-  HelpCircle,
   RefreshCw,
+  AlertOctagon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { StatusPill } from '@/components/ui/StatusPill'
-import { ReasonChip } from '@/components/ui/ReasonChip'
 import { useToast } from '@/context/ToastContext'
-import { store } from '@/mocks/store'
 
 interface Attendee {
   id: string
@@ -66,55 +60,55 @@ export const SessionLiveView: React.FC = () => {
     setAttendees((prev) =>
       prev.map((a) => (a.id === 'std-priya-01' ? { ...a, status: 'online', checkInTime: '19:12 IST', method: 'Zoom Sync' } : a))
     )
-    success('Confirmed online attendee match', `${zoomName} linked to Priya Nair`)
+    success('Confirmed online attendee match', `${zoomName} matched to Priya Nair`)
   }
 
   const handleMarkRemainingAbsent = () => {
-    success('Marked remaining 3 students absent and logged attendance records.')
+    success('Marked remaining absent students.')
   }
 
   const presentCount = attendees.filter((a) => a.status === 'present' || a.status === 'online' || a.status === 'late').length
 
   return (
-    <div className="space-y-4 animate-fade-in select-none">
+    <div className="space-y-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/timetable')}
-            className="text-xs text-fg-muted hover:text-fg p-1 rounded transition-colors"
+            className="text-xs text-text-muted hover:text-text p-1 rounded-control transition-colors"
+            aria-label="Back to timetable"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-danger animate-ping" />
-              <h1 className="text-lg font-bold text-fg">Live Class: Java Full-Stack B3</h1>
-              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+              <h1 className="text-base font-semibold text-text">Live: Java Full-Stack B3 (Kothrud)</h1>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded border border-border bg-surface-sunken text-text-muted">
                 Room 3 & Zoom Hybrid
               </span>
             </div>
-            <p className="text-xs text-fg-muted mt-0.5">
-              Faculty: Arjun Mehta · Spring Boot & Data JPA Transaction Management
+            <p className="text-xs text-text-muted mt-0.5">
+              Trainer: Arjun Mehta · Spring Boot & Data JPA
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => setFullscreenQR(true)}
             leftIcon={<Maximize2 className="w-3.5 h-3.5" />}
           >
-            Project QR Fullscreen
+            Project QR fullscreen
           </Button>
           <Button
             variant="primary"
             size="sm"
             onClick={() => success('Session finalized and attendance synced.')}
           >
-            End Session
+            End session
           </Button>
         </div>
       </div>
@@ -122,20 +116,19 @@ export const SessionLiveView: React.FC = () => {
       {/* Main Grid: Left Rotating QR (4 cols) + Right Roster Grid (8 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left QR Card */}
-        <div className="lg:col-span-4 rounded-card border border-border bg-surface p-5 text-center space-y-4 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-4 rounded-card border border-border bg-surface p-4 text-center space-y-4 flex flex-col justify-between">
           <div className="space-y-1">
-            <h3 className="text-xs font-semibold uppercase tracking-wider font-mono text-fg">
-              Dynamic Check-in QR
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text">
+              Dynamic check-in QR
             </h3>
-            <p className="text-[11px] text-fg-muted">
-              Auto-refreshes every 30s to prevent geo & screenshot forwarding
+            <p className="text-[11px] text-text-muted">
+              Auto-refreshes every 30s to prevent geo and screenshot sharing
             </p>
           </div>
 
-          {/* QR Box with animated ring */}
-          <div className="relative mx-auto w-56 h-56 rounded-card border-2 border-primary/30 bg-surface-2 flex flex-col items-center justify-center p-4 shadow-inner">
-            <div className="w-40 h-40 bg-white p-3 rounded-card shadow-sm flex items-center justify-center">
-              {/* Scalable QR SVG placeholder representation */}
+          {/* QR Box */}
+          <div className="relative mx-auto w-52 h-52 rounded-card border border-border bg-surface-sunken flex flex-col items-center justify-center p-4">
+            <div className="w-36 h-36 bg-white p-2.5 rounded border border-border flex items-center justify-center">
               <div className="grid grid-cols-6 gap-1 w-full h-full p-1 bg-black rounded">
                 {[...Array(36)].map((_, i) => (
                   <div
@@ -150,17 +143,16 @@ export const SessionLiveView: React.FC = () => {
               </div>
             </div>
 
-            {/* Countdown Badge */}
-            <div className="absolute bottom-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface border border-border text-[11px] font-mono text-fg-muted shadow-sm">
-              <Clock className="w-3 h-3 text-primary animate-spin" />
+            <div className="absolute bottom-2 flex items-center gap-1 px-2 py-0.5 rounded border border-border bg-surface text-[10px] font-mono text-text-muted">
+              <Clock className="w-3 h-3 text-text-muted" />
               <span>Rotates in {countdown}s</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-mono text-fg-muted px-2">
+            <div className="flex items-center justify-between text-xs text-text-muted px-2">
               <span>Geo-fenced radius: 50m</span>
-              <span className="text-success font-semibold">Active</span>
+              <span className="text-success font-medium">Active</span>
             </div>
             <Button
               variant="outline"
@@ -169,50 +161,49 @@ export const SessionLiveView: React.FC = () => {
               onClick={() => setCountdown(30)}
               leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
             >
-              Force Refresh QR
+              Force refresh QR
             </Button>
           </div>
         </div>
 
         {/* Right Roster Grid & Live Joiners */}
-        <div className="lg:col-span-8 rounded-card border border-border bg-surface p-5 space-y-4 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-8 rounded-card border border-border bg-surface p-4 space-y-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
-                <h3 className="text-xs font-semibold text-fg uppercase tracking-wider font-mono">
-                  Live Check-in Roster ({presentCount} of {attendees.length} Present)
+                <Users className="w-4 h-4 text-text-muted" />
+                <h3 className="text-xs font-semibold text-text uppercase tracking-wider">
+                  Check-in roster ({presentCount} of {attendees.length} present)
                 </h3>
               </div>
-              <span className="text-xs font-mono font-bold text-success">
+              <span className="text-xs font-medium tabular-nums text-text">
                 {Math.round((presentCount / attendees.length) * 100)}% Turnout
               </span>
             </div>
 
             {/* Unmatched online names queue */}
             {unmatchedQueue.length > 0 && (
-              <div className="my-3 p-3 rounded-btn border border-warning/40 bg-warning/10 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-warning">
-                  <span>Zoom Attendee Matching Queue ({unmatchedQueue.length})</span>
-                  <span className="text-[10px] font-mono">AI Name Match</span>
+              <div className="my-3 p-3 rounded-control border border-border bg-surface-sunken space-y-2">
+                <div className="flex items-center justify-between text-xs font-medium text-text">
+                  <span>Zoom attendee matching queue ({unmatchedQueue.length})</span>
+                  <span className="text-[11px] text-text-muted">Confidence match</span>
                 </div>
                 {unmatchedQueue.map((item) => (
                   <div
                     key={item.zoomName}
-                    className="flex items-center justify-between bg-surface p-2 rounded border border-warning/20 text-xs"
+                    className="flex items-center justify-between bg-surface p-2 rounded-control border border-border text-xs"
                   >
                     <div>
-                      <span className="font-mono text-fg font-medium">"{item.zoomName}"</span>
-                      <span className="text-fg-muted mx-2">→ Match:</span>
-                      <span className="font-semibold text-primary">Priya Nair ({item.confidence}%)</span>
+                      <span className="font-mono text-text font-medium">&quot;{item.zoomName}&quot;</span>
+                      <span className="text-text-muted mx-2">→ Match:</span>
+                      <span className="font-medium text-text">Priya Nair ({item.confidence}%)</span>
                     </div>
                     <Button
                       variant="primary"
-                      size="sm"
-                      className="h-6 text-[11px] px-2"
+                      size="xs"
                       onClick={() => handleMatchConfirm(item.zoomName)}
                     >
-                      Confirm Match
+                      Confirm match
                     </Button>
                   </div>
                 ))}
@@ -224,25 +215,33 @@ export const SessionLiveView: React.FC = () => {
               {attendees.map((a) => (
                 <div
                   key={a.id}
-                  className={`p-2.5 rounded-btn border flex items-center justify-between text-xs transition-all ${
-                    a.status === 'present'
-                      ? 'border-success/30 bg-success/5'
-                      : a.status === 'online'
-                      ? 'border-info/30 bg-info/5'
-                      : a.status === 'late'
-                      ? 'border-warning/30 bg-warning/5'
-                      : 'border-border bg-surface-2/40'
-                  }`}
+                  className="p-2.5 rounded-control border border-border bg-surface hover:bg-surface-sunken/40 flex items-center justify-between text-xs transition-colors"
                 >
                   <div className="flex items-center gap-2.5">
-                    <StatusPill status={a.status} size="sm" />
-                    <span className="font-medium text-fg">{a.name}</span>
-                    <span className="text-fg-muted font-mono text-[11px]">{a.phone}</span>
+                    {a.status === 'present' ? (
+                      <span className="inline-flex items-center gap-1 text-success font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Present
+                      </span>
+                    ) : a.status === 'online' ? (
+                      <span className="inline-flex items-center gap-1 text-accent font-medium">
+                        <Video className="w-3.5 h-3.5" /> Online
+                      </span>
+                    ) : a.status === 'late' ? (
+                      <span className="inline-flex items-center gap-1 text-warning font-medium">
+                        <Clock className="w-3.5 h-3.5" /> Late
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-danger font-medium">
+                        <AlertOctagon className="w-3.5 h-3.5" /> Absent
+                      </span>
+                    )}
+                    <span className="font-medium text-text">{a.name}</span>
+                    <span className="text-text-muted font-mono text-[11px]">{a.phone}</span>
                   </div>
 
                   <div className="flex items-center gap-3">
                     {a.checkInTime && (
-                      <span className="text-[11px] font-mono text-fg-muted">
+                      <span className="text-[11px] text-text-muted font-mono">
                         {a.checkInTime} ({a.method})
                       </span>
                     )}
@@ -258,9 +257,9 @@ export const SessionLiveView: React.FC = () => {
                           )
                           success(`Marked ${a.name} present manually`)
                         }}
-                        className="text-xs text-primary font-medium hover:underline"
+                        className="text-xs text-accent hover:underline font-medium"
                       >
-                        Check In
+                        Check in
                       </button>
                     )}
                   </div>
@@ -270,20 +269,20 @@ export const SessionLiveView: React.FC = () => {
           </div>
 
           {/* Footer Controls */}
-          <div className="pt-4 border-t border-border flex flex-wrap items-center justify-between gap-3">
+          <div className="pt-3 border-t border-border flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                size="sm"
+                size="xs"
                 onClick={() => success('Zoom cloud recording sync triggered.')}
                 leftIcon={<Video className="w-3.5 h-3.5" />}
               >
-                Sync Zoom Log
+                Sync Zoom log
               </Button>
               <Button
                 variant="outline"
-                size="sm"
-                onClick={() => success('Upload attendance CSV modal opened.')}
+                size="xs"
+                onClick={() => success('Import CSV modal opened.')}
                 leftIcon={<Upload className="w-3.5 h-3.5" />}
               >
                 Import CSV
@@ -291,12 +290,12 @@ export const SessionLiveView: React.FC = () => {
             </div>
 
             <Button
-              variant="destructive"
-              size="sm"
+              variant="outline"
+              size="xs"
               onClick={handleMarkRemainingAbsent}
               leftIcon={<UserX className="w-3.5 h-3.5" />}
             >
-              Mark Remaining Absent
+              Mark remaining absent
             </Button>
           </div>
         </div>
@@ -305,15 +304,17 @@ export const SessionLiveView: React.FC = () => {
       {/* Fullscreen QR Projector Modal */}
       {fullscreenQR && (
         <div
-          className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-8 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#111315] flex flex-col items-center justify-center p-8 text-center text-white select-none"
           onClick={() => setFullscreenQR(false)}
         >
-          <div className="text-center text-white space-y-4">
-            <h2 className="text-2xl font-bold tracking-tight">Scan with Camera or Student Portal</h2>
-            <p className="text-sm text-neutral-400">Java Full-Stack B3 · CodeCraft Academy Kothrud</p>
+          <div className="space-y-4 max-w-sm">
+            <h2 className="text-xl font-semibold tracking-tight">Scan check-in QR</h2>
+            <p className="text-xs text-neutral-400">
+              Java Full-Stack B3 (Kothrud) · CodeCraft Academy
+            </p>
 
-            <div className="w-80 h-80 bg-white p-6 rounded-2xl mx-auto flex items-center justify-center shadow-2xl">
-              <div className="grid grid-cols-6 gap-2 w-full h-full p-2 bg-black rounded">
+            <div className="w-64 h-64 bg-white p-4 rounded-card mx-auto flex items-center justify-center shadow-dialog">
+              <div className="grid grid-cols-6 gap-1.5 w-full h-full p-2 bg-black rounded">
                 {[...Array(36)].map((_, i) => (
                   <div
                     key={i}
@@ -327,8 +328,8 @@ export const SessionLiveView: React.FC = () => {
               </div>
             </div>
 
-            <div className="text-sm font-mono text-neutral-400">
-              Rotates in {countdown}s · Tap anywhere to exit fullscreen
+            <div className="text-xs font-mono text-neutral-400">
+              Rotates in {countdown}s · Click anywhere to exit
             </div>
           </div>
         </div>
