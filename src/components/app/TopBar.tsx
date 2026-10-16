@@ -11,6 +11,7 @@ import {
   Shield,
   Check,
   Command,
+  LogOut,
 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { useTheme } from '@/context/ThemeContext'
@@ -27,6 +28,7 @@ export const TopBar: React.FC = () => {
     toggleCopilot,
     setCommandPaletteOpen,
     unreadApprovalsCount,
+    logout,
   } = useApp()
   const { resolvedTheme, toggleTheme } = useTheme()
   const location = useLocation()
@@ -249,7 +251,7 @@ export const TopBar: React.FC = () => {
                 })}
               </div>
 
-              <div className="pt-1 border-t border-border px-1">
+              <div className="pt-1 border-t border-border px-1 space-y-0.5">
                 <Link
                   to="/settings"
                   onClick={() => setAvatarMenuOpen(false)}
@@ -258,6 +260,16 @@ export const TopBar: React.FC = () => {
                   <User className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.5} />
                   <span>Settings</span>
                 </Link>
+                <button
+                  onClick={() => {
+                    setAvatarMenuOpen(false)
+                    logout()
+                  }}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-control hover:bg-surface-sunken text-danger transition-colors text-left"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-danger" strokeWidth={1.5} />
+                  <span>Sign out</span>
+                </button>
               </div>
             </div>
           )}

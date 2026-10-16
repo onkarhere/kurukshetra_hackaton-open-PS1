@@ -11,6 +11,7 @@ import {
   Phone,
   Lock,
   CheckCircle2,
+  LogOut,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
@@ -18,7 +19,7 @@ import { useTheme } from '@/context/ThemeContext'
 import { useToast } from '@/context/ToastContext'
 
 export const ProfileView: React.FC = () => {
-  const { currentUser, role, setShortcutsOpen } = useApp()
+  const { currentUser, role, setShortcutsOpen, logout } = useApp()
   const { resolvedTheme, toggleTheme } = useTheme()
   const { success } = useToast()
 
@@ -98,6 +99,25 @@ export const ProfileView: React.FC = () => {
           </div>
           <Button variant="secondary" size="sm" onClick={() => setShortcutsOpen(true)}>
             View shortcuts (?)
+          </Button>
+        </div>
+      </div>
+
+      {/* Session Management */}
+      <div className="p-5 rounded-card border border-border bg-surface space-y-4 text-xs">
+        <div className="text-xs font-medium text-text">Session management</div>
+        <div className="flex items-center justify-between py-2">
+          <div>
+            <div className="font-medium text-text">Sign out of session</div>
+            <div className="text-text-muted text-[11px]">End your active session on this workstation</div>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={logout}
+            leftIcon={<LogOut className="w-3.5 h-3.5 text-danger" />}
+          >
+            Sign out
           </Button>
         </div>
       </div>

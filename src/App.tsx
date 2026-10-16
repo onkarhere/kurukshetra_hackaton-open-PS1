@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/context/ThemeContext'
 import { ToastProvider } from '@/context/ToastContext'
 import { AppProvider } from '@/context/AppContext'
 import { AppLayout } from '@/components/app/AppLayout'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 
 // Features
 import { DashboardView } from '@/features/dashboard/DashboardView'
@@ -47,14 +48,22 @@ export function App() {
               <Routes>
                 {/* Public & Isolated Routes */}
                 <Route path="/login" element={<LoginView />} />
-                <Route path="/setup" element={<OnboardingView />} />
                 <Route path="/verify/:certNo" element={<CertificateVerifyView />} />
+
+                {/* Student Portal (Direct or mobile access) */}
                 <Route path="/s/*" element={<StudentPortalView />} />
                 <Route path="/s" element={<StudentPortalView />} />
 
-                {/* Authenticated Application Shell */}
-                <Route element={<AppLayout />}>
+                {/* Authenticated Application Shell protected by ProtectedRoute */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                >
                   <Route path="/" element={<DashboardView />} />
+                  <Route path="/setup" element={<OnboardingView />} />
                   <Route path="/copilot" element={<CopilotView pageContext="On: Copilot Full View" />} />
                   <Route path="/approvals" element={<ApprovalsView />} />
                   <Route path="/timetable" element={<TimetableView />} />

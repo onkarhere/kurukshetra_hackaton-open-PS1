@@ -10,6 +10,54 @@ export const isSupabaseConfigured = Boolean(
 )
 
 /**
+ * Supabase Authentication Services
+ */
+export async function signInWithSupabase(email: string, password: string) {
+  try {
+    const res = await supabase.auth.signInWithPassword({ email, password })
+    return res
+  } catch (err: any) {
+    return { data: { user: null, session: null }, error: err }
+  }
+}
+
+export async function signUpWithSupabase(
+  email: string,
+  password: string,
+  metadata: { name: string; role: string; branch: string }
+) {
+  try {
+    const res = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: metadata,
+      },
+    })
+    return res
+  } catch (err: any) {
+    return { data: { user: null, session: null }, error: err }
+  }
+}
+
+export async function signOutSupabase() {
+  try {
+    await supabase.auth.signOut()
+  } catch (err) {
+    console.warn('Sign out error:', err)
+  }
+}
+
+export async function getSupabaseSession() {
+  try {
+    const { data } = await supabase.auth.getSession()
+    return data.session
+  } catch (err) {
+    return null
+  }
+}
+
+/**
  * Supabase Data Access Services
  */
 export async function getStudentsFromDb() {

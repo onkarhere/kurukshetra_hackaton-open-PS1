@@ -32,8 +32,24 @@ import {
   Recording,
 } from '@/types'
 
-class MockStore {
-  currentUser: User = { ...mockCurrentUser }
+export class MockStore {
+  isAuthenticated: boolean = (() => {
+    const savedStatus = typeof window !== 'undefined' ? localStorage.getItem('batchwise_auth_status') : null
+    return savedStatus !== 'false'
+  })()
+
+  currentUser: User = (() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('batchwise_auth_user')
+        if (saved) return JSON.parse(saved)
+      }
+    } catch {
+      // fallback
+    }
+    return { ...mockCurrentUser }
+  })()
+
   selectedBranch: Branch | 'All' = 'All'
   courses: Course[] = [...mockCourses]
   trainers: Trainer[] = [...mockTrainers]
@@ -60,6 +76,25 @@ class MockStore {
     this.listeners.forEach((fn) => fn())
   }
 
+  login(user: User) {
+    this.currentUser = { ...user }
+    this.isAuthenticated = true
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('batchwise_auth_user', JSON.stringify(this.currentUser))
+      localStorage.setItem('batchwise_auth_status', 'true')
+    }
+    this.notify()
+  }
+
+  logout() {
+    this.isAuthenticated = false
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('batchwise_auth_user')
+      localStorage.setItem('batchwise_auth_status', 'false')
+    }
+    this.notify()
+  }
+
   setRole(role: UserRole) {
     this.currentUser.role = role
     if (role === 'trainer') {
@@ -79,6 +114,9 @@ class MockStore {
       this.currentUser.name = 'Rajesh Sharma'
       this.currentUser.email = 'rajesh@codecraft.ac.in'
       this.copilotMessages = [mockSeedCopilotMessage]
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('batchwise_auth_user', JSON.stringify(this.currentUser))
     }
     this.notify()
   }
