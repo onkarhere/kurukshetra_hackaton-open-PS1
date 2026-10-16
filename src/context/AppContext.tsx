@@ -79,35 +79,92 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const toggleCopilot = () => setCopilotOpen((prev) => !prev)
 
-  // Login handler supporting Supabase Auth + local fallback
+  // Helper to read/write custom registered accounts
+  const getStoredAccounts = (): Record<string, { name: string; email: string; password?: string; role: UserRole; branch: Branch }> => {
+    try {
+      const raw = localStorage.getItem('batchwise_registered_users')
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  }
+
+  // Login handler supporting Supabase Auth + registered accounts + demo personas
   const login = async (creds: { email: string; password?: string; role?: UserRole; name?: string; branch?: Branch | 'All' }) => {
     try {
+      const normalizedEmail = creds.email.trim().toLowerCase()
+
+      // 1. Attempt Supabase Auth sign in if password provided
       if (creds.password) {
-        // Attempt Supabase sign in
-        const { data, error } = await signInWithSupabase(creds.email, creds.password)
-        if (!error && data?.user) {
-          const meta = data.user.user_metadata || {}
-          const userObj: User = {
-            id: data.user.id,
-            email: data.user.email || creds.email,
-            name: meta.name || creds.name || creds.email.split('@')[0],
-            role: (meta.role as UserRole) || creds.role || 'owner',
-            branch: (meta.branch as Branch) || creds.branch || 'Kothrud',
+        try {
+          const { data, error } = await signInWithSupabase(normalizedEmail, creds.password)
+          if (!error && data?.user) {
+            const meta = data.user.user_metadata || {}
+            const userObj: User = {
+              id: data.user.id,
+              email: data.user.email || normalizedEmail,
+              name: meta.name || creds.name || normalizedEmail.split('@')[0],
+              role: (meta.role as UserRole) || creds.role || 'owner',
+              branch: (meta.branch as Branch) || creds.branch || 'Kothrud',
+            }
+            store.login(userObj)
+            return { success: true }
           }
-          store.login(userObj)
-          return { success: true }
+        } catch {
+          // Continue to fallback
         }
       }
 
-      // Offline / persona / demo credentials login
-      const determinedRole: UserRole = creds.role || (creds.email.includes('trainer') || creds.email.includes('arjun') ? 'trainer' : creds.email.includes('counselor') || creds.email.includes('snehal') ? 'counselor' : creds.email.includes('account') || creds.email.includes('sunita') ? 'accounts' : creds.email.includes('student') || creds.email.includes('priya') ? 'student' : 'owner')
-      const determinedName: string = creds.name || (determinedRole === 'trainer' ? 'Arjun Mehta' : determinedRole === 'counselor' ? 'Snehal Kulkarni' : determinedRole === 'accounts' ? 'Sunita Accounts' : determinedRole === 'student' ? 'Priya Nair' : 'Rajesh Sharma')
-      const determinedBranch: Branch | 'All' = creds.branch || (determinedRole === 'trainer' ? 'Kothrud' : determinedRole === 'counselor' ? 'Baner' : 'All')
+      // 2. Check locally registered users
+      const stored = getStoredAccounts()
+      const registered = stored[normalizedEmail]
+      if (registered) {
+        if (creds.password && registered.password && creds.password !== registered.password) {
+          return { success: false, error: 'Incorrect password. Please verify and try again.' }
+        }
+        const userObj: User = {
+          id: `usr-${registered.email}`,
+          name: registered.name,
+          email: registered.email,
+          role: registered.role,
+          branch: registered.branch,
+        }
+        store.login(userObj)
+        return { success: true }
+      }
+
+      // 3. Fallback persona / pre-configured accounts
+      const determinedRole: UserRole =
+        creds.role ||
+        (normalizedEmail.includes('trainer') || normalizedEmail.includes('arjun')
+          ? 'trainer'
+          : normalizedEmail.includes('counselor') || normalizedEmail.includes('snehal')
+          ? 'counselor'
+          : normalizedEmail.includes('account') || normalizedEmail.includes('sunita')
+          ? 'accounts'
+          : normalizedEmail.includes('student') || normalizedEmail.includes('priya')
+          ? 'student'
+          : 'owner')
+
+      const determinedName: string =
+        creds.name ||
+        (determinedRole === 'trainer'
+          ? 'Arjun Mehta'
+          : determinedRole === 'counselor'
+          ? 'Snehal Kulkarni'
+          : determinedRole === 'accounts'
+          ? 'Sunita Accounts'
+          : determinedRole === 'student'
+          ? 'Priya Nair'
+          : 'Rajesh Sharma')
+
+      const determinedBranch: Branch | 'All' =
+        creds.branch || (determinedRole === 'trainer' ? 'Kothrud' : determinedRole === 'counselor' ? 'Baner' : 'All')
 
       const userObj: User = {
         id: `usr-${Date.now()}`,
         name: determinedName,
-        email: creds.email,
+        email: normalizedEmail,
         role: determinedRole,
         branch: determinedBranch,
       }
@@ -118,19 +175,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }
 
-  // Registration handler supporting Supabase Auth + local fallback
+  // Registration handler supporting Supabase Auth + local persistence
   const register = async (params: { name: string; email: string; password: string; role: UserRole; branch: Branch }) => {
+    const normalizedEmail = params.email.trim().toLowerCase()
     try {
-      const { data, error } = await signUpWithSupabase(params.email, params.password, {
+      // 1. Try Supabase Auth
+      try {
+        await signUpWithSupabase(normalizedEmail, params.password, {
+          name: params.name,
+          role: params.role,
+          branch: params.branch,
+        })
+      } catch {
+        // Supabase network fallback
+      }
+
+      // 2. Persist locally so user can always log in immediately
+      const accounts = getStoredAccounts()
+      accounts[normalizedEmail] = {
         name: params.name,
+        email: normalizedEmail,
+        password: params.password,
         role: params.role,
         branch: params.branch,
-      })
+      }
+      localStorage.setItem('batchwise_registered_users', JSON.stringify(accounts))
 
       const userObj: User = {
-        id: data?.user?.id || `usr-${Date.now()}`,
+        id: `usr-${Date.now()}`,
         name: params.name,
-        email: params.email,
+        email: normalizedEmail,
         role: params.role,
         branch: params.branch,
       }
@@ -138,16 +212,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       store.login(userObj)
       return { success: true }
     } catch (err: any) {
-      // Graceful fallback to local user registration
-      const userObj: User = {
-        id: `usr-${Date.now()}`,
-        name: params.name,
-        email: params.email,
-        role: params.role,
-        branch: params.branch,
-      }
-      store.login(userObj)
-      return { success: true }
+      return { success: false, error: err?.message || 'Registration failed' }
     }
   }
 

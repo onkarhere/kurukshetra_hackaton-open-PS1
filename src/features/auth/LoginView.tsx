@@ -9,9 +9,10 @@ import {
   User,
   Mail,
   KeyRound,
-  Sparkles,
   AlertCircle,
-  UserCheck,
+  Eye,
+  EyeOff,
+  Phone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
@@ -27,14 +28,15 @@ export const LoginView: React.FC = () => {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [authMethod, setAuthMethod] = useState<'password' | 'otp'>('password')
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Sign in fields
-  const [email, setEmail] = useState('rajesh@codecraft.ac.in')
-  const [password, setPassword] = useState('Admin@1234')
-  const [phone, setPhone] = useState('+91 98201 55432')
-  const [otp, setOtp] = useState(['4', '8', '1', '9', '2', '0'])
-  const [isMfaStep, setIsMfaStep] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [phone, setPhone] = useState('')
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [isOtpSent, setIsOtpSent] = useState(false)
 
   // Sign up fields
   const [regName, setRegName] = useState('')
@@ -43,27 +45,66 @@ export const LoginView: React.FC = () => {
   const [regRole, setRegRole] = useState<UserRole>('trainer')
   const [regBranch, setRegBranch] = useState<Branch>('Kothrud')
 
-  const redirectAfterAuth = () => {
+  const redirectAfterAuth = (userRole?: UserRole) => {
+    if (userRole === 'student') {
+      navigate('/s', { replace: true })
+      return
+    }
     const from = (location.state as any)?.from?.pathname || '/'
     navigate(from, { replace: true })
   }
 
+  // Handle direct Email + Password sign in (NO OTP interception)
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMessage(null)
 
-    if (authMethod === 'password' && !isMfaStep) {
-      setIsMfaStep(true)
-      success('Credentials accepted', 'Enter the 6-digit MFA security code sent to your registered device.')
+    if (authMethod === 'otp') {
+      if (!isOtpSent) {
+        if (!phone.trim()) {
+          setErrorMessage('Please enter your 10-digit mobile number.')
+          return
+        }
+        setIsOtpSent(true)
+        success('Verification code generated', `6-digit OTP sent to ${phone}. Enter below to sign in.`)
+        return
+      }
+
+      const enteredOtp = otp.join('')
+      if (enteredOtp.length < 6) {
+        setErrorMessage('Please enter the complete 6-digit verification code.')
+        return
+      }
+
+      setIsLoading(true)
+      const res = await login({
+        email: `${phone.replace(/\D/g, '')}@phone.codecraft.ac.in`,
+        name: `User (+91 ${phone.slice(-4)})`,
+        role: 'owner',
+      })
+      setIsLoading(false)
+
+      if (res.success) {
+        success('Verified successfully', `Signed in with phone number ${phone}`)
+        redirectAfterAuth('owner')
+      } else {
+        setErrorMessage(res.error || 'Verification failed. Please try again.')
+      }
+      return
+    }
+
+    // Standard Email & Password Authentication
+    if (!email.trim() || !password) {
+      setErrorMessage('Please enter both your email address and password.')
       return
     }
 
     setIsLoading(true)
-    const res = await login({ email, password })
+    const res = await login({ email: email.trim(), password })
     setIsLoading(false)
 
     if (res.success) {
-      success('Authentication successful', `Signed in as ${email}`)
+      success('Authentication successful', `Signed in as ${email.trim()}`)
       redirectAfterAuth()
     } else {
       setErrorMessage(res.error || 'Authentication failed. Please verify your credentials.')
@@ -71,12 +112,13 @@ export const LoginView: React.FC = () => {
     }
   }
 
+  // Handle Account Registration
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMessage(null)
 
     if (!regName.trim() || !regEmail.trim() || regPassword.length < 6) {
-      setErrorMessage('Please provide your name, valid email, and a password of at least 6 characters.')
+      setErrorMessage('Please provide your full name, a valid email, and a password of at least 6 characters.')
       return
     }
 
@@ -92,13 +134,14 @@ export const LoginView: React.FC = () => {
 
     if (res.success) {
       success('Account created', `Welcome, ${regName}! Signed in as ${regRole}.`)
-      redirectAfterAuth()
+      redirectAfterAuth(regRole)
     } else {
       setErrorMessage(res.error || 'Registration failed. Please try again.')
       toastError('Registration error', res.error)
     }
   }
 
+  // Quick Persona Instant Login
   const handleQuickPersona = async (persona: {
     name: string
     email: string
@@ -107,6 +150,7 @@ export const LoginView: React.FC = () => {
   }) => {
     setIsLoading(true)
     setEmail(persona.email)
+    setPassword('Admin@1234')
     const res = await login({
       email: persona.email,
       name: persona.name,
@@ -115,12 +159,8 @@ export const LoginView: React.FC = () => {
     })
     setIsLoading(false)
     if (res.success) {
-      success('Switched persona', `Authenticated as ${persona.name} (${persona.role})`)
-      if (persona.role === 'student') {
-        navigate('/s', { replace: true })
-      } else {
-        redirectAfterAuth()
-      }
+      success('Switched persona', `Signed in as ${persona.name} (${persona.role})`)
+      redirectAfterAuth(persona.role)
     }
   }
 
@@ -146,7 +186,7 @@ export const LoginView: React.FC = () => {
           </div>
           <div className="flex flex-col">
             <span className="font-semibold text-sm text-text leading-tight">Institute OS</span>
-            <span className="text-[11px] text-text-muted">Batchwise · Supabase Auth</span>
+            <span className="text-[11px] text-text-muted">Batchwise · Enterprise Platform</span>
           </div>
         </div>
 
@@ -164,7 +204,7 @@ export const LoginView: React.FC = () => {
             <div className="flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <div>
-                <span className="font-medium text-text">Supabase identity security: </span>
+                <span className="font-medium text-text">Supabase cloud security: </span>
                 Multi-tenant session tokens, encrypted credentials, and automated schema policies.
               </div>
             </div>
@@ -198,12 +238,13 @@ export const LoginView: React.FC = () => {
         <div className="w-full max-w-md space-y-5">
           {/* Top Switcher: Sign In vs Create Account */}
           <div className="flex items-center justify-between pb-1 border-b border-border">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => {
                   setMode('signin')
                   setErrorMessage(null)
+                  setIsOtpSent(false)
                 }}
                 className={`text-sm font-semibold transition-colors pb-2 border-b-2 ${
                   mode === 'signin'
@@ -243,49 +284,56 @@ export const LoginView: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-semibold text-text">
-                  {isMfaStep ? 'Two-factor verification' : 'Sign in to your account'}
+                  Sign in to your account
                 </h2>
                 <p className="text-xs text-text-muted mt-0.5">
-                  {isMfaStep
-                    ? 'Enter the 6-digit verification code sent to +91 98••• ••432'
-                    : 'Enter your credentials to access operations, attendance and fees'}
+                  Enter your registered credentials to access your dashboard and tools
                 </p>
               </div>
 
-              {!isMfaStep && (
-                <div className="flex items-center bg-surface-sunken border border-border rounded-control p-1 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setAuthMethod('password')}
-                    className={`flex-1 py-1.5 rounded-control transition-colors ${
-                      authMethod === 'password'
-                        ? 'bg-surface text-text font-medium border border-border shadow-sm'
-                        : 'text-text-muted hover:text-text'
-                    }`}
-                  >
-                    Email and password
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAuthMethod('otp')}
-                    className={`flex-1 py-1.5 rounded-control transition-colors ${
-                      authMethod === 'otp'
-                        ? 'bg-surface text-text font-medium border border-border shadow-sm'
-                        : 'text-text-muted hover:text-text'
-                    }`}
-                  >
-                    Phone OTP
-                  </button>
-                </div>
-              )}
+              {/* Method Switcher: Email vs Phone OTP */}
+              <div className="flex items-center bg-surface-sunken border border-border rounded-control p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod('password')
+                    setErrorMessage(null)
+                    setIsOtpSent(false)
+                  }}
+                  className={`flex-1 py-1.5 rounded-control transition-colors ${
+                    authMethod === 'password'
+                      ? 'bg-surface text-text font-medium border border-border shadow-sm'
+                      : 'text-text-muted hover:text-text'
+                  }`}
+                >
+                  Email and password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod('otp')
+                    setErrorMessage(null)
+                    setIsOtpSent(false)
+                  }}
+                  className={`flex-1 py-1.5 rounded-control transition-colors ${
+                    authMethod === 'otp'
+                      ? 'bg-surface text-text font-medium border border-border shadow-sm'
+                      : 'text-text-muted hover:text-text'
+                  }`}
+                >
+                  Phone OTP
+                </button>
+              </div>
 
               <form onSubmit={handleSignIn} className="space-y-3.5 text-xs">
-                {!isMfaStep && authMethod === 'password' && (
+                {/* Email + Password fields */}
+                {authMethod === 'password' && (
                   <>
                     <div className="space-y-1">
-                      <label className="text-text-muted">Work email</label>
+                      <label className="text-text-muted font-normal">Work email address</label>
                       <input
                         type="email"
+                        placeholder="rajesh@codecraft.ac.in"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -295,49 +343,73 @@ export const LoginView: React.FC = () => {
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <label className="text-text-muted">Password</label>
-                        <span className="text-[11px] text-text-muted">Default: Admin@1234</span>
+                        <label className="text-text-muted font-normal">Password</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="text-[11px] text-text-muted hover:text-text flex items-center gap-1"
+                        >
+                          {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          <span>{showPassword ? 'Hide' : 'Show'}</span>
+                        </button>
                       </div>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter your password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 pr-10"
+                        />
+                      </div>
                     </div>
                   </>
                 )}
 
-                {!isMfaStep && authMethod === 'otp' && (
-                  <div className="space-y-1">
-                    <label className="text-text-muted">Mobile number (+91)</label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 font-mono"
-                    />
-                  </div>
-                )}
-
-                {(isMfaStep || authMethod === 'otp') && (
-                  <div className="space-y-2">
-                    <label className="text-text-muted">Enter 6-digit code</label>
-                    <div className="flex items-center justify-between gap-1.5">
-                      {otp.map((digit, idx) => (
+                {/* Phone OTP fields */}
+                {authMethod === 'otp' && (
+                  <>
+                    {!isOtpSent ? (
+                      <div className="space-y-1">
+                        <label className="text-text-muted font-normal">Registered mobile number (+91)</label>
                         <input
-                          key={idx}
-                          id={`otp-box-${idx}`}
-                          type="text"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleOtpChange(idx, e.target.value)}
-                          className="w-11 h-12 text-center text-base font-mono font-medium bg-surface border border-border-strong rounded-control text-text focus:ring-2 focus:ring-accent outline-none"
+                          type="tel"
+                          placeholder="9820155432"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          required
+                          className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 font-mono"
                         />
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-text-muted">Verification code sent to {phone}</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsOtpSent(false)}
+                            className="text-accent hover:underline text-[11px]"
+                          >
+                            Change number
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between gap-1.5 pt-1">
+                          {otp.map((digit, idx) => (
+                            <input
+                              key={idx}
+                              id={`otp-box-${idx}`}
+                              type="text"
+                              maxLength={1}
+                              value={digit}
+                              onChange={(e) => handleOtpChange(idx, e.target.value)}
+                              className="w-11 h-12 text-center text-base font-mono font-medium bg-surface border border-border-strong rounded-control text-text focus:ring-2 focus:ring-accent outline-none"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <Button
@@ -348,14 +420,18 @@ export const LoginView: React.FC = () => {
                   isLoading={isLoading}
                   rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
                 >
-                  {isMfaStep ? 'Verify and sign in' : 'Sign in'}
+                  {authMethod === 'otp'
+                    ? isOtpSent
+                      ? 'Verify and sign in'
+                      : 'Send verification code'
+                    : 'Sign in'}
                 </Button>
               </form>
 
               {/* Persona Quick-Login Switcher */}
               <div className="pt-3 border-t border-border space-y-2">
                 <div className="text-[11px] font-medium text-text-muted">
-                  Quick demo sign in (select persona):
+                  Or instant demo login with pre-configured role:
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <button
@@ -421,6 +497,22 @@ export const LoginView: React.FC = () => {
                     <div className="font-medium text-text">Sunita Accounts</div>
                     <div className="text-[11px] text-text-muted">Finance & Collections</div>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickPersona({
+                        name: 'Priya Nair',
+                        email: 'priya.nair@gmail.com',
+                        role: 'student',
+                        branch: 'Kothrud',
+                      })
+                    }
+                    className="col-span-2 p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
+                  >
+                    <div className="font-medium text-text">Priya Nair</div>
+                    <div className="text-[11px] text-text-muted">Student (Mobile Student Portal · Attendance & Catch-up)</div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -430,15 +522,15 @@ export const LoginView: React.FC = () => {
           {mode === 'signup' && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-semibold text-text">Register staff or student</h2>
+                <h2 className="text-lg font-semibold text-text">Create a new account</h2>
                 <p className="text-xs text-text-muted mt-0.5">
-                  Create a new user account with Supabase Authentication
+                  Register your account with Supabase Authentication
                 </p>
               </div>
 
               <form onSubmit={handleSignUp} className="space-y-3.5 text-xs">
                 <div className="space-y-1">
-                  <label className="text-text-muted">Full name</label>
+                  <label className="text-text-muted font-normal">Full name</label>
                   <input
                     type="text"
                     required
@@ -450,7 +542,7 @@ export const LoginView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-text-muted">Email address</label>
+                  <label className="text-text-muted font-normal">Email address</label>
                   <input
                     type="email"
                     required
@@ -462,7 +554,7 @@ export const LoginView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-text-muted">Password</label>
+                  <label className="text-text-muted font-normal">Password</label>
                   <input
                     type="password"
                     required
@@ -476,7 +568,7 @@ export const LoginView: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-text-muted">Role</label>
+                    <label className="text-text-muted font-normal">Role</label>
                     <select
                       value={regRole}
                       onChange={(e) => setRegRole(e.target.value as UserRole)}
@@ -491,7 +583,7 @@ export const LoginView: React.FC = () => {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-text-muted">Branch</label>
+                    <label className="text-text-muted font-normal">Branch</label>
                     <select
                       value={regBranch}
                       onChange={(e) => setRegBranch(e.target.value as Branch)}
