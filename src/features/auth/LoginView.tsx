@@ -45,11 +45,7 @@ export const LoginView: React.FC = () => {
   const [regRole, setRegRole] = useState<UserRole>('trainer')
   const [regBranch, setRegBranch] = useState<Branch>('Kothrud')
 
-  const redirectAfterAuth = (userRole?: UserRole) => {
-    if (userRole === 'student') {
-      navigate('/s', { replace: true })
-      return
-    }
+  const redirectAfterAuth = (_userRole?: UserRole) => {
     const from = (location.state as any)?.from?.pathname || '/'
     navigate(from, { replace: true })
   }

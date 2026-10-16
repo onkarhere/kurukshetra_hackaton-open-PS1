@@ -21,6 +21,9 @@ import {
   UserCheck,
   PhoneCall,
   Lock,
+  QrCode,
+  Award,
+  Video,
 } from 'lucide-react'
 import { KpiCard } from '@/components/app/KpiCard'
 import { ReasonChip } from '@/components/ui/ReasonChip'
@@ -84,6 +87,329 @@ export const DashboardView: React.FC = () => {
     if (pct >= 85) return 'bg-accent/40 text-text font-medium'
     if (pct >= 80) return 'bg-accent/25 text-text'
     return 'bg-accent/15 text-text-muted'
+  }
+
+  /* =========================================================================
+     0. STUDENT DASHBOARD VARIANT (FULL DESKTOP-SIZED DASHBOARD)
+     ========================================================================= */
+  if (role === 'student') {
+    return (
+      <div className="space-y-6">
+        {/* Desktop Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+          <div>
+            <h1 className="text-xl font-semibold text-text">Good afternoon, Priya</h1>
+            <p className="text-xs text-text-muted mt-0.5">
+              Java Full-Stack B3 (Kothrud) · Roll #104 · CodeCraft Academy Pune · Thu, 16 Oct 2026
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => success('Checked into today\'s session: Spring Data JPA')}
+              leftIcon={<QrCode className="w-3.5 h-3.5" />}
+            >
+              Check into session
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate('/recordings')}
+              leftIcon={<Video className="w-3.5 h-3.5" />}
+            >
+              Watch recordings
+            </Button>
+          </div>
+        </div>
+
+        {/* 4 Desktop Student KPI Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            label="My attendance"
+            value="44.0%"
+            delta={{ value: 'Target: 80% · 3 missed', isPositive: false }}
+            onClick={() => navigate('/recordings')}
+          />
+          <KpiCard
+            label="Next session"
+            value="Today 19:00"
+            delta={{ value: 'Spring Data JPA · Room 3', isNeutral: true }}
+            onClick={() => navigate('/timetable')}
+          />
+          <KpiCard
+            label="Curriculum progress"
+            value="68%"
+            delta={{ value: 'Module 4 of 6 active', isPositive: true }}
+            onClick={() => navigate('/courses')}
+          />
+          <KpiCard
+            label="Tuition fees"
+            value={formatINR(6500)}
+            delta={{ value: 'Instalment 3 · 12d overdue', isPositive: false }}
+            onClick={() => navigate('/fees')}
+          />
+        </div>
+
+        {/* 12-Column Desktop Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main Content (8 cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Today's Live/Upcoming Session */}
+            <div className="p-4 rounded-card border border-border bg-surface space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-text-muted">
+                  Today's class · 19:00 – 21:00 IST
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs text-accent">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                  Scheduled
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-semibold text-text">Spring Data JPA Repositories</h3>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Room 3 (Kothrud Campus) · Faculty: Arjun Mehta · Hybrid Classroom
+                  </p>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => success('Checked into session via student QR beacon')}
+                  leftIcon={<QrCode className="w-3.5 h-3.5" />}
+                >
+                  Scan QR code
+                </Button>
+              </div>
+            </div>
+
+            {/* Class Schedule Table */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-text">Weekly class schedule</h2>
+                <span className="text-xs text-text-muted">Java Full-Stack B3 (Kothrud)</span>
+              </div>
+
+              {/* Adjustment Notice Banner */}
+              <div className="p-3 rounded-control border border-border bg-surface-sunken flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
+                  <span className="text-text">
+                    Thursday lecture rescheduled to Friday 19:00 in Room 3 due to faculty leave.
+                  </span>
+                </div>
+                <ReasonChip reason="Arjun on medical leave Thu" />
+              </div>
+
+              <div className="border border-border rounded-card bg-surface overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-surface-sunken border-b border-border text-text-muted">
+                    <tr>
+                      <th className="py-2.5 px-3 font-medium">Session topic</th>
+                      <th className="py-2.5 px-3 font-medium">Day & Time (IST)</th>
+                      <th className="py-2.5 px-3 font-medium">Room</th>
+                      <th className="py-2.5 px-3 font-medium">Faculty</th>
+                      <th className="py-2.5 px-3 text-right font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    <tr className="hover:bg-surface-sunken/40">
+                      <td className="py-3 px-3 font-medium text-text">Spring Data JPA Repositories</td>
+                      <td className="py-3 px-3 tabular-nums text-text">Today, 19:00 – 21:00</td>
+                      <td className="py-3 px-3 text-text-muted">Room 3</td>
+                      <td className="py-3 px-3 text-text">Arjun Mehta</td>
+                      <td className="py-3 px-3 text-right">
+                        <StatusPill status="in_progress" />
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-surface-sunken/40">
+                      <td className="py-3 px-3 font-medium text-text">
+                        Spring Security & JWT Authentication
+                      </td>
+                      <td className="py-3 px-3 tabular-nums text-text">Fri, 17 Oct · 19:00 – 21:00</td>
+                      <td className="py-3 px-3 text-text-muted">Room 3</td>
+                      <td className="py-3 px-3 text-text">Arjun Mehta</td>
+                      <td className="py-3 px-3 text-right">
+                        <StatusPill status="scheduled" />
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-surface-sunken/40">
+                      <td className="py-3 px-3 font-medium text-text">
+                        Database Transactions & Concurrency
+                      </td>
+                      <td className="py-3 px-3 tabular-nums text-text">Sat, 18 Oct · 11:00 – 13:00</td>
+                      <td className="py-3 px-3 text-text-muted">Lab 2</td>
+                      <td className="py-3 px-3 text-text">Arjun Mehta</td>
+                      <td className="py-3 px-3 text-right">
+                        <StatusPill status="scheduled" />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Recent Recordings Table */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-text">Recorded sessions & catch-up queue</h2>
+                  <p className="text-[11px] text-text-muted">
+                    Watch completed lectures to catch up on missed attendance and maintain placement eligibility
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={() => navigate('/recordings')}
+                >
+                  View all
+                </Button>
+              </div>
+
+              <div className="border border-border rounded-card bg-surface overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-surface-sunken border-b border-border text-text-muted">
+                    <tr>
+                      <th className="py-2.5 px-3 font-medium">Lecture title</th>
+                      <th className="py-2.5 px-3 font-medium">Date</th>
+                      <th className="py-2.5 px-3 font-medium">Duration</th>
+                      <th className="py-2.5 px-3 font-medium">Status</th>
+                      <th className="py-2.5 px-3 text-right font-medium">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    <tr className="hover:bg-surface-sunken/40">
+                      <td className="py-3 px-3 font-medium text-text">
+                        Core Java: Streams, Lambdas & Concurrency
+                      </td>
+                      <td className="py-3 px-3 text-text-muted">14 Oct 2026</td>
+                      <td className="py-3 px-3 tabular-nums text-text-muted">1h 52m</td>
+                      <td className="py-3 px-3">
+                        <span className="text-danger font-medium flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Missed
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <Button
+                          variant="secondary"
+                          size="xs"
+                          onClick={() => navigate('/recordings')}
+                          leftIcon={<Play className="w-3 h-3 text-accent" />}
+                        >
+                          Watch
+                        </Button>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-surface-sunken/40">
+                      <td className="py-3 px-3 font-medium text-text">
+                        Hibernate ORM & Entity Mapping
+                      </td>
+                      <td className="py-3 px-3 text-text-muted">12 Oct 2026</td>
+                      <td className="py-3 px-3 tabular-nums text-text-muted">2h 05m</td>
+                      <td className="py-3 px-3">
+                        <span className="text-danger font-medium flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Missed
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <Button
+                          variant="secondary"
+                          size="xs"
+                          onClick={() => navigate('/recordings')}
+                          leftIcon={<Play className="w-3 h-3 text-accent" />}
+                        >
+                          Watch
+                        </Button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Sidebar Column (4 cols) */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Attendance & Placement Alert */}
+            <div className="p-4 rounded-card border border-warning/40 bg-surface space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-warning flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Placement eligibility at risk
+                </span>
+                <span className="tabular-nums font-semibold text-warning">44% / 80%</span>
+              </div>
+              <div className="w-full h-2 bg-surface-sunken rounded-full overflow-hidden">
+                <div className="h-full bg-warning rounded-full" style={{ width: '44%' }} />
+              </div>
+              <p className="text-xs text-text-muted leading-relaxed">
+                You have missed 3 classes last week. Complete catch-up recordings to lift attendance above 80% to remain eligible for placement drives.
+              </p>
+              <Button
+                variant="secondary"
+                size="xs"
+                className="w-full"
+                onClick={() => navigate('/recordings')}
+              >
+                Open catch-up queue
+              </Button>
+            </div>
+
+            {/* Fee Instalments Card */}
+            <div className="p-4 rounded-card border border-border bg-surface space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-text">Tuition fee balance</span>
+                <span className="text-danger font-medium flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> 12 days overdue
+                </span>
+              </div>
+
+              <div className="text-2xl font-semibold tracking-tight text-text tabular-nums">
+                {formatINR(6500)}
+              </div>
+              <p className="text-xs text-text-muted">Instalment 3 of 6 · Due 04 Oct 2026</p>
+
+              <Button
+                variant="primary"
+                size="sm"
+                className="w-full"
+                onClick={() => success('Opening UPI payment interface...')}
+              >
+                Pay instalment
+              </Button>
+
+              <div className="pt-2 border-t border-border space-y-2 text-xs">
+                <div className="text-[11px] font-medium text-text-muted">Past instalment payments</div>
+                <div className="flex items-center justify-between py-1 text-[11px]">
+                  <span className="text-text">Instalment 1 (04 Aug 2026)</span>
+                  <span className="text-success font-medium">₹6,500 Paid ✓</span>
+                </div>
+                <div className="flex items-center justify-between py-1 text-[11px]">
+                  <span className="text-text">Instalment 2 (04 Sep 2026)</span>
+                  <span className="text-success font-medium">₹6,500 Paid ✓</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Course Certificate Milestone */}
+            <div className="p-4 rounded-card border border-border bg-surface space-y-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Award className="w-4 h-4 text-text-muted" />
+                <span className="font-medium text-text">Course diploma credential</span>
+              </div>
+              <p className="text-text-muted leading-relaxed text-[11px]">
+                Java Full-Stack Developer credential unlocks upon completing remaining 60 syllabus hours and achieving 80% attendance.
+              </p>
+              <div className="p-2.5 rounded-control bg-surface-sunken border border-border text-[11px] text-text-muted font-mono">
+                Status: In Progress · 180 / 240 hrs
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   /* =========================================================================

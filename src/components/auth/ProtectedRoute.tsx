@@ -15,11 +15,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  // If student tries to access admin dashboard, redirect to student portal
-  if (role === 'student' && !location.pathname.startsWith('/s')) {
-    return <Navigate to="/s" replace />
-  }
-
   // If specific roles are required and user role is not permitted
   if (allowedRoles && !allowedRoles.includes(role)) {
     return <Navigate to="/" replace />
