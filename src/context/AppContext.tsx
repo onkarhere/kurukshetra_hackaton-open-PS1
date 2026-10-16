@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { store } from '@/mocks/store'
-import { User, UserRole, Branch } from '@/types'
+import { User, UserRole, Branch, ApprovalAction } from '@/types'
 
 interface AppContextType {
   currentUser: User
@@ -23,20 +23,26 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate()
-  
-  // Reactively track mockStore updates
-  const storeSnapshot = useSyncExternalStore(
-    (onStoreChange) => store.subscribe(onStoreChange),
-    () => ({
-      currentUser: { ...store.currentUser },
-      branch: store.selectedBranch,
-      approvals: store.approvals,
-    })
-  )
+
+  // Track reactive store state cleanly
+  const [currentUser, setCurrentUser] = useState<User>({ ...store.currentUser })
+  const [currentBranch, setCurrentBranch] = useState<Branch | 'All'>(store.selectedBranch)
+  const [approvals, setApprovals] = useState<ApprovalAction[]>([...store.approvals])
 
   const [copilotOpen, setCopilotOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+
+  useEffect(() => {
+    const unsub = store.subscribe(() => {
+      setCurrentUser({ ...store.currentUser })
+      setCurrentBranch(store.selectedBranch)
+      setApprovals([...store.approvals])
+    })
+    return () => {
+      unsub()
+    }
+  }, [])
 
   const toggleCopilot = () => setCopilotOpen((prev) => !prev)
 
@@ -103,7 +109,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           navigate('/timetable')
         } else if (key === 'f') {
           e.preventDefault()
-          if (storeSnapshot.currentUser.role !== 'trainer') {
+          if (currentUser.role !== 'trainer') {
             navigate('/fees')
           }
         } else if (key === 'a') {
@@ -118,17 +124,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.removeEventListener('keydown', handleKeyDown)
       clearTimeout(gKeyTimeout)
     }
-  }, [navigate, storeSnapshot.currentUser.role])
+  }, [navigate, currentUser.role])
 
-  const unreadApprovalsCount = storeSnapshot.approvals.filter((a) => a.status === 'pending').length
+  const unreadApprovalsCount = approvals.filter((a) => a.status === 'pending').length
 
   return (
     <AppContext.Provider
       value={{
-        currentUser: storeSnapshot.currentUser,
-        role: storeSnapshot.currentUser.role,
+        currentUser,
+        role: currentUser.role,
         setRole: (role: UserRole) => store.setRole(role),
-        branch: storeSnapshot.branch,
+        branch: currentBranch,
         setBranch: (b) => store.setBranch(b),
         copilotOpen,
         setCopilotOpen,
