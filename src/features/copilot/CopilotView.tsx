@@ -63,7 +63,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     const unsub = store.subscribe(() => {
       setMessages([...store.copilotMessages])
     })
-    return () => unsub()
+    return () => {
+      unsub()
+    }
   }, [])
 
   useEffect(() => {

@@ -1,121 +1,93 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import React from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ThemeProvider } from '@/context/ThemeContext'
+import { ToastProvider } from '@/context/ToastContext'
+import { AppProvider } from '@/context/AppContext'
+import { AppLayout } from '@/components/app/AppLayout'
 
-function App() {
-  const [count, setCount] = useState(0)
+// Features
+import { DashboardView } from '@/features/dashboard/DashboardView'
+import { CopilotView } from '@/features/copilot/CopilotView'
+import { ApprovalsView } from '@/features/approvals/ApprovalsView'
+import { TimetableView } from '@/features/timetable/TimetableView'
+import { SessionLiveView } from '@/features/attendance/SessionLiveView'
+import { AttendanceView } from '@/features/attendance/AttendanceView'
+import { RecordingsView } from '@/features/recordings/RecordingsView'
+import { StudentsView } from '@/features/students/StudentsView'
+import { StudentProfileView } from '@/features/students/StudentProfileView'
+import { RiskBoardView } from '@/features/risk/RiskBoardView'
+import { TrainersView } from '@/features/trainers/TrainersView'
+import { TrainerProfileView } from '@/features/trainers/TrainerProfileView'
+import { CoursesView } from '@/features/courses/CoursesView'
+import { BatchesView } from '@/features/batches/BatchesView'
+import { BatchDetailView } from '@/features/batches/BatchDetailView'
+import { CertificatesView } from '@/features/certificates/CertificatesView'
+import { CertificateVerifyView } from '@/features/certificates/CertificateVerifyView'
+import { FeesView } from '@/features/fees/FeesView'
+import { PaymentsView } from '@/features/payments/PaymentsView'
+import { AnalyticsView } from '@/features/analytics/AnalyticsView'
+import { MessagesView } from '@/features/messages/MessagesView'
+import { AuditLogView } from '@/features/audit/AuditLogView'
+import { SettingsView } from '@/features/settings/SettingsView'
+import { LoginView } from '@/features/auth/LoginView'
+import { OnboardingView } from '@/features/setup/OnboardingView'
+import { StudentPortalView } from '@/features/student_portal/StudentPortalView'
+import { ProfileView } from '@/features/auth/ProfileView'
 
+const queryClient = new QueryClient()
+
+export function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <AppProvider>
+              <Routes>
+                {/* Public & Isolated Routes */}
+                <Route path="/login" element={<LoginView />} />
+                <Route path="/setup" element={<OnboardingView />} />
+                <Route path="/verify/:certNo" element={<CertificateVerifyView />} />
+                <Route path="/s/*" element={<StudentPortalView />} />
+                <Route path="/s" element={<StudentPortalView />} />
 
-      <div className="ticks"></div>
+                {/* Authenticated Application Shell */}
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<DashboardView />} />
+                  <Route path="/copilot" element={<CopilotView pageContext="On: Copilot Full View" />} />
+                  <Route path="/approvals" element={<ApprovalsView />} />
+                  <Route path="/timetable" element={<TimetableView />} />
+                  <Route path="/sessions/:id" element={<SessionLiveView />} />
+                  <Route path="/attendance" element={<AttendanceView />} />
+                  <Route path="/recordings" element={<RecordingsView />} />
+                  <Route path="/students" element={<StudentsView />} />
+                  <Route path="/students/:id" element={<StudentProfileView />} />
+                  <Route path="/risk" element={<RiskBoardView />} />
+                  <Route path="/trainers" element={<TrainersView />} />
+                  <Route path="/trainers/:id" element={<TrainerProfileView />} />
+                  <Route path="/courses" element={<CoursesView />} />
+                  <Route path="/batches" element={<BatchesView />} />
+                  <Route path="/batches/:id" element={<BatchDetailView />} />
+                  <Route path="/certificates" element={<CertificatesView />} />
+                  <Route path="/fees" element={<FeesView />} />
+                  <Route path="/payments" element={<PaymentsView />} />
+                  <Route path="/payments/reconcile" element={<PaymentsView />} />
+                  <Route path="/analytics" element={<AnalyticsView />} />
+                  <Route path="/messages" element={<MessagesView />} />
+                  <Route path="/audit" element={<AuditLogView />} />
+                  <Route path="/settings" element={<SettingsView />} />
+                  <Route path="/settings/*" element={<SettingsView />} />
+                  <Route path="/me" element={<ProfileView />} />
+                </Route>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </AppProvider>
+          </BrowserRouter>
+        </ToastProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   )
 }
 
