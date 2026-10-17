@@ -37,6 +37,11 @@ import { LoginView } from '@/features/auth/LoginView'
 import { OnboardingView } from '@/features/setup/OnboardingView'
 import { StudentPortalView } from '@/features/student_portal/StudentPortalView'
 import { ProfileView } from '@/features/auth/ProfileView'
+import { ClassroomListView } from '@/features/classroom/ClassroomListView'
+import { ClassDetailView } from '@/features/classroom/ClassDetailView'
+import { AssignmentDetailView } from '@/features/classroom/AssignmentDetailView'
+import { SubmissionReviewView } from '@/features/classroom/SubmissionReviewView'
+import { ClassroomReviewView } from '@/features/classroom/ClassroomReviewView'
 
 const queryClient = new QueryClient()
 
@@ -284,6 +289,48 @@ export function App() {
                       element={
                         <ProtectedRoute allowedRoles={ROUTE_ROLES['/me']}>
                           <ProfileView />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Classroom Module Routes */}
+                    <Route
+                      path="/classroom"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/classroom']}>
+                          <ClassroomListView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/classroom/review"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/classroom/review']}>
+                          <ClassroomReviewView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/classroom/:classId"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/classroom']}>
+                          <ClassDetailView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/classroom/:classId/assignments/:assignmentId"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/classroom']}>
+                          <AssignmentDetailView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/classroom/:classId/assignments/:assignmentId/submissions/:submissionId"
+                      element={
+                        <ProtectedRoute allowedRoles={['owner', 'admin', 'trainer']}>
+                          <SubmissionReviewView />
                         </ProtectedRoute>
                       }
                     />

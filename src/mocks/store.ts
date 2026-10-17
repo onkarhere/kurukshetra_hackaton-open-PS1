@@ -18,6 +18,11 @@ import {
   mockAttendanceRecords,
   mockSettings,
   mockRiskAcknowledgements,
+  mockClassRooms,
+  mockNotes,
+  mockAssignments,
+  mockSubmissions,
+  mockStreamPosts,
 } from './mockData'
 import {
   User,
@@ -38,8 +43,20 @@ import {
   OutboxMessage,
   InstituteSettings,
   AttendanceRecord,
+  ClassRoom,
+  Note,
+  Assignment,
+  Submission,
+  StreamPost,
+  ClassComment,
+  Attachment,
+  GradingResult,
+  GradingDeduction,
 } from '@/types'
 import { formatINR } from '@/lib/utils'
+import { extractSubmissionText } from '@/features/classroom/grading/extractText'
+import { checkSubmissionSimilarity } from '@/features/classroom/grading/similarity'
+import { gradingService } from '@/features/classroom/grading/gradingService'
 
 const STORAGE_KEY = 'batchwise_store_v1'
 
@@ -66,6 +83,13 @@ export class MockStore {
   settings: InstituteSettings = { ...mockSettings }
   attendanceRecords: AttendanceRecord[] = [...mockAttendanceRecords]
   sessionQrTokens: Record<string, { token: string; expiresAt: number }> = {}
+
+  // Classroom slices
+  classes: ClassRoom[] = [...mockClassRooms]
+  notes: Note[] = [...mockNotes]
+  assignments: Assignment[] = [...mockAssignments]
+  submissions: Submission[] = [...mockSubmissions]
+  streamPosts: StreamPost[] = [...mockStreamPosts]
 
   // Listeners for reactivity
   private listeners: Set<() => void> = new Set()
@@ -110,6 +134,11 @@ export class MockStore {
         if (parsed.settings) this.settings = parsed.settings
         if (parsed.attendanceRecords) this.attendanceRecords = parsed.attendanceRecords
         if (parsed.selectedBranch) this.selectedBranch = parsed.selectedBranch
+        if (parsed.classes) this.classes = parsed.classes
+        if (parsed.notes) this.notes = parsed.notes
+        if (parsed.assignments) this.assignments = parsed.assignments
+        if (parsed.submissions) this.submissions = parsed.submissions
+        if (parsed.streamPosts) this.streamPosts = parsed.streamPosts
       }
     } catch (e) {
       console.warn('Failed to rehydrate store from localStorage', e)
@@ -138,6 +167,11 @@ export class MockStore {
         riskAcknowledgements: this.riskAcknowledgements,
         settings: this.settings,
         attendanceRecords: this.attendanceRecords,
+        classes: this.classes,
+        notes: this.notes,
+        assignments: this.assignments,
+        submissions: this.submissions,
+        streamPosts: this.streamPosts,
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave))
     } catch (e) {
@@ -171,6 +205,11 @@ export class MockStore {
     this.riskAcknowledgements = { ...mockRiskAcknowledgements }
     this.settings = { ...mockSettings }
     this.attendanceRecords = [...mockAttendanceRecords]
+    this.classes = [...mockClassRooms]
+    this.notes = [...mockNotes]
+    this.assignments = [...mockAssignments]
+    this.submissions = [...mockSubmissions]
+    this.streamPosts = [...mockStreamPosts]
     this.selectedBranch = 'All'
 
     // Reset copilot message based on role
@@ -963,7 +1002,590 @@ export class MockStore {
     this.notify()
     return newApproval
   }
+
+  // --- CLASSROOM MODULE ACTIONS ---
+
+  createClass(cls: ClassRoom) {
+    this.classes.unshift(cls)
+    this.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: 'User',
+      actorName: this.currentUser.name,
+      actorRole: this.currentUser.role,
+      action: `Created academic classroom: ${cls.name} (Code: ${cls.code})`,
+      entity: 'classroom',
+      entityId: cls.id,
+      outcome: 'success',
+      ipAddress: '122.170.14.92',
+    })
+    this.notify()
+  }
+
+  archiveClass(id: string) {
+    const cls = this.classes.find((c) => c.id === id)
+    if (cls) {
+      cls.archived = !cls.archived
+      this.auditLogs.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+        actorType: 'User',
+        actorName: this.currentUser.name,
+        actorRole: this.currentUser.role,
+        action: `${cls.archived ? 'Archived' : 'Restored'} classroom: ${cls.name}`,
+        entity: 'classroom',
+        entityId: cls.id,
+        outcome: 'success',
+        ipAddress: '122.170.14.92',
+      })
+      this.notify()
+    }
+  }
+
+  addNote(note: Note, additionalClassIds?: string[]) {
+    const targetClassIds = [note.classId, ...(additionalClassIds || [])]
+    const createdNotes: Note[] = []
+
+    targetClassIds.forEach((cId) => {
+      const cls = this.classes.find((c) => c.id === cId)
+      const newNote: Note = {
+        ...note,
+        id: cId === note.classId ? note.id : `note-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        classId: cId,
+        uploadedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+      }
+      this.notes.unshift(newNote)
+      createdNotes.push(newNote)
+
+      // Post notification to Stream
+      this.streamPosts.unshift({
+        id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        classId: cId,
+        type: 'note',
+        title: `New study material: ${note.title}`,
+        content: note.description || `Uploaded lecture material with ${note.files.length} attachment(s).`,
+        authorName: this.currentUser.name,
+        authorRole: this.currentUser.role,
+        createdAt: 'Just now',
+        refId: newNote.id,
+      })
+
+      this.auditLogs.unshift({
+        id: `aud-${Date.now()}-${Math.random().toString(36).slice(2, 4)}`,
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+        actorType: 'User',
+        actorName: this.currentUser.name,
+        actorRole: this.currentUser.role,
+        action: `Uploaded lecture notes "${note.title}" to ${cls?.name || cId}`,
+        entity: 'notes',
+        entityId: newNote.id,
+        outcome: 'success',
+        ipAddress: '122.170.14.92',
+      })
+    })
+
+    this.notify()
+    return createdNotes
+  }
+
+  updateNote(updated: Note) {
+    const idx = this.notes.findIndex((n) => n.id === updated.id)
+    if (idx >= 0) {
+      this.notes[idx] = updated
+      this.auditLogs.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+        actorType: 'User',
+        actorName: this.currentUser.name,
+        actorRole: this.currentUser.role,
+        action: `Updated lecture notes: "${updated.title}"`,
+        entity: 'notes',
+        entityId: updated.id,
+        outcome: 'success',
+        ipAddress: '122.170.14.92',
+      })
+      this.notify()
+    }
+  }
+
+  deleteNote(id: string) {
+    const note = this.notes.find((n) => n.id === id)
+    if (note) {
+      this.notes = this.notes.filter((n) => n.id !== id)
+      this.auditLogs.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+        actorType: 'User',
+        actorName: this.currentUser.name,
+        actorRole: this.currentUser.role,
+        action: `Deleted lecture notes: "${note.title}"`,
+        entity: 'notes',
+        entityId: note.id,
+        outcome: 'success',
+        ipAddress: '122.170.14.92',
+      })
+      this.notify()
+    }
+  }
+
+  togglePinNote(id: string) {
+    const note = this.notes.find((n) => n.id === id)
+    if (note) {
+      note.pinned = !note.pinned
+      this.notify()
+    }
+  }
+
+  createAssignment(assignment: Assignment, publishToStream: boolean = true) {
+    this.assignments.unshift(assignment)
+    const cls = this.classes.find((c) => c.id === assignment.classId)
+
+    if (publishToStream && assignment.status === 'published') {
+      this.streamPosts.unshift({
+        id: `post-${Date.now()}`,
+        classId: assignment.classId,
+        type: 'assignment',
+        title: `New assignment: ${assignment.title}`,
+        content: `Max marks: ${assignment.maxMarks}. Due on ${new Date(assignment.dueAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}. Please review rubric criteria.`,
+        authorName: this.currentUser.name,
+        authorRole: this.currentUser.role,
+        createdAt: 'Just now',
+        refId: assignment.id,
+      })
+
+      // Generate initial assigned submission placeholders for all students in linked batch
+      if (cls) {
+        const batchStudents = this.students.filter((s) => s.batchIds.includes(cls.batchId))
+        batchStudents.forEach((st) => {
+          const existing = this.submissions.find((s) => s.assignmentId === assignment.id && s.studentId === st.id)
+          if (!existing) {
+            this.submissions.push({
+              id: `sub-${Date.now()}-${st.id}`,
+              assignmentId: assignment.id,
+              studentId: st.id,
+              studentName: st.name,
+              files: [],
+              status: 'assigned',
+              attempt: 1,
+            })
+          }
+        })
+      }
+    }
+
+    this.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: 'User',
+      actorName: this.currentUser.name,
+      actorRole: this.currentUser.role,
+      action: `Created assignment "${assignment.title}" in ${cls?.name || assignment.classId} (${assignment.rubric.length} rubric criteria)`,
+      entity: 'assignment',
+      entityId: assignment.id,
+      outcome: 'success',
+      ipAddress: '122.170.14.92',
+    })
+
+    this.notify()
+    return assignment
+  }
+
+  updateAssignment(idOrAssignment: string | Assignment, partial?: Partial<Assignment>) {
+    const targetId = typeof idOrAssignment === 'string' ? idOrAssignment : idOrAssignment.id
+    const idx = this.assignments.findIndex((a) => a.id === targetId)
+    if (idx >= 0) {
+      if (typeof idOrAssignment === 'string' && partial) {
+        this.assignments[idx] = { ...this.assignments[idx], ...partial }
+      } else if (typeof idOrAssignment !== 'string') {
+        this.assignments[idx] = idOrAssignment
+      }
+      const updated = this.assignments[idx]
+      this.auditLogs.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+        actorType: 'User',
+        actorName: this.currentUser.name,
+        actorRole: this.currentUser.role,
+        action: `Updated assignment configuration: "${updated.title}"`,
+        entity: 'assignment',
+        entityId: updated.id,
+        outcome: 'success',
+        ipAddress: '122.170.14.92',
+      })
+      this.notify()
+    }
+  }
+
+  regradeAll(assignmentId: string) {
+    const asg = this.assignments.find((a) => a.id === assignmentId)
+    if (!asg) return
+
+    const relatedSubs = this.submissions.filter((s) => s.assignmentId === assignmentId && s.status !== 'assigned')
+    relatedSubs.forEach((sub) => {
+      this.gradeSubmissionAI(sub.id, true)
+    })
+
+    this.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: 'User',
+      actorName: this.currentUser.name,
+      actorRole: this.currentUser.role,
+      action: `Re-graded all submissions for assignment: "${asg.title}" (${relatedSubs.length} candidate(s))`,
+      entity: 'assignment',
+      entityId: asg.id,
+      outcome: 'success',
+      ipAddress: '122.170.14.92',
+    })
+    this.notify()
+  }
+
+  async submitAssignment(assignmentId: string, studentId: string, files: Attachment[], text?: string) {
+    const asg = this.assignments.find((a) => a.id === assignmentId)
+    const student = this.students.find((s) => s.id === studentId) || this.currentUser
+
+    let sub = this.submissions.find((s) => s.assignmentId === assignmentId && s.studentId === studentId)
+    const submittedAt = new Date().toISOString()
+    const isLate = asg ? new Date(submittedAt) > new Date(asg.dueAt) : false
+
+    if (sub) {
+      sub.files = files
+      sub.text = text
+      sub.submittedAt = submittedAt
+      sub.status = isLate ? 'late' : 'submitted'
+      sub.attempt = (sub.attempt || 1) + 1
+      sub.finalMarks = undefined
+      sub.teacherComment = undefined
+    } else {
+      sub = {
+        id: `sub-${Date.now()}`,
+        assignmentId,
+        studentId,
+        studentName: student.name,
+        files,
+        text,
+        submittedAt,
+        status: isLate ? 'late' : 'submitted',
+        attempt: 1,
+      }
+      this.submissions.push(sub)
+    }
+
+    // Similarity check against existing submissions
+    if (text) {
+      const otherSubs = this.submissions.filter((s) => s.assignmentId === assignmentId && s.id !== sub!.id)
+      const simCheck = checkSubmissionSimilarity(sub.id, text, otherSubs)
+      if (simCheck.isSimilar) {
+        sub.flagReason = simCheck.reason
+      }
+    }
+
+    this.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: 'User',
+      actorName: student.name,
+      actorRole: 'student',
+      action: `Turned in assignment: "${asg?.title || assignmentId}" (Attempt ${sub.attempt})${isLate ? ' [LATE]' : ''}`,
+      entity: 'submission',
+      entityId: sub.id,
+      outcome: 'success',
+      ipAddress: '122.170.14.92',
+    })
+
+    if (isLate && student && 'riskReasons' in student && Array.isArray((student as Student).riskReasons)) {
+      const studentObj = student as Student
+      if (!studentObj.riskReasons.some((r: string) => r.toLowerCase().includes('late assignment'))) {
+        studentObj.riskReasons.push(`Late assignment submission: ${asg?.title || 'Assignment'}`)
+      }
+    }
+
+    this.notify()
+
+    // Trigger AI grading immediately
+    await this.gradeSubmissionAI(sub.id)
+    return sub
+  }
+
+  unsubmitAssignment(submissionId: string) {
+    const sub = this.submissions.find((s) => s.id === submissionId)
+    if (sub && sub.status !== 'returned') {
+      sub.status = 'assigned'
+      sub.submittedAt = undefined
+      sub.aiResult = undefined
+      this.auditLogs.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+        actorType: 'User',
+        actorName: this.currentUser.name,
+        actorRole: 'student',
+        action: `Unsubmitted assignment work: ${sub.id}`,
+        entity: 'submission',
+        entityId: sub.id,
+        outcome: 'success',
+        ipAddress: '122.170.14.92',
+      })
+      this.notify()
+    }
+  }
+
+  async gradeSubmissionAI(submissionId: string, keepTeacherOverride: boolean = false) {
+    const sub = this.submissions.find((s) => s.id === submissionId)
+    if (!sub) return
+    const asg = this.assignments.find((a) => a.id === sub.assignmentId)
+    if (!asg) return
+
+    sub.status = 'grading'
+    this.notify()
+
+    const extracted = await extractSubmissionText(sub.files, sub.text)
+    let gradeResult: GradingResult
+
+    if (extracted.isUnreadable) {
+      gradeResult = {
+        level: asg.checkingLevel,
+        maxMarks: asg.maxMarks,
+        awarded: 0,
+        deductions: [
+          {
+            criterionId: 'unreadable',
+            title: 'Unreadable Submission',
+            marksCut: asg.maxMarks,
+            reason: extracted.warning || 'Could not extract legible code or text from submitted files.',
+          },
+        ],
+        latePenalty: 0,
+        strengths: [],
+        improvements: ['Resubmit legible source file or plain text code snippet.'],
+        confidence: 'low',
+        needsHumanReview: true,
+        model: 'batchwise-grading-v2',
+        gradedAt: new Date().toISOString(),
+      }
+    } else {
+      gradeResult = await gradingService.grade(asg, extracted.text, sub.submittedAt)
+    }
+
+    sub.aiResult = gradeResult
+
+    // If similarity flag exists, force human review
+    if (sub.flagReason) {
+      gradeResult.needsHumanReview = true
+    }
+
+    // Auto-release check
+    const isAutoReleaseEligible =
+      asg.releaseMode === 'auto_release' &&
+      (asg.checkingLevel === 'easy' || asg.checkingLevel === 'medium') &&
+      !gradeResult.needsHumanReview &&
+      !sub.flagReason
+
+    if (!keepTeacherOverride) {
+      if (isAutoReleaseEligible) {
+        sub.status = 'returned'
+        sub.finalMarks = gradeResult.awarded
+        sub.returnedAt = new Date().toISOString()
+        sub.returnedBy = 'Batchwise AI Auto-Release'
+      } else {
+        sub.status = 'graded_draft'
+      }
+    } else {
+      sub.status = 'graded_draft'
+    }
+
+    this.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: 'System',
+      actorName: 'Batchwise AI Grader',
+      actorRole: 'admin',
+      action: `AI Graded submission for ${sub.studentName || sub.studentId}: ${gradeResult.awarded}/${asg.maxMarks} marks (Checking Level: ${asg.checkingLevel})`,
+      entity: 'submission',
+      entityId: sub.id,
+      outcome: 'success',
+      ipAddress: '122.170.14.92',
+    })
+
+    this.notify()
+  }
+
+  updateSubmissionGrade(
+    submissionId: string,
+    override: {
+      finalMarks: number
+      comment?: string
+      deductions?: GradingDeduction[]
+      strengths?: string[]
+      improvements?: string[]
+    }
+  ) {
+    const sub = this.submissions.find((s) => s.id === submissionId)
+    if (!sub) return
+    const asg = this.assignments.find((a) => a.id === sub.assignmentId)
+
+    const prevMarks = sub.finalMarks ?? sub.aiResult?.awarded ?? 0
+    sub.finalMarks = override.finalMarks
+    if (override.comment) sub.teacherComment = override.comment
+
+    if (sub.aiResult) {
+      if (override.deductions) sub.aiResult.deductions = override.deductions
+      if (override.strengths) sub.aiResult.strengths = override.strengths
+      if (override.improvements) sub.aiResult.improvements = override.improvements
+    }
+
+    this.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: 'User',
+      actorName: this.currentUser.name,
+      actorRole: this.currentUser.role,
+      action: `Teacher grade override for ${sub.studentName || sub.studentId}: AI ${prevMarks}/${asg?.maxMarks || 20} → Teacher ${override.finalMarks}/${asg?.maxMarks || 20}, reason: ${override.comment || 'Manual review adjustment'}`,
+      entity: 'submission',
+      entityId: sub.id,
+      outcome: 'success',
+      ipAddress: '122.170.14.92',
+    })
+
+    this.notify()
+  }
+
+  returnSubmission(submissionId: string, comment?: string) {
+    const sub = this.submissions.find((s) => s.id === submissionId)
+    if (!sub) return
+    const asg = this.assignments.find((a) => a.id === sub.assignmentId)
+
+    sub.status = 'returned'
+    sub.returnedAt = new Date().toISOString()
+    sub.returnedBy = this.currentUser.name
+    if (sub.finalMarks === undefined) {
+      sub.finalMarks = sub.aiResult?.awarded ?? asg?.maxMarks ?? 20
+    }
+    if (comment) sub.teacherComment = comment
+
+    this.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: 'User',
+      actorName: this.currentUser.name,
+      actorRole: this.currentUser.role,
+      action: `Returned graded assignment "${asg?.title}" to ${sub.studentName || sub.studentId} (${sub.finalMarks}/${asg?.maxMarks} marks)`,
+      entity: 'submission',
+      entityId: sub.id,
+      outcome: 'success',
+      ipAddress: '122.170.14.92',
+    })
+
+    this.notify()
+  }
+
+  returnAllReviewed(assignmentId?: string) {
+    let count = 0
+    this.submissions.forEach((sub) => {
+      if ((!assignmentId || sub.assignmentId === assignmentId) && sub.status === 'graded_draft') {
+        sub.status = 'returned'
+        sub.returnedAt = new Date().toISOString()
+        sub.returnedBy = this.currentUser.name
+        if (sub.finalMarks === undefined) {
+          sub.finalMarks = sub.aiResult?.awarded ?? 15
+        }
+        count++
+      }
+    })
+
+    this.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: 'User',
+      actorName: this.currentUser.name,
+      actorRole: this.currentUser.role,
+      action: `Bulk-returned ${count} evaluated submission(s) to students`,
+      entity: 'submission',
+      entityId: assignmentId || 'all',
+      outcome: 'success',
+      ipAddress: '122.170.14.92',
+    })
+
+    this.notify()
+    return count
+  }
+
+  requestRecheck(submissionId: string, reason: string) {
+    const sub = this.submissions.find((s) => s.id === submissionId)
+    if (sub) {
+      sub.status = 'resubmit_requested'
+      sub.recheckReason = reason
+      this.auditLogs.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+        actorType: 'User',
+        actorName: this.currentUser.name,
+        actorRole: 'student',
+        action: `Requested re-check on assignment: "${reason}"`,
+        entity: 'submission',
+        entityId: sub.id,
+        outcome: 'success',
+        ipAddress: '122.170.14.92',
+      })
+      this.notify()
+    }
+  }
+
+  requestResubmission(submissionId: string, reason: string) {
+    const sub = this.submissions.find((s) => s.id === submissionId)
+    if (sub) {
+      sub.status = 'resubmit_requested'
+      sub.teacherComment = reason
+      this.auditLogs.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+        actorType: 'User',
+        actorName: this.currentUser.name,
+        actorRole: this.currentUser.role,
+        action: `Requested student resubmission: "${reason}"`,
+        entity: 'submission',
+        entityId: sub.id,
+        outcome: 'success',
+        ipAddress: '122.170.14.92',
+      })
+      this.notify()
+    }
+  }
+
+  addStreamPost(post: StreamPost) {
+    this.streamPosts.unshift(post)
+    this.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: 'User',
+      actorName: this.currentUser.name,
+      actorRole: this.currentUser.role,
+      action: `Posted announcement in classroom: "${post.title}"`,
+      entity: 'classroom',
+      entityId: post.classId,
+      outcome: 'success',
+      ipAddress: '122.170.14.92',
+    })
+    this.notify()
+  }
+
+  addCommentToPost(postId: string, comment: ClassComment) {
+    const post = this.streamPosts.find((p) => p.id === postId)
+    if (post) {
+      if (!post.comments) post.comments = []
+      post.comments.push(comment)
+      this.notify()
+    }
+  }
+
+  deleteComment(postId: string, commentId: string) {
+    const post = this.streamPosts.find((p) => p.id === postId)
+    if (post && post.comments) {
+      post.comments = post.comments.filter((c) => c.id !== commentId)
+      this.notify()
+    }
+  }
 }
+
 
 export const store = new MockStore()
 

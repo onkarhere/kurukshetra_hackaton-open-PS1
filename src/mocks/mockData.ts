@@ -15,6 +15,13 @@ import {
   OutboxMessage,
   InstituteSettings,
   AttendanceRecord,
+  ClassRoom,
+  Note,
+  Assignment,
+  Submission,
+  StreamPost,
+  ClassComment,
+  Attachment,
 } from '@/types'
 
 export const mockCurrentUser: User = {
@@ -1859,4 +1866,918 @@ export const mockSettings: InstituteSettings = {
 }
 
 export const mockRiskAcknowledgements: Record<string, { by: string; at: string }> = {}
+
+export const mockClassRooms: ClassRoom[] = [
+  {
+    id: 'cls-java-se-a',
+    name: 'Java Programming · SE · Div A',
+    subject: 'Java Programming',
+    year: 'SE',
+    division: 'Div A',
+    batchId: 'batch-java-b3',
+    teacherIds: ['tr-arjun', 'tr-meera'],
+    code: 'JAV301',
+    archived: false,
+  },
+  {
+    id: 'cls-java-se-b',
+    name: 'Java Programming · SE · Div B',
+    subject: 'Java Programming',
+    year: 'SE',
+    division: 'Div B',
+    batchId: 'batch-fs-b2',
+    teacherIds: ['tr-arjun'],
+    code: 'JAV302',
+    archived: false,
+  },
+  {
+    id: 'cls-web-te-a',
+    name: 'Full-Stack Web Architectures · TE · Div A',
+    subject: 'Full-Stack Web Architectures',
+    year: 'TE',
+    division: 'Div A',
+    batchId: 'batch-react-b1',
+    teacherIds: ['tr-meera'],
+    code: 'WEB401',
+    archived: false,
+  },
+]
+
+export const mockNotes: Note[] = [
+  {
+    id: 'note-1',
+    classId: 'cls-java-se-a',
+    title: 'JVM Memory Architecture & GC Tuning',
+    topic: 'JVM Internals',
+    description: 'Detailed analysis of Young Gen, Tenured Gen, Metaspace, and ZGC execution cycles.',
+    files: [
+      {
+        id: 'att-n1',
+        name: 'JVM_Memory_Architecture.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 2450000,
+        url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      },
+    ],
+    links: ['https://docs.oracle.com/javase/specs/jvms/se17/html/'],
+    uploadedBy: 'Arjun Mehta',
+    uploadedAt: '12 Oct 2026, 11:30 AM',
+    pinned: true,
+  },
+  {
+    id: 'note-2',
+    classId: 'cls-java-se-a',
+    title: 'Exception Handling & Resource Management',
+    topic: 'Exception Handling',
+    description: 'Comprehensive guide to try-with-resources, suppressed exceptions, and creating domain-specific checked exceptions.',
+    files: [
+      {
+        id: 'att-n2',
+        name: 'Exception_Handling_Guide.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1840000,
+        url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      },
+    ],
+    links: ['https://docs.oracle.com/javase/tutorial/essential/exceptions/'],
+    uploadedBy: 'Arjun Mehta',
+    uploadedAt: '14 Oct 2026, 04:15 PM',
+    pinned: false,
+  },
+  {
+    id: 'note-3',
+    classId: 'cls-java-se-b',
+    title: 'Exception Handling & Resource Management',
+    topic: 'Exception Handling',
+    description: 'Lecture notes covering try-with-resources and custom exceptions for Div B.',
+    files: [
+      {
+        id: 'att-n2-b',
+        name: 'Exception_Handling_Guide.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1840000,
+        url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      },
+    ],
+    links: ['https://docs.oracle.com/javase/tutorial/essential/exceptions/'],
+    uploadedBy: 'Arjun Mehta',
+    uploadedAt: '14 Oct 2026, 04:18 PM',
+    pinned: false,
+  },
+  {
+    id: 'note-4',
+    classId: 'cls-java-se-a',
+    title: 'Spring Data JPA & Entity Lifecycle',
+    topic: 'Spring Framework',
+    description: 'Notes on Hibernate 1st and 2nd level caches, N+1 query problem, and Spring Data Specifications.',
+    files: [
+      {
+        id: 'att-n3',
+        name: 'Spring_Data_JPA_Deep_Dive.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 3200000,
+        url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      },
+    ],
+    links: ['https://spring.io/projects/spring-data-jpa'],
+    uploadedBy: 'Arjun Mehta',
+    uploadedAt: '15 Oct 2026, 10:00 AM',
+    pinned: false,
+  },
+  {
+    id: 'note-5',
+    classId: 'cls-web-te-a',
+    title: 'Modern State Management with Redux Toolkit & RTK Query',
+    topic: 'Frontend Architecture',
+    description: 'Best practices for scalable frontend state, normalized caching, and optimistic UI mutations.',
+    files: [
+      {
+        id: 'att-n4',
+        name: 'RTK_Query_Architecture.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 2950000,
+        url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      },
+    ],
+    links: ['https://redux-toolkit.js.org/'],
+    uploadedBy: 'Meera Rao',
+    uploadedAt: '13 Oct 2026, 02:45 PM',
+    pinned: true,
+  },
+  {
+    id: 'note-6',
+    classId: 'cls-java-se-a',
+    title: 'Java 21 Virtual Threads & Structured Concurrency',
+    topic: 'Concurrency',
+    description: 'Deep dive into Project Loom, continuation scheduling, carrier threads, and migration from thread pools.',
+    files: [
+      {
+        id: 'att-n5',
+        name: 'Java21_Virtual_Threads.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 2150000,
+        url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      },
+    ],
+    links: ['https://openjdk.org/jeps/444'],
+    uploadedBy: 'Arjun Mehta',
+    uploadedAt: '16 Oct 2026, 09:15 AM',
+    pinned: false,
+  },
+]
+
+export const mockAssignments: Assignment[] = [
+  {
+    id: 'asg-1',
+    classId: 'cls-java-se-a',
+    title: 'File reader with exception handling',
+    instructions: `Implement a robust Java file processing utility that reads a comma-separated values file and calculates aggregates.
+
+### Technical Requirements:
+1. **Resource Management**: Use a \`try-with-resources\` construct to safely manage \`BufferedReader\` or \`FileReader\` instances.
+2. **Domain Exception**: Define and throw a domain-specific custom exception class named \`CorruptedDataException\` or \`InvalidRecordException\` extending \`Exception\`.
+3. **Resilience**: Explicitly catch \`FileNotFoundException\` and log actionable error guidance before termination.
+4. **Code Quality**: Include inline or Javadoc comments explaining the file parsing and error propagation flow.
+5. **Verification**: Include an output screenshot or console execution logs proving execution on sample files.`,
+    attachments: [
+      {
+        id: 'att-asg1',
+        name: 'sample_records.csv',
+        mimeType: 'text/csv',
+        sizeBytes: 15400,
+        url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      },
+    ],
+    maxMarks: 20,
+    dueAt: '2026-10-25T23:59:00',
+    allowLate: true,
+    latePenaltyPerDay: 2,
+    checkingLevel: 'medium',
+    rubric: [
+      {
+        id: 'crit-1',
+        title: 'try-with-resources',
+        description: 'Auto-closes FileReader or BufferedReader resource cleanly without manual finally blocks.',
+        type: 'must_include',
+        deductIfMissing: 5,
+        partialAllowed: false,
+      },
+      {
+        id: 'crit-2',
+        title: 'custom exception class',
+        description: 'Defines and throws a domain-specific custom exception extending Exception or RuntimeException.',
+        type: 'must_include',
+        deductIfMissing: 5,
+        partialAllowed: false,
+      },
+      {
+        id: 'crit-3',
+        title: 'handles FileNotFoundException',
+        description: 'Explicit catch block for missing files with helpful error message.',
+        type: 'correctness',
+        deductIfMissing: 4,
+        partialAllowed: true,
+      },
+      {
+        id: 'crit-4',
+        title: 'comments explaining logic',
+        description: 'Clear inline or Javadoc comments explaining the file parsing and error propagation logic.',
+        type: 'format',
+        deductIfMissing: 2,
+        partialAllowed: true,
+      },
+      {
+        id: 'crit-5',
+        title: 'output screenshot / execution logs',
+        description: 'Verified console output logs or screenshot proving execution on sample input.',
+        type: 'format',
+        deductIfMissing: 4,
+        partialAllowed: false,
+      },
+    ],
+    referenceSolution: `public class FileReaderService {
+  public static void process(String path) throws CorruptedDataException {
+    try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        if (line.isBlank()) throw new CorruptedDataException("Empty record found");
+      }
+    } catch (FileNotFoundException e) {
+      System.err.println("File not found at specified path: " + path);
+    } catch (IOException e) {
+      throw new CorruptedDataException("IO failure during stream processing", e);
+    }
+  }
+}`,
+    releaseMode: 'teacher_review',
+    status: 'published',
+    createdBy: 'Arjun Mehta',
+    createdAt: '15 Oct 2026, 09:00 AM',
+  },
+  {
+    id: 'asg-2',
+    classId: 'cls-java-se-a',
+    title: 'REST API with Spring Data JPA',
+    instructions: `Develop a CRUD REST API service managing academic course enrolments with relational entity mappings.
+
+Requirements:
+- Entity mapping with \`@Entity\`, \`@Table\`, and \`@ManyToOne\` relationship.
+- Spring Data JpaRepository with custom derived query methods.
+- Service layer handling validation and throwing \`ResourceNotFoundException\`.
+- Clean Controller endpoints returning \`ResponseEntity\` with HTTP status codes.`,
+    attachments: [],
+    maxMarks: 25,
+    dueAt: '2026-10-28T23:59:00',
+    allowLate: true,
+    latePenaltyPerDay: 2.5,
+    checkingLevel: 'hard',
+    rubric: [
+      {
+        id: 'crit-21',
+        title: 'entity mapping annotations',
+        description: 'Properly annotated JPA entity with ID generation and relationship mappings.',
+        type: 'must_include',
+        deductIfMissing: 6,
+        partialAllowed: false,
+      },
+      {
+        id: 'crit-22',
+        title: 'custom derived query',
+        description: 'Repository interface with custom finder methods using Spring Data conventions.',
+        type: 'concept',
+        deductIfMissing: 6,
+        partialAllowed: true,
+      },
+      {
+        id: 'crit-23',
+        title: 'exception handler',
+        description: 'ControllerAdvice or explicit exception mapping with 404 response.',
+        type: 'correctness',
+        deductIfMissing: 7,
+        partialAllowed: true,
+      },
+      {
+        id: 'crit-24',
+        title: 'clean RESTful contract',
+        description: 'Appropriate HTTP verbs (GET, POST, PUT, DELETE) and payload structure.',
+        type: 'format',
+        deductIfMissing: 6,
+        partialAllowed: true,
+      },
+    ],
+    referenceSolution: `@RestController @RequestMapping("/api/v1/enrolments") public class EnrolmentController { ... }`,
+    releaseMode: 'teacher_review',
+    status: 'published',
+    createdBy: 'Arjun Mehta',
+    createdAt: '16 Oct 2026, 11:00 AM',
+  },
+  {
+    id: 'asg-3',
+    classId: 'cls-java-se-b',
+    title: 'OOP Inheritance & Polymorphism Lab',
+    instructions: `Implement an abstract \`Shape\` class hierarchy with derived \`Circle\`, \`Rectangle\`, and \`Triangle\` implementations.
+
+Demonstrate dynamic method dispatch and runtime polymorphism by iterating through a polymorphic collection and calculating perimeter and area.`,
+    attachments: [],
+    maxMarks: 20,
+    dueAt: '2026-10-20T23:59:00',
+    allowLate: false,
+    latePenaltyPerDay: 0,
+    checkingLevel: 'easy',
+    rubric: [
+      {
+        id: 'crit-31',
+        title: 'abstract class definition',
+        description: 'Shape abstract class with abstract area() and perimeter() methods.',
+        type: 'must_include',
+        deductIfMissing: 7,
+        partialAllowed: false,
+      },
+      {
+        id: 'crit-32',
+        title: 'derived class overrides',
+        description: 'Subclasses providing accurate mathematical implementations.',
+        type: 'correctness',
+        deductIfMissing: 7,
+        partialAllowed: true,
+      },
+      {
+        id: 'crit-33',
+        title: 'polymorphic test driver',
+        description: 'Main program executing methods over heterogeneous Shape collection.',
+        type: 'concept',
+        deductIfMissing: 6,
+        partialAllowed: true,
+      },
+    ],
+    referenceSolution: `abstract class Shape { abstract double area(); }`,
+    releaseMode: 'auto_release',
+    status: 'published',
+    createdBy: 'Arjun Mehta',
+    createdAt: '12 Oct 2026, 02:00 PM',
+  },
+  {
+    id: 'asg-4',
+    classId: 'cls-web-te-a',
+    title: 'Responsive Dashboard with React & Tailwind',
+    instructions: `Build an analytics dashboard with card widgets, charts, and clean responsive CSS grid.`,
+    attachments: [],
+    maxMarks: 30,
+    dueAt: '2026-11-02T23:59:00',
+    allowLate: true,
+    latePenaltyPerDay: 3,
+    checkingLevel: 'medium',
+    rubric: [
+      {
+        id: 'crit-41',
+        title: 'responsive grid layout',
+        description: 'Grid layout adapting gracefully between mobile, tablet and desktop.',
+        type: 'format',
+        deductIfMissing: 10,
+        partialAllowed: true,
+      },
+      {
+        id: 'crit-42',
+        title: 'custom hooks & state',
+        description: 'Encapsulated business logic within custom React hooks.',
+        type: 'concept',
+        deductIfMissing: 10,
+        partialAllowed: true,
+      },
+      {
+        id: 'crit-43',
+        title: 'component breakdown',
+        description: 'Small, reusable modular components with TypeScript interfaces.',
+        type: 'must_include',
+        deductIfMissing: 10,
+        partialAllowed: false,
+      },
+    ],
+    releaseMode: 'teacher_review',
+    status: 'draft',
+    createdBy: 'Meera Rao',
+    createdAt: '14 Oct 2026, 05:30 PM',
+  },
+]
+
+export const mockSubmissions: Submission[] = [
+  {
+    id: 'sub-1',
+    assignmentId: 'asg-1',
+    studentId: 'std-rohan-02',
+    studentName: 'Rohan Kulkarni',
+    files: [
+      {
+        id: 'att-sub1',
+        name: 'FileReaderUtility.java',
+        mimeType: 'text/x-java-source',
+        sizeBytes: 3420,
+        url: 'mock://submissions/FileReaderUtility.java',
+      },
+    ],
+    text: `// Rohan Kulkarni - Java B3
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+public class FileReaderUtility {
+  public static void main(String[] args) {
+    // Process input data using try-with-resources
+    try (BufferedReader reader = new BufferedReader(new FileReader("sample_records.csv"))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        System.out.println("Processing: " + line);
+      }
+    } catch (FileNotFoundException e) {
+      System.err.println("Error: Specified input file was not found on path.");
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    // Execution log: Processed 42 records successfully.
+  }
+}`,
+    submittedAt: '2026-10-18T14:30:00',
+    status: 'graded_draft',
+    attempt: 1,
+    aiResult: {
+      level: 'medium',
+      maxMarks: 20,
+      awarded: 15,
+      deductions: [
+        {
+          criterionId: 'crit-2',
+          title: 'custom exception class',
+          marksCut: 5,
+          reason: 'Custom domain exception class is missing from the submission.',
+          evidence: 'not found in your submission',
+        },
+      ],
+      latePenalty: 0,
+      strengths: [
+        'Clean implementation of try-with-resources for resource safety',
+        'Handled FileNotFoundException explicitly with user feedback',
+        'Code runs without memory leaks',
+      ],
+      improvements: [
+        'Create a custom exception class extending Exception to handle corrupt data rows',
+      ],
+      confidence: 'high',
+      needsHumanReview: false,
+      model: 'batchwise-grading-v2',
+      gradedAt: '2026-10-18T14:31:05',
+    },
+  },
+  {
+    id: 'sub-2',
+    assignmentId: 'asg-1',
+    studentId: 'std-amit-04',
+    studentName: 'Amit Sane',
+    files: [
+      {
+        id: 'att-sub2',
+        name: 'RobustParser.java',
+        mimeType: 'text/x-java-source',
+        sizeBytes: 4200,
+        url: 'mock://submissions/RobustParser.java',
+      },
+    ],
+    text: `import java.io.*;
+
+class InvalidRecordException extends Exception {
+  public InvalidRecordException(String message) { super(message); }
+}
+
+public class RobustParser {
+  public static void parseFile(String filePath) throws InvalidRecordException {
+    // try-with-resources ensures stream is closed
+    try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+      String record;
+      while ((record = br.readLine()) != null) {
+        if (record.contains("BAD")) throw new InvalidRecordException("Malformed record");
+      }
+    } catch (FileNotFoundException e) {
+      System.err.println("File could not be found: " + filePath);
+    } catch (IOException e) {
+      System.err.println("General IO failure");
+    }
+  }
+}`,
+    submittedAt: '2026-10-17T11:00:00',
+    status: 'returned',
+    attempt: 1,
+    finalMarks: 18,
+    teacherComment: 'Very clean implementation of try-with-resources and custom exception! Add a few more comments next time.',
+    aiResult: {
+      level: 'medium',
+      maxMarks: 20,
+      awarded: 18,
+      deductions: [
+        {
+          criterionId: 'crit-4',
+          title: 'comments explaining logic',
+          marksCut: 2,
+          reason: 'Minimal Javadoc/inline comments explaining record validation logic.',
+          evidence: '// try-with-resources ensures stream is closed',
+        },
+      ],
+      latePenalty: 0,
+      strengths: [
+        'Correctly defined custom InvalidRecordException',
+        'Effective try-with-resources resource handling',
+      ],
+      improvements: [
+        'Add comprehensive method Javadoc comments',
+      ],
+      confidence: 'high',
+      needsHumanReview: false,
+      model: 'batchwise-grading-v2',
+      gradedAt: '2026-10-17T11:02:10',
+    },
+    returnedAt: '2026-10-17T15:20:00',
+    returnedBy: 'Arjun Mehta',
+  },
+  {
+    id: 'sub-3',
+    assignmentId: 'asg-1',
+    studentId: 'std-tanvi-07',
+    studentName: 'Tanvi Sharma',
+    files: [
+      {
+        id: 'att-sub3',
+        name: 'FileProcessor.java',
+        mimeType: 'text/x-java-source',
+        sizeBytes: 3100,
+        url: 'mock://submissions/FileProcessor.java',
+      },
+    ],
+    text: `import java.io.*;
+
+class RecordFormatException extends Exception {
+  public RecordFormatException(String msg) { super(msg); }
+}
+
+public class FileProcessor {
+  public static void main(String[] args) {
+    try (BufferedReader reader = new BufferedReader(new FileReader("data.csv"))) {
+      String row;
+      while ((row = reader.readLine()) != null) {
+        // parsing row
+      }
+    } catch (FileNotFoundException ex) {
+      System.out.println("Missing data file: " + ex.getMessage());
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+  }
+}`,
+    submittedAt: '2026-10-18T16:45:00',
+    status: 'submitted',
+    attempt: 1,
+  },
+  {
+    id: 'sub-4',
+    assignmentId: 'asg-1',
+    studentId: 'std-devendra-03',
+    studentName: 'Devendra Joshi',
+    files: [
+      {
+        id: 'att-sub4',
+        name: 'StreamFileService.java',
+        mimeType: 'text/x-java-source',
+        sizeBytes: 2900,
+        url: 'mock://submissions/StreamFileService.java',
+      },
+    ],
+    text: `import java.io.*;
+public class StreamFileService {
+  public void run() {
+    try (FileReader fr = new FileReader("input.csv")) {
+      int c;
+      while ((c = fr.read()) != -1) {}
+    } catch (FileNotFoundException e) {
+      System.out.println("Not found");
+    } catch (IOException e) {}
+  }
+}`,
+    submittedAt: '2026-10-18T18:20:00',
+    status: 'grading',
+    attempt: 1,
+  },
+  {
+    id: 'sub-5',
+    assignmentId: 'asg-1',
+    studentId: 'std-sneha-09',
+    studentName: 'Sneha Shinde',
+    files: [
+      {
+        id: 'att-sub5',
+        name: 'CsvReaderApp.java',
+        mimeType: 'text/x-java-source',
+        sizeBytes: 3800,
+        url: 'mock://submissions/CsvReaderApp.java',
+      },
+    ],
+    text: `import java.io.*;
+public class CsvReaderApp {
+  // try-with-resources implementation
+  public static void main(String[] args) {
+    try (BufferedReader br = new BufferedReader(new FileReader("test.csv"))) {
+      String l;
+      while ((l = br.readLine()) != null) {}
+    } catch (FileNotFoundException e) {
+      System.out.println("File not found");
+    } catch (IOException e) {}
+  }
+}`,
+    submittedAt: '2026-10-16T12:00:00',
+    status: 'resubmit_requested',
+    attempt: 1,
+    finalMarks: 14,
+    recheckReason: 'I included comments in the updated commit header, please check if partial marks can be credited.',
+    aiResult: {
+      level: 'medium',
+      maxMarks: 20,
+      awarded: 14,
+      deductions: [
+        {
+          criterionId: 'crit-2',
+          title: 'custom exception class',
+          marksCut: 5,
+          reason: 'Custom exception class not created.',
+          evidence: 'not found in your submission',
+        },
+        {
+          criterionId: 'crit-4',
+          title: 'comments explaining logic',
+          marksCut: 1,
+          reason: 'Only single comment present.',
+          evidence: '// try-with-resources implementation',
+        },
+      ],
+      latePenalty: 0,
+      strengths: ['try-with-resources implemented'],
+      improvements: ['Declare a custom exception class'],
+      confidence: 'medium',
+      needsHumanReview: true,
+      model: 'batchwise-grading-v2',
+      gradedAt: '2026-10-16T12:05:00',
+    },
+  },
+  {
+    id: 'sub-6',
+    assignmentId: 'asg-1',
+    studentId: 'std-sunita-05',
+    studentName: 'Sunita Rao',
+    files: [
+      {
+        id: 'att-sub6',
+        name: 'SunitaFileReader.java',
+        mimeType: 'text/x-java-source',
+        sizeBytes: 3500,
+        url: 'mock://submissions/SunitaFileReader.java',
+      },
+    ],
+    text: `import java.io.*;
+class DataException extends Exception { public DataException(String s) { super(s); } }
+public class SunitaFileReader {
+  public static void read() throws DataException {
+    try (BufferedReader reader = new BufferedReader(new FileReader("input.txt"))) {
+      String s;
+      while ((s = reader.readLine()) != null) {}
+    } catch (FileNotFoundException e) {
+      System.err.println("File not found");
+    } catch (IOException e) {}
+  }
+}`,
+    submittedAt: '2026-10-26T10:15:00',
+    status: 'late',
+    attempt: 1,
+    aiResult: {
+      level: 'medium',
+      maxMarks: 20,
+      awarded: 18,
+      deductions: [],
+      latePenalty: 2,
+      strengths: ['try-with-resources', 'Custom exception DataException created'],
+      improvements: ['Submit before deadline to avoid late penalty'],
+      confidence: 'high',
+      needsHumanReview: false,
+      model: 'batchwise-grading-v2',
+      gradedAt: '2026-10-26T10:16:00',
+    },
+  },
+  {
+    id: 'sub-7',
+    assignmentId: 'asg-1',
+    studentId: 'std-aarav-06',
+    studentName: 'Aarav Deshmukh',
+    files: [],
+    status: 'assigned',
+    attempt: 1,
+  },
+  {
+    id: 'sub-8',
+    assignmentId: 'asg-2',
+    studentId: 'std-rohan-02',
+    studentName: 'Rohan Kulkarni',
+    files: [],
+    status: 'assigned',
+    attempt: 1,
+  },
+  {
+    id: 'sub-9',
+    assignmentId: 'asg-2',
+    studentId: 'std-priya-01',
+    studentName: 'Priya Nair',
+    files: [],
+    status: 'assigned',
+    attempt: 1,
+  },
+  {
+    id: 'sub-10',
+    assignmentId: 'asg-3',
+    studentId: 'std-amit-04',
+    studentName: 'Amit Sane',
+    files: [
+      {
+        id: 'att-sub10',
+        name: 'ShapeHierarchy.java',
+        mimeType: 'text/x-java-source',
+        sizeBytes: 2800,
+        url: 'mock://submissions/ShapeHierarchy.java',
+      },
+    ],
+    text: `abstract class Shape { abstract double area(); abstract double perimeter(); }
+class Circle extends Shape {
+  double r; Circle(double r) { this.r = r; }
+  double area() { return Math.PI * r * r; }
+  double perimeter() { return 2 * Math.PI * r; }
+}`,
+    submittedAt: '2026-10-18T10:00:00',
+    status: 'returned',
+    attempt: 1,
+    finalMarks: 19,
+    teacherComment: 'Excellent OOP abstractions and formulas.',
+    aiResult: {
+      level: 'easy',
+      maxMarks: 20,
+      awarded: 19,
+      deductions: [
+        {
+          criterionId: 'crit-33',
+          title: 'polymorphic test driver',
+          marksCut: 1,
+          reason: 'Test driver only instantiated Circle, missed testing Rectangle/Triangle polymorphically.',
+          evidence: 'Circle(double r)',
+        },
+      ],
+      latePenalty: 0,
+      strengths: ['Clean abstract class with double area() and perimeter()'],
+      improvements: ['Add test collection with multiple shape subclasses'],
+      confidence: 'high',
+      needsHumanReview: false,
+      model: 'batchwise-grading-v2',
+      gradedAt: '2026-10-18T10:01:12',
+    },
+    returnedAt: '2026-10-18T10:05:00',
+    returnedBy: 'Arjun Mehta',
+  },
+  {
+    id: 'sub-11',
+    assignmentId: 'asg-3',
+    studentId: 'std-tanvi-07',
+    studentName: 'Tanvi Sharma',
+    files: [],
+    status: 'submitted',
+    submittedAt: '2026-10-19T09:30:00',
+    attempt: 1,
+  },
+  {
+    id: 'sub-12',
+    assignmentId: 'asg-1',
+    studentId: 'std-devendra-03',
+    studentName: 'Devendra Joshi',
+    files: [
+      {
+        id: 'att-sub12',
+        name: 'CopiedParser.java',
+        mimeType: 'text/x-java-source',
+        sizeBytes: 3410,
+        url: 'mock://submissions/CopiedParser.java',
+      },
+    ],
+    text: `// Identical logic to another student
+import java.io.*;
+public class CopiedParser {
+  public static void main(String[] args) {
+    try (BufferedReader reader = new BufferedReader(new FileReader("sample_records.csv"))) {
+      String line;
+      while ((line = reader.readLine()) != null) {}
+    } catch (FileNotFoundException e) {
+      System.err.println("Error: Specified input file was not found on path.");
+    } catch (IOException e) {}
+  }
+}`,
+    submittedAt: '2026-10-18T15:00:00',
+    status: 'graded_draft',
+    attempt: 1,
+    flagReason: 'Possible similarity — review (86% similarity with Rohan Kulkarni)',
+    aiResult: {
+      level: 'medium',
+      maxMarks: 20,
+      awarded: 15,
+      deductions: [
+        {
+          criterionId: 'crit-2',
+          title: 'custom exception class',
+          marksCut: 5,
+          reason: 'Custom domain exception class is missing from the submission.',
+          evidence: 'not found in your submission',
+        },
+      ],
+      latePenalty: 0,
+      strengths: ['try-with-resources implementation'],
+      improvements: ['Custom exception class missing'],
+      confidence: 'low',
+      needsHumanReview: true,
+      model: 'batchwise-grading-v2',
+      gradedAt: '2026-10-18T15:02:00',
+    },
+  },
+]
+
+export const mockStreamPosts: StreamPost[] = [
+  {
+    id: 'post-1',
+    classId: 'cls-java-se-a',
+    type: 'announcement',
+    title: 'Mid-term Lab Assessments Schedule & Guidelines',
+    content: 'Hello everyone! Please review the exception handling and collections modules before Friday. We will conduct hands-on code reviews during class hours.',
+    authorName: 'Arjun Mehta',
+    authorRole: 'trainer',
+    createdAt: '15 Oct 2026, 10:15 AM',
+    comments: [
+      {
+        id: 'comm-1',
+        authorId: 'std-priya-01',
+        authorName: 'Priya Nair',
+        authorRole: 'student',
+        content: 'Sir, will the assessment include Spring Boot topics as well?',
+        createdAt: '15 Oct 2026, 11:20 AM',
+      },
+      {
+        id: 'comm-2',
+        authorId: 'tr-arjun',
+        authorName: 'Arjun Mehta',
+        authorRole: 'trainer',
+        content: 'No Priya, only Core Java, Collections, and Exception Handling will be tested.',
+        createdAt: '15 Oct 2026, 11:45 AM',
+      },
+    ],
+  },
+  {
+    id: 'post-2',
+    classId: 'cls-java-se-a',
+    type: 'assignment',
+    title: 'New assignment posted: File reader with exception handling',
+    content: 'Max marks: 20. Due on 25 Oct 2026, 11:59 PM. Please review rubric marking parameters before submitting.',
+    authorName: 'Arjun Mehta',
+    authorRole: 'trainer',
+    createdAt: '15 Oct 2026, 09:00 AM',
+    refId: 'asg-1',
+  },
+  {
+    id: 'post-3',
+    classId: 'cls-java-se-a',
+    type: 'note',
+    title: 'New study material: Exception Handling and Custom Exceptions',
+    content: 'Uploaded presentation notes and code snippets for Chapter 4.',
+    authorName: 'Arjun Mehta',
+    authorRole: 'trainer',
+    createdAt: '14 Oct 2026, 04:15 PM',
+    refId: 'note-2',
+  },
+  {
+    id: 'post-4',
+    classId: 'cls-java-se-b',
+    type: 'announcement',
+    title: 'Welcome to Java Programming (SE Div B)',
+    content: 'Welcome students! All lecture notes, lab sheets, and assignment submissions will be managed through this classroom space.',
+    authorName: 'Arjun Mehta',
+    authorRole: 'trainer',
+    createdAt: '12 Oct 2026, 09:00 AM',
+  },
+  {
+    id: 'post-5',
+    classId: 'cls-web-te-a',
+    type: 'announcement',
+    title: 'Project Milestone 1 Architecture Review',
+    content: 'Please ensure your repository has clean directory structure and state management slices configured.',
+    authorName: 'Meera Rao',
+    authorRole: 'trainer',
+    createdAt: '13 Oct 2026, 02:00 PM',
+  },
+]
+
 

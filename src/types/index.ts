@@ -320,3 +320,143 @@ export interface AttendanceRecord {
 
 export type RiskAcknowledgement = Record<string, { by: string; at: string }>
 
+// --- CLASSROOM MODULE TYPES ---
+export type Year = 'FE' | 'SE' | 'TE' | 'BE' | string
+
+export interface Attachment {
+  id: string
+  name: string
+  mimeType: string
+  sizeBytes: number
+  url: string
+}
+
+export interface ClassRoom {
+  id: string
+  name: string
+  subject: string
+  year: Year
+  division: string
+  batchId: string
+  teacherIds: string[]
+  code: string
+  archived: boolean
+}
+
+export interface Note {
+  id: string
+  classId: string
+  title: string
+  description?: string
+  topic?: string
+  files: Attachment[]
+  links: string[]
+  uploadedBy: string
+  uploadedAt: string
+  pinned: boolean
+}
+
+export type CheckingLevel = 'easy' | 'medium' | 'hard'
+
+export interface RubricCriterion {
+  id: string
+  title: string
+  description?: string
+  type: 'must_include' | 'concept' | 'keyword' | 'format' | 'correctness'
+  keywords?: string[]
+  deductIfMissing: number
+  partialAllowed: boolean
+}
+
+export interface Assignment {
+  id: string
+  classId: string
+  title: string
+  instructions: string
+  attachments: Attachment[]
+  maxMarks: number
+  dueAt: string
+  allowLate: boolean
+  latePenaltyPerDay: number
+  checkingLevel: CheckingLevel
+  rubric: RubricCriterion[]
+  referenceSolution?: string
+  releaseMode: 'teacher_review' | 'auto_release'
+  status: 'draft' | 'published' | 'closed'
+  createdBy: string
+  createdAt: string
+}
+
+export type SubmissionStatus =
+  | 'assigned'
+  | 'submitted'
+  | 'late'
+  | 'grading'
+  | 'graded_draft'
+  | 'returned'
+  | 'resubmit_requested'
+
+export interface GradingDeduction {
+  criterionId: string
+  title: string
+  marksCut: number
+  reason: string
+  evidence?: string
+}
+
+export interface GradingResult {
+  level: CheckingLevel
+  maxMarks: number
+  awarded: number
+  deductions: GradingDeduction[]
+  latePenalty: number
+  strengths: string[]
+  improvements: string[]
+  confidence: 'high' | 'medium' | 'low'
+  needsHumanReview: boolean
+  model: string
+  gradedAt: string
+}
+
+export interface Submission {
+  id: string
+  assignmentId: string
+  studentId: string
+  studentName?: string
+  files: Attachment[]
+  text?: string
+  submittedAt?: string
+  status: SubmissionStatus
+  attempt: number
+  aiResult?: GradingResult
+  finalMarks?: number
+  teacherComment?: string
+  returnedAt?: string
+  returnedBy?: string
+  flagReason?: string
+  recheckReason?: string
+}
+
+export interface ClassComment {
+  id: string
+  authorId: string
+  authorName: string
+  authorRole: UserRole
+  content: string
+  createdAt: string
+  isPrivate?: boolean
+}
+
+export interface StreamPost {
+  id: string
+  classId: string
+  type: 'announcement' | 'note' | 'assignment'
+  title: string
+  content?: string
+  authorName: string
+  authorRole: UserRole
+  createdAt: string
+  comments?: ClassComment[]
+  refId?: string
+}
+

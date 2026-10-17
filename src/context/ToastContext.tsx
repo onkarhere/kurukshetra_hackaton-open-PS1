@@ -15,6 +15,7 @@ interface ToastContextType {
   success: (title: string, description?: string, onUndo?: () => void) => void
   error: (title: string, description?: string) => void
   ai: (title: string, description?: string) => void
+  info: (title: string, description?: string) => void
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
@@ -62,8 +63,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [toast]
   )
 
+  const info = useCallback(
+    (title: string, description?: string) => {
+      toast({ title, description, variant: 'default' })
+    },
+    [toast]
+  )
+
   return (
-    <ToastContext.Provider value={{ toast, success, error, ai }}>
+    <ToastContext.Provider value={{ toast, success, error, ai, info }}>
       {children}
       {/* Toast viewport */}
       <div

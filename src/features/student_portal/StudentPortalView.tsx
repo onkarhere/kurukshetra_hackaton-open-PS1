@@ -20,11 +20,13 @@ import {
   ExternalLink,
   Printer,
   ShieldCheck,
+  School,
+  FileCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ReasonChip } from '@/components/ui/ReasonChip'
 import { StatusPill } from '@/components/ui/StatusPill'
-import { formatINR } from '@/lib/utils'
+import { formatINR, cn } from '@/lib/utils'
 import { useToast } from '@/context/ToastContext'
 import { store, useStore } from '@/mocks/store'
 
@@ -33,16 +35,36 @@ export const StudentPortalView: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const [activeTab, setActiveTab] = useState<'today' | 'schedule' | 'recordings' | 'fees' | 'certificate'>('today')
+  const [activeTab, setActiveTab] = useState<'today' | 'schedule' | 'classes' | 'recordings' | 'fees' | 'certificate'>('today')
 
   // Reactive store slices
   const students = useStore((s) => s.students)
   const feeInstalments = useStore((s) => s.feeInstalments)
   const recordings = useStore((s) => s.recordings)
   const attendanceRecords = useStore((s) => s.attendanceRecords)
+  const classes = useStore((s) => s.classes)
+  const assignments = useStore((s) => s.assignments)
+  const submissions = useStore((s) => s.submissions)
+  const trainers = useStore((s) => s.trainers)
 
   // Current logged in student
   const currentStudent = students.find((s) => s.id === 'std-priya-01' || s.name.includes('Priya')) || students[0]
+
+  // Enrolled classes for this student
+  const studentClasses = classes.filter((c) => currentStudent.batchIds.includes(c.batchId))
+  const studentClassIds = studentClasses.map((c) => c.id)
+
+  // Due this week assignments across enrolled classes
+  const dueThisWeekAssignments = assignments.filter((a) => {
+    if (!studentClassIds.includes(a.classId) || a.status !== 'published') return false
+    const sub = submissions.find((s) => s.assignmentId === a.id && s.studentId === currentStudent.id)
+    return !sub || sub.status !== 'returned'
+  })
+
+  // Recently returned submissions with marks
+  const recentlyReturnedSubmissions = submissions
+    .filter((s) => s.studentId === currentStudent.id && s.status === 'returned')
+    .sort((a, b) => new Date(b.returnedAt || '').getTime() - new Date(a.returnedAt || '').getTime())
 
   // Check-in state
   const [showCheckInModal, setShowCheckInModal] = useState(false)
@@ -305,6 +327,17 @@ export const StudentPortalView: React.FC = () => {
             Weekly schedule
           </button>
           <button
+            onClick={() => setActiveTab('classes')}
+            className={`py-2 px-3 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'classes'
+                ? 'border-accent text-accent font-medium'
+                : 'border-transparent text-text-muted hover:text-text'
+            }`}
+          >
+            <School className="w-3.5 h-3.5" />
+            Classes
+          </button>
+          <button
             onClick={() => setActiveTab('recordings')}
             className={`py-2 px-3 border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'recordings'
@@ -433,6 +466,65 @@ export const StudentPortalView: React.FC = () => {
                   </table>
                 </div>
               </div>
+
+              {/* Due this week across classes */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-semibold text-text">Due this week</h2>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-surface-sunken border border-border text-text-muted">
+                      {dueThisWeekAssignments.length}
+                    </span>
+                  </div>
+                  <span className="text-xs text-text-muted">Assignments across enrolled classes</span>
+                </div>
+
+                {dueThisWeekAssignments.length === 0 ? (
+                  <div className="p-4 rounded-card border border-border bg-surface text-center text-xs text-text-muted">
+                    No pending assignments due this week. All caught up!
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {dueThisWeekAssignments.map((asg) => {
+                      const cls = classes.find((c) => c.id === asg.classId)
+                      const isPast = new Date(asg.dueAt).getTime() < Date.now()
+                      return (
+                        <div
+                          key={asg.id}
+                          className="p-4 rounded-card border border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-accent/40 transition-colors"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-text">{asg.title}</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-control bg-accent/15 border border-accent/30 text-accent capitalize">
+                                {asg.checkingLevel} checking
+                              </span>
+                            </div>
+                            <div className="text-xs text-text-muted flex items-center gap-2">
+                              <span>{cls?.name}</span>
+                              <span>·</span>
+                              <span>{asg.maxMarks} marks</span>
+                              <span>·</span>
+                              <span className={cn(isPast ? 'text-danger font-medium' : 'text-text-muted')}>
+                                Due {new Date(asg.dueAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            rightIcon={<ArrowRight className="w-3 h-3" />}
+                            onClick={() => navigate(`/classroom/${asg.classId}/assignments/${asg.id}`)}
+                          >
+                            Submit work
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Right Aside (4 cols) */}
@@ -497,6 +589,51 @@ export const StudentPortalView: React.FC = () => {
                 >
                   Open catch-up queue
                 </Button>
+              </div>
+
+              {/* Recently Returned Assignments with Marks */}
+              <div className="p-4 rounded-card border border-border bg-surface space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-text">Recently returned</span>
+                  <span className="text-xs text-text-muted">
+                    {recentlyReturnedSubmissions.length} graded
+                  </span>
+                </div>
+
+                {recentlyReturnedSubmissions.length === 0 ? (
+                  <p className="text-xs text-text-muted">No graded submissions returned yet.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {recentlyReturnedSubmissions.slice(0, 3).map((sub) => {
+                      const asg = assignments.find((a) => a.id === sub.assignmentId)
+                      return (
+                        <div
+                          key={sub.id}
+                          onClick={() => asg && navigate(`/classroom/${asg.classId}/assignments/${asg.id}`)}
+                          className="p-3 rounded border border-border bg-surface-sunken/40 space-y-1.5 cursor-pointer hover:bg-surface-sunken transition-colors text-xs"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-medium text-text truncate max-w-[170px]">
+                              {asg?.title || 'Assignment'}
+                            </span>
+                            <span className="font-semibold text-success tabular-nums shrink-0">
+                              {sub.finalMarks ?? sub.aiResult?.awarded ?? 0} / {asg?.maxMarks || 20}
+                            </span>
+                          </div>
+                          {sub.teacherComment && (
+                            <p className="text-[11px] text-text-muted line-clamp-2">
+                              "{sub.teacherComment}"
+                            </p>
+                          )}
+                          <div className="text-[10px] text-accent flex items-center gap-1 font-medium pt-0.5">
+                            <span>View rubric feedback & deductions</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -570,6 +707,79 @@ export const StudentPortalView: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* TAB: CLASSES (ENROLLED CLASSROOMS) */}
+        {activeTab === 'classes' && (
+          <div className="space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+              <div>
+                <h2 className="text-base font-semibold text-text">My enrolled classes</h2>
+                <p className="text-xs text-text-muted">
+                  Google Classroom-style notes, stream announcements, assignments, and rubric feedback
+                </p>
+              </div>
+            </div>
+
+            {studentClasses.length === 0 ? (
+              <div className="p-8 text-center rounded-card border border-border bg-surface space-y-2">
+                <School className="w-8 h-8 text-text-muted mx-auto" />
+                <h3 className="text-sm font-semibold text-text">No active classes</h3>
+                <p className="text-xs text-text-muted">You are not currently enrolled in any class.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {studentClasses.map((cls) => {
+                  const classAssignments = assignments.filter((a) => a.classId === cls.id && a.status === 'published')
+                  const classTrainers = trainers.filter((t) => cls.teacherIds.includes(t.id))
+                  return (
+                    <div
+                      key={cls.id}
+                      className="p-5 rounded-card border border-border bg-surface flex flex-col justify-between space-y-4 hover:border-accent/40 transition-colors"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-surface-sunken border border-border text-text-muted">
+                            {cls.year} · {cls.division}
+                          </span>
+                          <span className="text-[11px] text-text-muted font-mono">
+                            Code: {cls.code}
+                          </span>
+                        </div>
+
+                        <h3 className="text-base font-semibold text-text leading-snug">
+                          {cls.name}
+                        </h3>
+
+                        <div className="text-xs text-text-muted space-y-1 pt-1">
+                          <div>Subject: <strong className="text-text">{cls.subject}</strong></div>
+                          <div>
+                            Instructor:{' '}
+                            <strong className="text-text">
+                              {classTrainers.map((t) => t.name).join(', ') || 'Faculty'}
+                            </strong>
+                          </div>
+                          <div>Active assignments: <strong className="text-text">{classAssignments.length}</strong></div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-border flex items-center justify-between">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="w-full"
+                          rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                          onClick={() => navigate(`/classroom/${cls.id}`)}
+                        >
+                          Enter class
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 

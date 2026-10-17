@@ -21,8 +21,11 @@ import {
   ChevronLeft,
   ChevronRight,
   LucideIcon,
+  School,
+  FileCheck,
 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
+import { useStore } from '@/mocks/store'
 import { UserRole } from '@/types'
 import { cn } from '@/lib/utils'
 import { canAccess } from '@/lib/permissions'
@@ -42,6 +45,14 @@ interface NavGroup {
 
 export const Sidebar: React.FC = () => {
   const { role, unreadApprovalsCount } = useApp()
+  const submissions = useStore((s) => s.submissions)
+  const submissionsWaitingCount = submissions.filter(
+    (s) =>
+      s.status === 'submitted' ||
+      s.status === 'late' ||
+      s.status === 'graded_draft' ||
+      s.status === 'resubmit_requested'
+  ).length
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem('batchwise-sidebar-collapsed') === 'true'
@@ -137,6 +148,24 @@ export const Sidebar: React.FC = () => {
           to: '/certificates',
           icon: Award,
           allowedRoles: ['owner', 'admin', 'counselor'],
+        },
+      ],
+    },
+    {
+      title: 'Classroom',
+      items: [
+        {
+          label: 'Classes',
+          to: '/classroom',
+          icon: School,
+          allowedRoles: ['owner', 'admin', 'trainer', 'student'],
+        },
+        {
+          label: 'To review',
+          to: '/classroom/review',
+          icon: FileCheck,
+          badge: submissionsWaitingCount > 0 ? submissionsWaitingCount : undefined,
+          allowedRoles: ['owner', 'admin', 'trainer'],
         },
       ],
     },

@@ -24,6 +24,8 @@ export const ROUTE_ROLES: Record<string, UserRole[]> = {
   '/settings': ['owner', 'admin'],
   '/me': ['owner', 'admin', 'trainer', 'counselor', 'accounts', 'student'],
   '/s': ['student', 'owner', 'admin'],
+  '/classroom': ['owner', 'admin', 'trainer', 'student'],
+  '/classroom/review': ['owner', 'admin', 'trainer'],
 }
 
 /**
@@ -38,6 +40,15 @@ export function canAccess(role: UserRole, path: string): boolean {
   }
 
   // Parameterized routes check
+  if (cleanPath.startsWith('/classroom/review')) {
+    return ROUTE_ROLES['/classroom/review'].includes(role)
+  }
+  if (cleanPath.includes('/submissions/')) {
+    return ['owner', 'admin', 'trainer'].includes(role)
+  }
+  if (cleanPath.startsWith('/classroom/')) {
+    return ROUTE_ROLES['/classroom'].includes(role)
+  }
   if (cleanPath.startsWith('/s/') || cleanPath === '/s') {
     return ROUTE_ROLES['/s'].includes(role)
   }
