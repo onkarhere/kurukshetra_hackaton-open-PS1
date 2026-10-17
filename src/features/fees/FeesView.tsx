@@ -15,8 +15,11 @@ import { Button } from '@/components/ui/Button'
 import { ApprovalCard } from '@/components/app/ApprovalCard'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { formatINR } from '@/lib/utils'
+import { canSeeFeeAmounts } from '@/lib/permissions'
+import { exportToCsv } from '@/lib/exportCsv'
+import { ApprovalAction } from '@/types'
 
 export const FeesView: React.FC = () => {
   const { role } = useApp()
@@ -25,6 +28,10 @@ export const FeesView: React.FC = () => {
 
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [showBulkApprovalModal, setShowBulkApprovalModal] = useState(false)
+  const [currentApproval, setCurrentApproval] = useState<ApprovalAction | null>(null)
+
+  const showAmounts = canSeeFeeAmounts(role)
+  const instalments = useStore((s) => s.feeInstalments)
 
   // Trainer Role Access Boundary Guard: locked panel with no financial data
   if (role === 'trainer') {
@@ -46,8 +53,6 @@ export const FeesView: React.FC = () => {
     )
   }
 
-  const instalments = store.feeInstalments
-
   const filtered = instalments.filter((f) => {
     if (filterStatus === 'all') return true
     return f.status === filterStatus
@@ -55,7 +60,7 @@ export const FeesView: React.FC = () => {
 
   const totalOverdue = instalments
     .filter((f) => f.status === 'overdue')
-    .reduce((acc, curr) => acc + curr.amount, 0)
+    .reduce((acc, curr) => acc + (curr.amount - curr.paidAmount), 0)
 
   const totalDueSoon = instalments
     .filter((f) => f.status === 'due_soon')
@@ -105,16 +110,42 @@ export const FeesView: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => setShowBulkApprovalModal(true)}
+            onClick={() => {
+              const approval = store.createDraftRemindersApproval()
+              setCurrentApproval(approval)
+              setShowBulkApprovalModal(true)
+            }}
             leftIcon={<MessageSquare className="w-3.5 h-3.5" />}
           >
-            Review reminders (5 staged)
+            Draft reminders ({instalments.filter((i) => i.status === 'overdue').length} overdue)
           </Button>
 
           <Button
             variant="primary"
             size="sm"
-            onClick={() => success('Exporting fee reconciliation sheet...')}
+            onClick={() => {
+              const cols = showAmounts
+                ? [
+                    { key: 'studentName', label: 'Student' },
+                    { key: 'batchName', label: 'Batch' },
+                    { key: 'sequence', label: 'Instalment' },
+                    { key: 'dueDate', label: 'Due Date' },
+                    { key: 'amount', label: 'Amount' },
+                    { key: 'paidAmount', label: 'Paid Amount' },
+                    { key: 'status', label: 'Status' },
+                    { key: 'daysOverdue', label: 'Days Overdue' },
+                  ]
+                : [
+                    { key: 'studentName', label: 'Student' },
+                    { key: 'batchName', label: 'Batch' },
+                    { key: 'sequence', label: 'Instalment' },
+                    { key: 'dueDate', label: 'Due Date' },
+                    { key: 'status', label: 'Status' },
+                    { key: 'daysOverdue', label: 'Days Overdue' },
+                  ]
+              exportToCsv(`fee_instalments_${Date.now()}.csv`, cols, filtered)
+              success('Exported fee instalments to CSV')
+            }}
             leftIcon={<Download className="w-3.5 h-3.5" />}
           >
             Export
@@ -126,18 +157,28 @@ export const FeesView: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           label="Due this week"
-          value={formatINR(totalDueSoon)}
+          value={showAmounts ? formatINR(totalDueSoon) : '3 instalments'}
           delta={{ value: '3 instalments pending', isNeutral: true }}
         />
         <KpiCard
           label="Overdue EMIs"
-          value={formatINR(totalOverdue)}
-          delta={{ value: '2 students overdue', isPositive: false }}
+          value={
+            showAmounts
+              ? formatINR(totalOverdue)
+              : `${instalments.filter((i) => i.status === 'overdue').length} accounts`
+          }
+          delta={{
+            value: `${instalments.filter((i) => i.status === 'overdue').length} students overdue`,
+            isPositive: false,
+          }}
         />
         <KpiCard
           label="Collected this month"
-          value={formatINR(462500)}
-          delta={{ value: 'Target: ₹5,00,000 (92.5%)', isPositive: true }}
+          value={showAmounts ? formatINR(462500) : '48 payments'}
+          delta={{
+            value: showAmounts ? 'Target: ₹5,00,000 (92.5%)' : '92.5% of target',
+            isPositive: true,
+          }}
         />
         <KpiCard
           label="Collection rate"
@@ -150,7 +191,7 @@ export const FeesView: React.FC = () => {
       <div className="p-4 rounded-card border border-border bg-surface space-y-3">
         <div className="flex items-center justify-between pb-2 border-b border-border">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-text">
-            Overdue dues ageing (₹45,500 total arrears)
+            Overdue dues ageing ({showAmounts ? '₹45,500 total arrears' : '7 overdue accounts'})
           </h3>
           <span className="text-[11px] text-text-muted">Updated today</span>
         </div>
@@ -165,15 +206,30 @@ export const FeesView: React.FC = () => {
         <div className="grid grid-cols-3 gap-2 text-xs pt-1">
           <div className="flex items-center gap-1.5 text-text-muted">
             <span className="w-2 h-2 rounded bg-warning shrink-0" />
-            <span>1–7 days: <strong className="text-text tabular-nums">₹19,500</strong></span>
+            <span>
+              1–7 days:{' '}
+              <strong className="text-text tabular-nums">
+                {showAmounts ? '₹19,500' : '3 accounts'}
+              </strong>
+            </span>
           </div>
           <div className="flex items-center gap-1.5 text-text-muted">
             <span className="w-2 h-2 rounded bg-amber-600 shrink-0" />
-            <span>8–15 days: <strong className="text-text tabular-nums">₹13,000</strong></span>
+            <span>
+              8–15 days:{' '}
+              <strong className="text-text tabular-nums">
+                {showAmounts ? '₹13,000' : '2 accounts'}
+              </strong>
+            </span>
           </div>
           <div className="flex items-center gap-1.5 text-text-muted">
             <span className="w-2 h-2 rounded bg-danger shrink-0" />
-            <span>16–30 days: <strong className="text-text tabular-nums">₹13,000</strong></span>
+            <span>
+              16–30 days:{' '}
+              <strong className="text-text tabular-nums">
+                {showAmounts ? '₹13,000' : '2 accounts'}
+              </strong>
+            </span>
           </div>
         </div>
       </div>
@@ -207,8 +263,12 @@ export const FeesView: React.FC = () => {
               <th className="py-2 px-3">Batch</th>
               <th className="py-2 px-3">Instalment</th>
               <th className="py-2 px-3">Due date</th>
-              <th className="py-2 px-3 text-right">Amount</th>
-              <th className="py-2 px-3 text-right">Paid</th>
+              {showAmounts && (
+                <>
+                  <th className="py-2 px-3 text-right">Amount</th>
+                  <th className="py-2 px-3 text-right">Paid</th>
+                </>
+              )}
               <th className="py-2 px-3">Status</th>
               <th className="py-2 px-3 text-right">Overdue</th>
               <th className="py-2 px-3 text-right">Action</th>
@@ -232,12 +292,16 @@ export const FeesView: React.FC = () => {
                 </td>
                 <td className="px-3 text-text-muted">{inst.sequence}</td>
                 <td className="px-3 text-text-muted tabular-nums">{inst.dueDate}</td>
-                <td className="px-3 text-right tabular-nums font-medium text-text">
-                  {formatINR(inst.amount)}
-                </td>
-                <td className="px-3 text-right tabular-nums text-text-muted">
-                  {formatINR(inst.paidAmount)}
-                </td>
+                {showAmounts && (
+                  <>
+                    <td className="px-3 text-right tabular-nums font-medium text-text">
+                      {formatINR(inst.amount)}
+                    </td>
+                    <td className="px-3 text-right tabular-nums text-text-muted">
+                      {formatINR(inst.paidAmount)}
+                    </td>
+                  </>
+                )}
                 <td className="px-3">
                   {renderStatusGlyph(inst.status)}
                 </td>
@@ -250,7 +314,11 @@ export const FeesView: React.FC = () => {
                 </td>
                 <td className="px-3 text-right">
                   <button
-                    onClick={() => setShowBulkApprovalModal(true)}
+                    onClick={() => {
+                      const approval = store.createDraftRemindersApproval()
+                      setCurrentApproval(approval)
+                      setShowBulkApprovalModal(true)
+                    }}
                     className="text-xs text-accent hover:underline font-medium"
                   >
                     Draft reminder
@@ -285,7 +353,7 @@ export const FeesView: React.FC = () => {
 
             <div className="mt-4">
               <ApprovalCard
-                approval={store.approvals[0]}
+                approval={currentApproval || store.approvals[0]}
                 onApproved={() => {
                   setShowBulkApprovalModal(false)
                   success('Reminders dispatched')

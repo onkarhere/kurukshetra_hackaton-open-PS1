@@ -19,8 +19,9 @@ import {
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { maskPhone } from '@/lib/utils'
+import { exportToCsv } from '@/lib/exportCsv'
 import { Student } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -36,7 +37,7 @@ export const StudentsView: React.FC = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
 
-  const students = store.students
+  const students = useStore((s) => s.students)
 
   const filteredStudents = students.filter((s) => {
     if (activeTab === 'at_risk' && s.riskLevel === 'low') return false
@@ -69,11 +70,44 @@ export const StudentsView: React.FC = () => {
   }
 
   const handleBulkMessage = () => {
+    if (selectedStudentIds.length === 0) return
+    const selectedStudents = students.filter((s) => selectedStudentIds.includes(s.id))
+    const recipients = selectedStudents.map((s) => ({
+      id: s.id,
+      name: s.name,
+      phone: s.phone,
+      messagePreview: `Hi ${s.name}, updating you regarding upcoming classes and syllabus progress at CodeCraft Academy.`,
+    }))
+
+    store.createSendMessageApproval(
+      `Broadcast message to ${recipients.length} selected candidate(s)`,
+      `Cohort notification broadcast scheduled for delivery via WhatsApp`,
+      recipients,
+      'whatsapp'
+    )
+
     success(
-      `Draft staged for ${selectedStudentIds.length} students`,
-      'Staged in Approvals inbox for review.'
+      `Approval staged for ${selectedStudentIds.length} students`,
+      'Created approval action and staged in Approvals inbox for review.'
     )
     navigate('/approvals')
+  }
+
+  const handleExport = () => {
+    const exportRows = filteredStudents.map((s) => ({
+      'Student ID': s.id,
+      Name: s.name,
+      Email: s.email,
+      Phone: s.phone,
+      Branch: s.branch,
+      Batches: s.batchNames.join(', '),
+      'Attendance Rate': `${s.attendanceRate}%`,
+      'Fee Status': s.feeStatus,
+      'Risk Level': s.riskLevel,
+      'Enrolled Date': s.enrolledAt,
+    }))
+    exportToCsv(exportRows, `students_directory_${new Date().toISOString().slice(0, 10)}.csv`)
+    success('Student directory exported', `${filteredStudents.length} candidates exported to CSV.`)
   }
 
   const renderRiskGlyph = (risk: string) => {
@@ -157,7 +191,7 @@ export const StudentsView: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => success('Exporting student directory CSV...')}
+            onClick={handleExport}
             leftIcon={<Download className="w-3.5 h-3.5" />}
           >
             Export

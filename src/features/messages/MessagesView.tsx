@@ -1,68 +1,32 @@
 import React, { useState } from 'react'
 import {
-  MessageSquare,
   Send,
   Clock,
   CheckCircle2,
   AlertOctagon,
-  FileText,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import { cn } from '@/lib/utils'
-
-interface MessageRecord {
-  id: string
-  recipient: string
-  phone: string
-  channel: 'WhatsApp' | 'SMS' | 'Email'
-  content: string
-  sentAt: string
-  status: 'delivered' | 'read' | 'queued' | 'failed'
-}
+import { store, useStore } from '@/mocks/store'
+import { ApprovalAction } from '@/types'
 
 export const MessagesView: React.FC = () => {
-  const { success } = useToast()
-  const [activeTab, setActiveTab] = useState<'outbox' | 'templates'>('outbox')
+  const { success, error: toastError } = useToast()
+  const outbox = useStore((s) => s.messages)
+  const batches = useStore((s) => s.batches)
+  const students = useStore((s) => s.students)
+  const instalments = useStore((s) => s.feeInstalments)
 
-  const outbox: MessageRecord[] = [
-    {
-      id: 'msg-01',
-      recipient: 'Priya Nair',
-      phone: '+91 98201 55432',
-      channel: 'WhatsApp',
-      content: 'Hi Priya, your EMI of ₹6,500 for Java Full-Stack B3 (Kothrud) was due on 04 Oct. Please clear it online: codecraft.ac.in/pay',
-      sentAt: '16 Oct 10:30 IST',
-      status: 'read',
-    },
-    {
-      id: 'msg-02',
-      recipient: 'Rohan Kulkarni',
-      phone: '+91 98450 11988',
-      channel: 'WhatsApp',
-      content: 'Hi Rohan, your 2nd EMI of ₹6,500 for Java Full-Stack B3 (Kothrud) is 18 days overdue. Please settle this today.',
-      sentAt: '16 Oct 10:30 IST',
-      status: 'delivered',
-    },
-    {
-      id: 'msg-03',
-      recipient: 'Devendra Joshi',
-      phone: '+91 98902 44781',
-      channel: 'WhatsApp',
-      content: 'Hi Devendra, friendly reminder that your EMI of ₹6,500 for Java Full-Stack B3 (Kothrud) is due tomorrow.',
-      sentAt: '16 Oct 10:30 IST',
-      status: 'delivered',
-    },
-    {
-      id: 'msg-04',
-      recipient: 'Amit Sane',
-      phone: '+91 97631 88920',
-      channel: 'WhatsApp',
-      content: 'Hi Amit, your EMI of ₹6,500 for Java Full-Stack B3 (Kothrud) is due on 17 Oct. Pay online: codecraft.ac.in/pay',
-      sentAt: '16 Oct 10:30 IST',
-      status: 'queued',
-    },
-  ]
+  const [activeTab, setActiveTab] = useState<'outbox' | 'templates'>('outbox')
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false)
+
+  // Broadcast modal form state
+  const [targetAudience, setTargetAudience] = useState<'all' | 'batch' | 'risk_critical' | 'overdue_emi'>('batch')
+  const [selectedBatchId, setSelectedBatchId] = useState(batches[0]?.id || '')
+  const [channel, setChannel] = useState<'whatsapp' | 'sms' | 'email'>('whatsapp')
+  const [customText, setCustomText] = useState('')
 
   const templates = [
     {
@@ -88,6 +52,57 @@ export const MessagesView: React.FC = () => {
     },
   ]
 
+  const handleCreateBroadcast = () => {
+    let targetStudents = students
+
+    if (targetAudience === 'batch') {
+      targetStudents = students.filter((s) => s.batchIds.includes(selectedBatchId))
+    } else if (targetAudience === 'risk_critical') {
+      targetStudents = students.filter((s) => s.riskLevel === 'critical' || s.riskLevel === 'high')
+    } else if (targetAudience === 'overdue_emi') {
+      const overdueIds = new Set(instalments.filter((i) => i.status === 'overdue').map((i) => i.studentId))
+      targetStudents = students.filter((s) => overdueIds.has(s.id))
+    }
+
+    if (targetStudents.length === 0) {
+      toastError('No recipients', 'No students match the chosen criteria.')
+      return
+    }
+
+    const messageTemplate = customText.trim() || 'Hello {name}, this is an important academic update from CodeCraft Academy.'
+
+    const newApproval: ApprovalAction = {
+      id: `appr-${Date.now()}`,
+      type: 'whatsapp_bulk',
+      title: `Broadcast to ${targetStudents.length} students (${targetAudience})`,
+      summary: `Automated ${channel} message dispatch to ${targetStudents.length} recipients`,
+      requester: store.currentUser.name,
+      requesterRole: store.currentUser.role,
+      createdAt: 'Just now',
+      riskLevel: targetStudents.length > 20 ? 'high' : 'medium',
+      status: 'pending',
+      recipientCount: targetStudents.length,
+      channel,
+      sendTime: 'Immediately upon approval',
+      estimatedCost: `₹${(targetStudents.length * 0.17).toFixed(2)}`,
+      recipients: targetStudents.map((st) => ({
+        id: st.id,
+        name: st.name,
+        phone: st.phone,
+        messagePreview: messageTemplate.replace('{name}', st.name),
+        customizedMessage: messageTemplate.replace('{name}', st.name),
+        selected: true,
+      })),
+    }
+
+    store.approvals.unshift(newApproval)
+    store.notify()
+
+    setShowBroadcastModal(false)
+    setCustomText('')
+    success('Broadcast staged for approval', `Created approval for ${targetStudents.length} recipients.`)
+  }
+
   const renderStatus = (status: string) => {
     switch (status) {
       case 'read':
@@ -97,9 +112,10 @@ export const MessagesView: React.FC = () => {
           </span>
         )
       case 'delivered':
+      case 'sent':
         return (
           <span className="inline-flex items-center gap-1 text-success text-xs">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Delivered
+            <CheckCircle2 className="w-3.5 h-3.5" /> {status === 'sent' ? 'Sent' : 'Delivered'}
           </span>
         )
       case 'queued':
@@ -131,7 +147,7 @@ export const MessagesView: React.FC = () => {
         <Button
           variant="primary"
           size="sm"
-          onClick={() => success('New broadcast composer launched.')}
+          onClick={() => setShowBroadcastModal(true)}
           leftIcon={<Send className="w-3.5 h-3.5" />}
         >
           New broadcast
@@ -181,13 +197,13 @@ export const MessagesView: React.FC = () => {
               {outbox.map((msg) => (
                 <tr key={msg.id} className="hover:bg-surface-sunken/40 h-10 transition-colors">
                   <td className="px-3 font-medium text-text">
-                    <div>{msg.recipient}</div>
-                    <div className="font-mono text-[10px] text-text-muted">{msg.phone}</div>
+                    <div>{msg.studentName || 'Student'}</div>
+                    <div className="font-mono text-[10px] text-text-muted">{msg.to}</div>
                   </td>
-                  <td className="px-3 text-text-muted">{msg.channel}</td>
-                  <td className="px-3 text-text max-w-md truncate">{msg.content}</td>
+                  <td className="px-3 text-text-muted uppercase text-[10px] font-mono">{msg.channel}</td>
+                  <td className="px-3 text-text max-w-md truncate">{msg.body}</td>
                   <td className="px-3 text-text-muted text-[11px] tabular-nums whitespace-nowrap">
-                    {msg.sentAt}
+                    {msg.createdAt}
                   </td>
                   <td className="px-3 whitespace-nowrap">
                     {renderStatus(msg.status)}
@@ -235,6 +251,115 @@ export const MessagesView: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* New Broadcast Modal */}
+      {showBroadcastModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-surface border border-border rounded-dialog shadow-dialog p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-sm font-semibold text-text">Compose new broadcast</h3>
+              <button
+                onClick={() => setShowBroadcastModal(false)}
+                className="text-text-muted hover:text-text p-1"
+                aria-label="Close dialog"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">
+                  Target Audience
+                </label>
+                <select
+                  value={targetAudience}
+                  onChange={(e) => setTargetAudience(e.target.value as any)}
+                  className="w-full px-2.5 py-1.5 rounded-control border border-border bg-surface text-text text-xs outline-none"
+                >
+                  <option value="batch">Specific Batch</option>
+                  <option value="risk_critical">Academic Risk (Critical & High)</option>
+                  <option value="overdue_emi">Overdue Fee Accounts</option>
+                  <option value="all">All Enrolled Students</option>
+                </select>
+              </div>
+
+              {targetAudience === 'batch' && (
+                <div>
+                  <label className="block text-[11px] font-medium text-text-muted mb-1">
+                    Select Batch
+                  </label>
+                  <select
+                    value={selectedBatchId}
+                    onChange={(e) => setSelectedBatchId(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-control border border-border bg-surface text-text text-xs outline-none"
+                  >
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.enrolledCount} students)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">
+                  Delivery Channel
+                </label>
+                <div className="flex items-center gap-2">
+                  {(['whatsapp', 'sms', 'email'] as const).map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      onClick={() => setChannel(ch)}
+                      className={cn(
+                        'flex-1 py-1.5 rounded-control border text-xs capitalize transition-colors',
+                        channel === ch
+                          ? 'border-accent bg-accent/10 text-accent font-medium'
+                          : 'border-border bg-surface text-text-muted hover:text-text'
+                      )}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">
+                  Message Content (supports {'{name}'})
+                </label>
+                <textarea
+                  value={customText}
+                  onChange={(e) => setCustomText(e.target.value)}
+                  placeholder="Hi {name}, friendly reminder that class starts at 19:00 IST today in Room 3."
+                  rows={3}
+                  className="w-full px-2.5 py-1.5 rounded-control border border-border bg-surface text-text text-xs outline-none focus:border-accent resize-none font-sans"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowBroadcastModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleCreateBroadcast}
+                leftIcon={<Send className="w-3.5 h-3.5" />}
+              >
+                Stage for approval
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

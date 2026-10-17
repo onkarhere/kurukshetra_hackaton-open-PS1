@@ -216,6 +216,7 @@ export interface CopilotMessage {
   viewsCount?: number
   confidence?: 'High' | 'Medium' | 'Low'
   tableData?: Record<string, any>[]
+  columns?: { key: string; label: string; align?: 'left' | 'right' | 'center'; isReason?: boolean; isAmount?: boolean }[]
   chartData?: { label: string; value: number }[]
   chartType?: 'bar' | 'line' | 'pie'
   approvalProposal?: ApprovalAction
@@ -225,6 +226,7 @@ export interface CopilotMessage {
     permittedPart?: string
   }
   suggestedFollowUps?: string[]
+  feedback?: 'up' | 'down'
 }
 
 export interface AuditLogEntry {
@@ -282,3 +284,39 @@ export interface Recording {
   chapters: { time: string; title: string }[]
   attendanceCount: number
 }
+
+export interface OutboxMessage {
+  id: string
+  channel: 'whatsapp' | 'sms' | 'email'
+  to: string
+  studentId?: string
+  studentName?: string
+  body: string
+  status: 'queued' | 'sent' | 'delivered' | 'failed'
+  approvalId?: string
+  createdAt: string
+}
+
+export interface InstituteSettings {
+  instituteName: string
+  minAttendanceThreshold: number
+  criticalRiskThreshold: number
+  lateToleranceMinutes: number
+  quietHoursStart: string
+  quietHoursEnd: string
+  disableExternalLLMs: boolean
+  autoSmsWaivers: boolean
+}
+
+export interface AttendanceRecord {
+  id: string
+  sessionId: string
+  studentId: string
+  studentName?: string
+  status: AttendanceStatus
+  method: 'qr' | 'manual' | 'online_import'
+  checkInTime?: string
+}
+
+export type RiskAcknowledgement = Record<string, { by: string; at: string }>
+

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import QRCode from 'qrcode'
 import {
   Maximize2,
   Clock,
@@ -11,9 +12,13 @@ import {
   ArrowLeft,
   RefreshCw,
   AlertOctagon,
+  X,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import { store, useStore } from '@/mocks/store'
+import { Recording } from '@/types'
 
 interface Attendee {
   id: string
@@ -26,11 +31,24 @@ interface Attendee {
 
 export const SessionLiveView: React.FC = () => {
   const { id } = useParams<{ id: string }>()
+  const sessionId = id || 'sess-m2'
   const navigate = useNavigate()
-  const { success } = useToast()
+  const { success, error } = useToast()
 
   const [countdown, setCountdown] = useState(30)
   const [fullscreenQR, setFullscreenQR] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState<string>('')
+  const [currentToken, setCurrentToken] = useState<string>('INIT89')
+
+  // Modals state
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [csvContent, setCsvContent] = useState('')
+  const [showRecordingModal, setShowRecordingModal] = useState(false)
+  const [recordingTitle, setRecordingTitle] = useState('Spring Boot & Data JPA - Lecture & Doubt Session')
+  const [recordingUrl, setRecordingUrl] = useState('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4')
+  const [recordingDuration, setRecordingDuration] = useState('1h 50m')
+  const [recordingSummary, setRecordingSummary] = useState('Live session covering Spring Data JPA repositories, derived queries, and transaction management.')
+
   const [unmatchedQueue, setUnmatchedQueue] = useState([
     { zoomName: 'priya_nair_iphone', suggestedId: 'std-priya-01', confidence: 94 },
     { zoomName: 'aditya_p_desktop', suggestedId: 'std-aditya-08', confidence: 88 },
@@ -47,13 +65,43 @@ export const SessionLiveView: React.FC = () => {
     { id: 'std-sunita-05', name: 'Sunita Rao', phone: '+91 98810 66324', status: 'absent' },
   ])
 
+  // Generate real QR code with rotating token
+  const rotateQrToken = () => {
+    const newToken = Math.random().toString(36).substring(2, 8).toUpperCase()
+    setCurrentToken(newToken)
+    store.setSessionQrToken(sessionId, newToken)
+
+    const checkinUrl = `${window.location.origin}/s/checkin?session=${sessionId}&t=${newToken}`
+    QRCode.toDataURL(checkinUrl, {
+      width: 256,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => setQrDataUrl(url))
+      .catch((err) => console.error('QR code generation error', err))
+  }
+
+  // Initial QR generation
+  useEffect(() => {
+    rotateQrToken()
+  }, [sessionId])
+
   // 30s rotating QR code countdown
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((prev) => (prev > 1 ? prev - 1 : 30))
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          rotateQrToken()
+          return 30
+        }
+        return prev - 1
+      })
     }, 1000)
     return () => clearInterval(timer)
-  }, [])
+  }, [sessionId])
 
   const handleMatchConfirm = (zoomName: string) => {
     setUnmatchedQueue((prev) => prev.filter((item) => item.zoomName !== zoomName))
@@ -63,8 +111,123 @@ export const SessionLiveView: React.FC = () => {
     success('Confirmed online attendee match', `${zoomName} matched to Priya Nair`)
   }
 
+  // P1: Mark remaining absent - set every unmarked student to Absent in attendanceRecords
   const handleMarkRemainingAbsent = () => {
-    success('Marked remaining absent students.')
+    const unmarked = attendees.filter((a) => a.status === 'absent')
+    store.markRemainingAbsent(sessionId, unmarked)
+    success('Marked remaining absent', `${unmarked.length} student(s) marked as Absent in attendance ledger.`)
+  }
+
+  // P1: Finalize session - save attendance to store, mark session completed, update batch attendance % and recompute risk
+  const handleFinalizeSession = () => {
+    store.finalizeSession(sessionId, attendees)
+    success('Session finalized', 'Attendance saved to store, batch turnout updated, and risk scores recomputed.')
+    navigate('/attendance')
+  }
+
+  // P1: Import Meet/Zoom CSV
+  const handleProcessCsv = (rawText: string) => {
+    const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean)
+    if (lines.length <= 1) {
+      error('Invalid CSV', 'Please provide a CSV with header and attendee rows.')
+      return
+    }
+
+    let updatedCount = 0
+    const newUnmatched: typeof unmatchedQueue = []
+
+    // Lines format: Name, Email, DurationMinutes
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(',').map((p) => p.trim())
+      if (parts.length < 2) continue
+
+      const name = parts[0]
+      const email = parts[1]
+      const durationMins = parseInt(parts[2] || '95', 10)
+      const ratio = durationMins / 120 // 120 mins session
+
+      // Look up student in attendees
+      const matchIndex = attendees.findIndex(
+        (a) =>
+          a.name.toLowerCase() === name.toLowerCase() ||
+          a.name.toLowerCase().includes(name.toLowerCase()) ||
+          name.toLowerCase().includes(a.name.toLowerCase())
+      )
+
+      if (matchIndex >= 0) {
+        const student = attendees[matchIndex]
+        // Physical check-in wins!
+        if (student.method === 'QR Code') {
+          continue
+        }
+
+        // Rule: Present >= 75%, Partial 40-75%
+        let newStatus: Attendee['status'] = 'absent'
+        if (ratio >= 0.75) {
+          newStatus = 'online'
+        } else if (ratio >= 0.4) {
+          newStatus = 'late'
+        }
+
+        setAttendees((prev) =>
+          prev.map((a, idx) =>
+            idx === matchIndex
+              ? {
+                  ...a,
+                  status: newStatus,
+                  checkInTime: '19:05 IST',
+                  method: 'Zoom Sync',
+                }
+              : a
+          )
+        )
+        updatedCount++
+      } else {
+        newUnmatched.push({
+          zoomName: name,
+          suggestedId: 'std-unknown',
+          confidence: 65,
+        })
+      }
+    }
+
+    if (newUnmatched.length > 0) {
+      setUnmatchedQueue((prev) => [...prev, ...newUnmatched])
+    }
+
+    setShowImportModal(false)
+    success('Zoom/Meet CSV processed', `Synchronized ${updatedCount} attendees. ${newUnmatched.length} unmatched queued for review.`)
+  }
+
+  // P1: Save recording
+  const handleSaveRecording = () => {
+    if (!recordingTitle) {
+      error('Validation error', 'Please enter a recording title.')
+      return
+    }
+
+    const newRec: Recording = {
+      id: `rec-${Date.now()}`,
+      title: recordingTitle,
+      batchName: 'Java Full-Stack B3 (Kothrud)',
+      courseName: 'Java Full-Stack Developer',
+      trainerName: 'Arjun Mehta',
+      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      duration: recordingDuration || '1h 50m',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=640&q=80',
+      videoUrl: recordingUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      aiSummary: recordingSummary || 'Live session on Spring Data JPA, repository queries, and custom finders.',
+      chapters: [
+        { time: '00:00', title: 'Session introduction' },
+        { time: '20:15', title: 'Repository Pattern' },
+        { time: '55:30', title: 'Hands-on query execution' },
+      ],
+      attendanceCount: presentCount,
+    }
+
+    store.addRecording(newRec)
+    setShowRecordingModal(false)
+    success('Recording synchronized', 'Recording saved to store and published for student catch-up.')
   }
 
   const presentCount = attendees.filter((a) => a.status === 'present' || a.status === 'online' || a.status === 'late').length
@@ -106,7 +269,7 @@ export const SessionLiveView: React.FC = () => {
           <Button
             variant="primary"
             size="sm"
-            onClick={() => success('Session finalized and attendance synced.')}
+            onClick={handleFinalizeSession}
           >
             End session
           </Button>
@@ -126,26 +289,24 @@ export const SessionLiveView: React.FC = () => {
             </p>
           </div>
 
-          {/* QR Box */}
-          <div className="relative mx-auto w-52 h-52 rounded-card border border-border bg-surface-sunken flex flex-col items-center justify-center p-4">
-            <div className="w-36 h-36 bg-white p-2.5 rounded border border-border flex items-center justify-center">
-              <div className="grid grid-cols-6 gap-1 w-full h-full p-1 bg-black rounded">
-                {[...Array(36)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-xs ${
-                      (i % 2 === 0 && i % 3 === 0) || i === 0 || i === 5 || i === 30 || i === 35
-                        ? 'bg-white'
-                        : 'bg-black'
-                    }`}
-                  />
-                ))}
+          {/* QR Box with REAL QR CODE */}
+          <div className="relative mx-auto w-52 h-52 rounded-card border border-border bg-surface-sunken flex flex-col items-center justify-center p-3">
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="Live Classroom QR"
+                className="w-40 h-40 rounded border border-border bg-white p-1"
+              />
+            ) : (
+              <div className="w-40 h-40 bg-white flex items-center justify-center text-xs text-text-muted">
+                Generating QR...
               </div>
-            </div>
+            )}
 
-            <div className="absolute bottom-2 flex items-center gap-1 px-2 py-0.5 rounded border border-border bg-surface text-[10px] font-mono text-text-muted">
+            <div className="absolute bottom-2 flex items-center gap-1.5 px-2 py-0.5 rounded border border-border bg-surface text-[10px] font-mono text-text">
               <Clock className="w-3 h-3 text-text-muted" />
               <span>Rotates in {countdown}s</span>
+              <span className="text-accent font-semibold ml-1">[{currentToken}]</span>
             </div>
           </div>
 
@@ -158,7 +319,11 @@ export const SessionLiveView: React.FC = () => {
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => setCountdown(30)}
+              onClick={() => {
+                rotateQrToken()
+                setCountdown(30)
+                success('QR code rotated and new token published.')
+              }}
               leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
             >
               Force refresh QR
@@ -274,18 +439,18 @@ export const SessionLiveView: React.FC = () => {
               <Button
                 variant="outline"
                 size="xs"
-                onClick={() => success('Zoom cloud recording sync triggered.')}
+                onClick={() => setShowRecordingModal(true)}
                 leftIcon={<Video className="w-3.5 h-3.5" />}
               >
-                Sync Zoom log
+                Sync Zoom recording
               </Button>
               <Button
                 variant="outline"
                 size="xs"
-                onClick={() => success('Import CSV modal opened.')}
+                onClick={() => setShowImportModal(true)}
                 leftIcon={<Upload className="w-3.5 h-3.5" />}
               >
-                Import CSV
+                Import Meet/Zoom CSV
               </Button>
             </div>
 
@@ -308,28 +473,196 @@ export const SessionLiveView: React.FC = () => {
           onClick={() => setFullscreenQR(false)}
         >
           <div className="space-y-4 max-w-sm">
-            <h2 className="text-xl font-semibold tracking-tight">Scan check-in QR</h2>
+            <h2 className="text-xl font-semibold tracking-tight">Scan classroom check-in QR</h2>
             <p className="text-xs text-neutral-400">
               Java Full-Stack B3 (Kothrud) · CodeCraft Academy
             </p>
 
-            <div className="w-64 h-64 bg-white p-4 rounded-card mx-auto flex items-center justify-center shadow-dialog">
-              <div className="grid grid-cols-6 gap-1.5 w-full h-full p-2 bg-black rounded">
-                {[...Array(36)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-xs ${
-                      (i % 2 === 0 && i % 3 === 0) || i === 0 || i === 5 || i === 30 || i === 35
-                        ? 'bg-white'
-                        : 'bg-black'
-                    }`}
+            <div className="w-64 h-64 bg-white p-3 rounded-card mx-auto flex items-center justify-center shadow-dialog">
+              {qrDataUrl && (
+                <img
+                  src={qrDataUrl}
+                  alt="Fullscreen Classroom QR"
+                  className="w-full h-full"
+                />
+              )}
+            </div>
+
+            <div className="text-xs font-mono text-neutral-300">
+              Rotates in {countdown}s · Demo Token: <span className="text-accent font-bold">{currentToken}</span>
+            </div>
+            <p className="text-[11px] text-neutral-500">Click anywhere to close</p>
+          </div>
+        </div>
+      )}
+
+      {/* Import Meet/Zoom CSV Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-surface border border-border rounded-card max-w-lg w-full p-5 space-y-4 shadow-dialog">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <h3 className="text-sm font-semibold text-text">Import Zoom/Meet Turnout CSV</h3>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="text-text-muted hover:text-text p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-text-muted leading-relaxed">
+              Upload or paste Zoom attendance report. Logic: Present ≥75% duration (90m), Partial 40–75% (48m). Physical check-in wins.
+            </p>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-text">CSV Payload</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sample = `Name,Email,DurationMinutes\nPriya Nair,priya.nair@gmail.com,105\nRohan Kulkarni,rohan.kulkarni@gmail.com,52\nSunita Rao,sunita.rao@gmail.com,30\nKiran Unknown,kiran.guest@gmail.com,90`
+                    setCsvContent(sample)
+                  }}
+                  className="text-accent hover:underline"
+                >
+                  Load sample data
+                </button>
+              </div>
+              <textarea
+                value={csvContent}
+                onChange={(e) => setCsvContent(e.target.value)}
+                placeholder="Name,Email,DurationMinutes&#10;Priya Nair,priya.nair@gmail.com,105"
+                rows={5}
+                className="w-full text-xs font-mono p-2.5 rounded-control border border-border bg-surface-sunken text-text focus:outline-none focus:border-accent"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <label className="cursor-pointer text-xs text-accent hover:underline flex items-center gap-1.5">
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload .csv file</span>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      const reader = new FileReader()
+                      reader.onload = (event) => {
+                        const content = event.target?.result as string
+                        setCsvContent(content || '')
+                      }
+                      reader.readAsText(file)
+                    }
+                  }}
+                />
+              </label>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowImportModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => handleProcessCsv(csvContent)}
+                  disabled={!csvContent.trim()}
+                >
+                  Process & sync
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sync Zoom Recording Modal */}
+      {showRecordingModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-surface border border-border rounded-card max-w-lg w-full p-5 space-y-4 shadow-dialog">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <h3 className="text-sm font-semibold text-text">Link Session Lecture Recording</h3>
+              <button
+                onClick={() => setShowRecordingModal(false)}
+                className="text-text-muted hover:text-text p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-medium text-text mb-1">Recording Title</label>
+                <input
+                  type="text"
+                  value={recordingTitle}
+                  onChange={(e) => setRecordingTitle(e.target.value)}
+                  className="w-full p-2 rounded-control border border-border bg-surface-sunken text-text focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-text mb-1">Video Stream / File URL</label>
+                <input
+                  type="text"
+                  value={recordingUrl}
+                  onChange={(e) => setRecordingUrl(e.target.value)}
+                  className="w-full p-2 font-mono rounded-control border border-border bg-surface-sunken text-text focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-text mb-1">Duration</label>
+                  <input
+                    type="text"
+                    value={recordingDuration}
+                    onChange={(e) => setRecordingDuration(e.target.value)}
+                    className="w-full p-2 rounded-control border border-border bg-surface-sunken text-text focus:outline-none focus:border-accent"
                   />
-                ))}
+                </div>
+                <div>
+                  <label className="block font-medium text-text mb-1">Batch / Cohort</label>
+                  <input
+                    type="text"
+                    disabled
+                    value="Java Full-Stack B3 (Kothrud)"
+                    className="w-full p-2 rounded-control border border-border bg-surface-sunken text-text-muted cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-text mb-1">AI Lecture Summary & Notes</label>
+                <textarea
+                  value={recordingSummary}
+                  onChange={(e) => setRecordingSummary(e.target.value)}
+                  rows={3}
+                  className="w-full p-2 rounded-control border border-border bg-surface-sunken text-text focus:outline-none focus:border-accent"
+                />
               </div>
             </div>
 
-            <div className="text-xs font-mono text-neutral-400">
-              Rotates in {countdown}s · Click anywhere to exit
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowRecordingModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSaveRecording}
+              >
+                Save & link recording
+              </Button>
             </div>
           </div>
         </div>

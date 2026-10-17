@@ -12,12 +12,15 @@ import {
   AlertOctagon,
   AlertTriangle,
   Command,
+  Printer,
+  Download,
+  X,
 } from 'lucide-react'
 import { ReasonChip } from '@/components/ui/ReasonChip'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { formatINR, maskPhone, cn } from '@/lib/utils'
 
 export const StudentProfileView: React.FC = () => {
@@ -30,9 +33,12 @@ export const StudentProfileView: React.FC = () => {
     'overview' | 'attendance' | 'fees' | 'risk' | 'notes'
   >('overview')
   const [newNote, setNewNote] = useState('')
+  const [showStatementModal, setShowStatementModal] = useState(false)
 
-  const student = store.students.find((s) => s.id === id) || store.students[0]
-  const feeInstalments = store.feeInstalments.filter((f) => f.studentId === student.id)
+  const students = useStore((s) => s.students)
+  const allFeeInstalments = useStore((s) => s.feeInstalments)
+  const student = students.find((s) => s.id === id) || students[0]
+  const feeInstalments = allFeeInstalments.filter((f) => f.studentId === student.id)
 
   const handleAddNote = () => {
     if (!newNote.trim()) return
@@ -306,9 +312,10 @@ export const StudentProfileView: React.FC = () => {
             <Button
               variant="secondary"
               size="xs"
-              onClick={() => success('Downloading statement PDF...')}
+              onClick={() => setShowStatementModal(true)}
+              leftIcon={<Download className="w-3.5 h-3.5" />}
             >
-              Download ledger
+              Download statement
             </Button>
           </div>
 
@@ -425,6 +432,102 @@ export const StudentProfileView: React.FC = () => {
                 <p className="text-text leading-relaxed">{n.content}</p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Printable Statement Modal */}
+      {showStatementModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-surface border border-border rounded-card max-w-2xl w-full p-6 space-y-4 shadow-dialog text-left">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-accent" />
+                <div>
+                  <h3 className="text-sm font-semibold text-text">CodeCraft Academy</h3>
+                  <span className="text-[10px] text-text-muted">Statement of Fee Accounts</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowStatementModal(false)}
+                className="text-text-muted hover:text-text p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-control bg-surface-sunken border border-border grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-text-muted">Student Name:</span>
+                <div className="font-semibold text-text mt-0.5">{student.name}</div>
+                <div className="text-[11px] text-text-muted">ID: {student.id} · Roll #104</div>
+              </div>
+              <div>
+                <span className="text-text-muted">Batch / Program:</span>
+                <div className="font-semibold text-text mt-0.5">{student.batchNames[0]}</div>
+                <div className="text-[11px] text-text-muted">Enrolled: {student.enrolledAt}</div>
+              </div>
+            </div>
+
+            <div className="border border-border rounded-control overflow-hidden">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-surface-sunken text-text-muted border-b border-border">
+                  <tr>
+                    <th className="py-2 px-3 font-medium">Instalment</th>
+                    <th className="py-2 px-3 font-medium">Due date</th>
+                    <th className="py-2 px-3 text-right font-medium">Amount</th>
+                    <th className="py-2 px-3 text-right font-medium">Paid</th>
+                    <th className="py-2 px-3 font-medium">Status</th>
+                    <th className="py-2 px-3 font-medium">Receipt No.</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {feeInstalments.map((inst) => (
+                    <tr key={inst.id}>
+                      <td className="py-2.5 px-3 font-medium text-text">{inst.sequence}</td>
+                      <td className="py-2.5 px-3 text-text-muted">{inst.dueDate}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-text">{formatINR(inst.amount)}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-success">{formatINR(inst.paidAmount)}</td>
+                      <td className="py-2.5 px-3 capitalize">
+                        {inst.status === 'paid' ? (
+                          <span className="text-success font-medium">Paid ✓</span>
+                        ) : inst.status === 'overdue' ? (
+                          <span className="text-danger font-medium">Overdue ({inst.daysOverdue}d)</span>
+                        ) : (
+                          <span className="text-warning">Due Soon</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-text-muted">
+                        {inst.receiptNo || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <span className="text-xs text-text-muted">
+                Official statement generated on {new Date().toLocaleDateString('en-GB')}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowStatementModal(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Printer className="w-3.5 h-3.5" />}
+                  onClick={() => window.print()}
+                >
+                  Print statement
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

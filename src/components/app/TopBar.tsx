@@ -18,6 +18,7 @@ import { useTheme } from '@/context/ThemeContext'
 import { UserRole, Branch } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import { isSupabaseConfigured } from '@/lib/supabase'
 
 export const TopBar: React.FC = () => {
   const {
@@ -129,6 +130,12 @@ export const TopBar: React.FC = () => {
 
       {/* Right Controls */}
       <div className="flex items-center gap-2">
+        {!isSupabaseConfigured && (
+          <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-surface-sunken text-text-muted border border-border">
+            Demo data
+          </span>
+        )}
+
         {/* Branch Switcher */}
         <div className="relative" ref={branchRef}>
           <button

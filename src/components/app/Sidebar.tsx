@@ -25,6 +25,7 @@ import {
 import { useApp } from '@/context/AppContext'
 import { UserRole } from '@/types'
 import { cn } from '@/lib/utils'
+import { canAccess } from '@/lib/permissions'
 
 interface NavItem {
   label: string
@@ -192,14 +193,11 @@ export const Sidebar: React.FC = () => {
     },
   ]
 
-  // Filter out items not allowed for role (trainer must NEVER see money items)
+  // Filter out items not allowed for role using central canAccess helper
   const filteredGroups = navGroups
     .map((grp) => ({
       ...grp,
-      items: grp.items.filter((item) => {
-        if (!item.allowedRoles) return true
-        return item.allowedRoles.includes(role)
-      }),
+      items: grp.items.filter((item) => canAccess(role, item.to)),
     }))
     .filter((grp) => grp.items.length > 0)
 

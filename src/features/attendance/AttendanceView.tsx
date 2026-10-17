@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import { exportToCsv } from '@/lib/exportCsv'
 
 export const AttendanceView: React.FC = () => {
   const navigate = useNavigate()
@@ -92,6 +93,21 @@ export const AttendanceView: React.FC = () => {
     }
   }
 
+  const handleExport = () => {
+    const exportRows = batchAttendance.map((b) => {
+      const row: Record<string, string> = {
+        Batch: b.batchName,
+      }
+      dates.forEach((d, i) => {
+        row[d] = b.records[i] || '—'
+      })
+      row['7d Avg Turnout'] = b.rate
+      return row
+    })
+    exportToCsv(exportRows, `attendance_ledger_${new Date().toISOString().slice(0, 10)}.csv`)
+    success('Attendance ledger exported', 'CSV file downloaded successfully.')
+  }
+
   return (
     <div className="space-y-4">
       {/* Top Header */}
@@ -107,7 +123,7 @@ export const AttendanceView: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => success('Exporting attendance ledger...')}
+            onClick={handleExport}
             leftIcon={<Download className="w-3.5 h-3.5" />}
           >
             Export

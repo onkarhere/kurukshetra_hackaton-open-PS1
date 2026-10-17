@@ -12,8 +12,8 @@ import { ReasonChip } from '@/components/ui/ReasonChip'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
-import { store } from '@/mocks/store'
-import { RiskLevel } from '@/types'
+import { store, useStore } from '@/mocks/store'
+import { RiskLevel, Student } from '@/types'
 import { cn } from '@/lib/utils'
 
 export const RiskBoardView: React.FC = () => {
@@ -22,9 +22,9 @@ export const RiskBoardView: React.FC = () => {
   const navigate = useNavigate()
 
   const [activeTier, setActiveTier] = useState<RiskLevel | 'all'>('all')
-  const [acknowledgedIds, setAcknowledgedIds] = useState<string[]>([])
 
-  const students = store.students
+  const students = useStore((s) => s.students)
+  const riskAcknowledgements = useStore((s) => s.riskAcknowledgements || {})
 
   const filtered = students.filter((s) => {
     if (activeTier === 'all') return true
@@ -46,10 +46,24 @@ export const RiskBoardView: React.FC = () => {
   })
 
   const toggleAcknowledge = (id: string) => {
-    setAcknowledgedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    )
-    success('Risk status acknowledged')
+    store.acknowledgeRisk(id, store.currentUser.name)
+    success('Risk status acknowledged', 'Saved to persistent risk registry.')
+  }
+
+  const handleDraftCheckIn = (st: Student) => {
+    const title = `Check-in reminder: ${st.name} (${st.batchNames[0] || 'General'})`
+    const summary = `Intervention check-in for risk level ${st.riskLevel.toUpperCase()} (score ${st.riskScore}/100)`
+    const message = `Hi ${st.name.split(' ')[0]}, this is CodeCraft Academy faculty. We noticed you've missed recent sessions and want to make sure you're on track. Can you connect with us today to review your progress?`
+    store.createSendMessageApproval(title, summary, [
+      {
+        id: st.id,
+        name: st.name,
+        phone: st.phone,
+        messagePreview: message,
+      },
+    ])
+    success(`Drafted check-in proposal for ${st.name}`, 'Opened approval staging.')
+    navigate('/approvals')
   }
 
   const criticalCount = students.filter((s) => s.riskLevel === 'critical').length
@@ -194,7 +208,8 @@ export const RiskBoardView: React.FC = () => {
       {/* Risk Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sorted.map((st) => {
-          const isAck = acknowledgedIds.includes(st.id)
+          const ackInfo = riskAcknowledgements[st.id]
+          const isAck = !!ackInfo
           const isTrainer = role === 'trainer'
 
           return (
@@ -266,29 +281,30 @@ export const RiskBoardView: React.FC = () => {
 
               {/* Action Buttons & Acknowledge Checkbox */}
               <div className="pt-3 border-t border-border flex items-center justify-between gap-2 text-xs">
-                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-text-muted select-none">
-                  <input
-                    type="checkbox"
-                    checked={isAck}
-                    onChange={() => toggleAcknowledge(st.id)}
-                    className="rounded border-border-strong text-accent focus:ring-accent w-3.5 h-3.5"
-                  />
-                  <span>Acknowledge</span>
-                </label>
+                <div className="flex flex-col gap-0.5">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-text-muted select-none">
+                    <input
+                      type="checkbox"
+                      checked={isAck}
+                      onChange={() => toggleAcknowledge(st.id)}
+                      className="rounded border-border-strong text-accent focus:ring-accent w-3.5 h-3.5"
+                    />
+                    <span>Acknowledge</span>
+                  </label>
+                  {isAck && ackInfo && (
+                    <span className="text-[10px] text-accent">
+                      Ack'd by {ackInfo.by} ({ackInfo.at})
+                    </span>
+                  )}
+                </div>
 
                 <Button
                   variant="secondary"
                   size="xs"
-                  onClick={() => {
-                    success(
-                      `Drafting check-in reminder for ${st.name.split(' ')[0]}`,
-                      'Opening approval staging.'
-                    )
-                    navigate('/approvals')
-                  }}
+                  onClick={() => handleDraftCheckIn(st)}
                   leftIcon={<MessageSquare className="w-3 h-3" />}
                 >
-                  Draft reminder
+                  Draft check-in
                 </Button>
               </div>
             </div>

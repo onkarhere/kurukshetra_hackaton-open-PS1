@@ -11,8 +11,8 @@ interface AppContextType {
   branch: Branch | 'All'
   setBranch: (branch: Branch | 'All') => void
   isAuthenticated: boolean
-  login: (userOrCredentials: { email: string; password?: string; role?: UserRole; name?: string; branch?: Branch | 'All' }) => Promise<{ success: boolean; error?: string }>
-  register: (params: { name: string; email: string; password: string; role: UserRole; branch: Branch }) => Promise<{ success: boolean; error?: string }>
+  login: (userOrCredentials: { email: string; password?: string; role?: UserRole; name?: string; branch?: Branch | 'All'; isPersonaSwitch?: boolean }) => Promise<{ success: boolean; error?: string; user?: User }>
+  register: (params: { name: string; email: string; password: string; role?: UserRole; branch?: Branch }) => Promise<{ success: boolean; error?: string; message?: string }>
   logout: () => Promise<void>
   copilotOpen: boolean
   setCopilotOpen: (open: boolean) => void
@@ -79,20 +79,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const toggleCopilot = () => setCopilotOpen((prev) => !prev)
 
-  // Helper to read/write custom registered accounts
-  const getStoredAccounts = (): Record<string, { name: string; email: string; password?: string; role: UserRole; branch: Branch }> => {
-    try {
-      const raw = localStorage.getItem('batchwise_registered_users')
-      return raw ? JSON.parse(raw) : {}
-    } catch {
-      return {}
-    }
+  // P0-2: Strict demo credentials map
+  const DEMO_CREDENTIALS: Record<
+    string,
+    { password: string; name: string; role: UserRole; branch: Branch | 'All' }
+  > = {
+    'rajesh@codecraft.ac.in': {
+      password: 'Admin@1234',
+      name: 'Rajesh Sharma',
+      role: 'owner',
+      branch: 'All',
+    },
+    'arjun.mehta@codecraft.ac.in': {
+      password: 'Trainer@1234',
+      name: 'Arjun Mehta',
+      role: 'trainer',
+      branch: 'Kothrud',
+    },
+    'snehal@codecraft.ac.in': {
+      password: 'Counselor@1234',
+      name: 'Snehal Kulkarni',
+      role: 'counselor',
+      branch: 'Kothrud',
+    },
+    'accounts@codecraft.ac.in': {
+      password: 'Accounts@1234',
+      name: 'Sunita Accounts',
+      role: 'accounts',
+      branch: 'All',
+    },
+    'priya.nair@gmail.com': {
+      password: 'Student@1234',
+      name: 'Priya Nair',
+      role: 'student',
+      branch: 'Kothrud',
+    },
   }
 
-  // Login handler supporting Supabase Auth + registered accounts + demo personas
-  const login = async (creds: { email: string; password?: string; role?: UserRole; name?: string; branch?: Branch | 'All' }) => {
+  // Login handler: Supabase Auth OR exact Demo Credentials only
+  const login = async (creds: {
+    email: string
+    password?: string
+    role?: UserRole
+    name?: string
+    branch?: Branch | 'All'
+    isPersonaSwitch?: boolean
+  }): Promise<{ success: boolean; error?: string; user?: User }> => {
     try {
       const normalizedEmail = creds.email.trim().toLowerCase()
+
+      // Quick-access demo persona switch
+      if (creds.isPersonaSwitch && creds.role) {
+        const demo = Object.values(DEMO_CREDENTIALS).find((d) => d.role === creds.role)
+        const demoEmail = Object.keys(DEMO_CREDENTIALS).find((k) => DEMO_CREDENTIALS[k].role === creds.role) || normalizedEmail
+        const userObj: User = {
+          id: `usr-${creds.role}`,
+          email: demoEmail,
+          name: demo?.name || creds.name || 'User',
+          role: creds.role,
+          branch: demo?.branch || creds.branch || 'Kothrud',
+        }
+        store.login(userObj)
+        return { success: true, user: userObj }
+      }
 
       // 1. Attempt Supabase Auth sign in if password provided
       if (creds.password) {
@@ -103,114 +152,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const userObj: User = {
               id: data.user.id,
               email: data.user.email || normalizedEmail,
-              name: meta.name || creds.name || normalizedEmail.split('@')[0],
-              role: (meta.role as UserRole) || creds.role || 'owner',
-              branch: (meta.branch as Branch) || creds.branch || 'Kothrud',
+              name: meta.name || normalizedEmail.split('@')[0],
+              role: (meta.role as UserRole) || 'student',
+              branch: (meta.branch as Branch) || 'Kothrud',
             }
             store.login(userObj)
-            return { success: true }
+            return { success: true, user: userObj }
           }
         } catch {
-          // Continue to fallback
+          // Continue to demo credentials verification
         }
       }
 
-      // 2. Check locally registered users
-      const stored = getStoredAccounts()
-      const registered = stored[normalizedEmail]
-      if (registered) {
-        if (creds.password && registered.password && creds.password !== registered.password) {
-          return { success: false, error: 'Incorrect password. Please verify and try again.' }
+      // 2. Check demo accounts and passwords strictly
+      const demoAccount = DEMO_CREDENTIALS[normalizedEmail]
+      if (demoAccount) {
+        if (creds.password === demoAccount.password) {
+          const userObj: User = {
+            id: `usr-${demoAccount.role}`,
+            email: normalizedEmail,
+            name: demoAccount.name,
+            role: demoAccount.role,
+            branch: demoAccount.branch,
+          }
+          store.login(userObj)
+          return { success: true, user: userObj }
+        } else {
+          return { success: false, error: 'Incorrect email or password' }
         }
+      }
+
+      // Reject all unrecognized emails or passwords
+      return { success: false, error: 'Incorrect email or password' }
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Authentication failed' }
+    }
+  }
+
+  // Registration handler: Calls Supabase sign-up only, always role 'student'
+  const register = async (params: {
+    name: string
+    email: string
+    password: string
+    branch?: Branch
+  }): Promise<{ success: boolean; error?: string; message?: string }> => {
+    const normalizedEmail = params.email.trim().toLowerCase()
+    try {
+      const { data, error } = await signUpWithSupabase(normalizedEmail, params.password, {
+        name: params.name,
+        role: 'student',
+        branch: params.branch || 'Kothrud',
+      })
+
+      if (error) {
+        return { success: false, error: error.message }
+      }
+
+      if (data?.user && !data.session) {
+        return {
+          success: true,
+          message: 'Check your email to confirm your account',
+        }
+      }
+
+      if (data?.user && data.session) {
         const userObj: User = {
-          id: `usr-${registered.email}`,
-          name: registered.name,
-          email: registered.email,
-          role: registered.role,
-          branch: registered.branch,
+          id: data.user.id,
+          name: params.name,
+          email: normalizedEmail,
+          role: 'student',
+          branch: params.branch || 'Kothrud',
         }
         store.login(userObj)
         return { success: true }
       }
 
-      // 3. Fallback persona / pre-configured accounts
-      const determinedRole: UserRole =
-        creds.role ||
-        (normalizedEmail.includes('trainer') || normalizedEmail.includes('arjun')
-          ? 'trainer'
-          : normalizedEmail.includes('counselor') || normalizedEmail.includes('snehal')
-          ? 'counselor'
-          : normalizedEmail.includes('account') || normalizedEmail.includes('sunita')
-          ? 'accounts'
-          : normalizedEmail.includes('student') || normalizedEmail.includes('priya')
-          ? 'student'
-          : 'owner')
-
-      const determinedName: string =
-        creds.name ||
-        (determinedRole === 'trainer'
-          ? 'Arjun Mehta'
-          : determinedRole === 'counselor'
-          ? 'Snehal Kulkarni'
-          : determinedRole === 'accounts'
-          ? 'Sunita Accounts'
-          : determinedRole === 'student'
-          ? 'Priya Nair'
-          : 'Rajesh Sharma')
-
-      const determinedBranch: Branch | 'All' =
-        creds.branch || (determinedRole === 'trainer' ? 'Kothrud' : determinedRole === 'counselor' ? 'Baner' : 'All')
-
-      const userObj: User = {
-        id: `usr-${Date.now()}`,
-        name: determinedName,
-        email: normalizedEmail,
-        role: determinedRole,
-        branch: determinedBranch,
+      return {
+        success: true,
+        message: 'Check your email to confirm your account',
       }
-      store.login(userObj)
-      return { success: true }
-    } catch (err: any) {
-      return { success: false, error: err?.message || 'Login failed' }
-    }
-  }
-
-  // Registration handler supporting Supabase Auth + local persistence
-  const register = async (params: { name: string; email: string; password: string; role: UserRole; branch: Branch }) => {
-    const normalizedEmail = params.email.trim().toLowerCase()
-    try {
-      // 1. Try Supabase Auth
-      try {
-        await signUpWithSupabase(normalizedEmail, params.password, {
-          name: params.name,
-          role: params.role,
-          branch: params.branch,
-        })
-      } catch {
-        // Supabase network fallback
-      }
-
-      // 2. Persist locally so user can always log in immediately
-      const accounts = getStoredAccounts()
-      accounts[normalizedEmail] = {
-        name: params.name,
-        email: normalizedEmail,
-        password: params.password,
-        role: params.role,
-        branch: params.branch,
-      }
-      localStorage.setItem('batchwise_registered_users', JSON.stringify(accounts))
-
-      const userObj: User = {
-        id: `usr-${Date.now()}`,
-        name: params.name,
-        email: normalizedEmail,
-        role: params.role,
-        branch: params.branch,
-      }
-
-      store.login(userObj)
-      return { success: true }
     } catch (err: any) {
       return { success: false, error: err?.message || 'Registration failed' }
     }

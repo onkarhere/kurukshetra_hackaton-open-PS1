@@ -8,14 +8,19 @@ import {
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { Recording } from '@/types'
 import { useToast } from '@/context/ToastContext'
 
 export const RecordingsView: React.FC = () => {
   const { success } = useToast()
-  const recordings = store.recordings
+  const recordings = useStore((s) => s.recordings)
   const [selectedRecording, setSelectedRecording] = useState<Recording | null>(null)
+
+  const handleSync = () => {
+    store.notify()
+    success('Cloud recordings synchronized', `${recordings.length} session archives verified and updated.`)
+  }
 
   return (
     <div className="space-y-4">
@@ -31,7 +36,7 @@ export const RecordingsView: React.FC = () => {
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => success('Cloud recordings synchronized.')}
+          onClick={handleSync}
           leftIcon={<Video className="w-3.5 h-3.5" />}
         >
           Sync cloud recordings

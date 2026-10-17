@@ -11,30 +11,56 @@ import {
   ToggleLeft,
   ToggleRight,
   Lock,
+  RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import { store, useStore } from '@/mocks/store'
 
 export const SettingsView: React.FC = () => {
   const { success } = useToast()
+  const settings = useStore((s) => s.settings)
+
   const [activeSubTab, setActiveSubTab] = useState<
     'attendance_rules' | 'fees_rules' | 'permissions' | 'governance' | 'notifications'
   >('attendance_rules')
 
   const [hasChanges, setHasChanges] = useState(false)
 
-  // Config states
-  const [minAttendanceThreshold, setMinAttendanceThreshold] = useState(75)
-  const [criticalRiskThreshold, setCriticalRiskThreshold] = useState(40)
-  const [lateToleranceMinutes, setLateToleranceMinutes] = useState(10)
-  const [quietHoursStart, setQuietHoursStart] = useState('21:00')
-  const [quietHoursEnd, setQuietHoursEnd] = useState('08:00')
-  const [disableExternalLLMs, setDisableExternalLLMs] = useState(false)
-  const [autoSmsWaivers, setAutoSmsWaivers] = useState(true)
+  // Config states initialized from store
+  const [minAttendanceThreshold, setMinAttendanceThreshold] = useState(settings.minAttendanceThreshold || 75)
+  const [criticalRiskThreshold, setCriticalRiskThreshold] = useState(settings.criticalRiskThreshold || 40)
+  const [lateToleranceMinutes, setLateToleranceMinutes] = useState(settings.lateToleranceMinutes || 10)
+  const [quietHoursStart, setQuietHoursStart] = useState(settings.quietHoursStart || '21:00')
+  const [quietHoursEnd, setQuietHoursEnd] = useState(settings.quietHoursEnd || '08:00')
+  const [disableExternalLLMs, setDisableExternalLLMs] = useState(settings.disableExternalLLMs || false)
+  const [autoSmsWaivers, setAutoSmsWaivers] = useState(settings.autoSmsWaivers !== undefined ? settings.autoSmsWaivers : true)
 
   const handleSave = () => {
+    store.updateSettings({
+      minAttendanceThreshold,
+      criticalRiskThreshold,
+      lateToleranceMinutes,
+      quietHoursStart,
+      quietHoursEnd,
+      disableExternalLLMs,
+      autoSmsWaivers,
+    })
     setHasChanges(false)
     success('Settings saved', 'Configuration changes are now active.')
+  }
+
+  const handleResetDemo = () => {
+    store.resetDemo()
+    setMinAttendanceThreshold(75)
+    setCriticalRiskThreshold(40)
+    setLateToleranceMinutes(10)
+    setQuietHoursStart('21:00')
+    setQuietHoursEnd('08:00')
+    setDisableExternalLLMs(false)
+    setAutoSmsWaivers(true)
+    setHasChanges(false)
+    success('Demo data restored', 'Restored all seed batches, students, instalments, and messages.')
   }
 
   return (
@@ -47,16 +73,26 @@ export const SettingsView: React.FC = () => {
             Operational thresholds, role permissions, data privacy guardrails and quiet hours
           </p>
         </div>
-        {hasChanges && (
+        <div className="flex items-center gap-2">
           <Button
-            variant="primary"
+            variant="secondary"
             size="sm"
-            onClick={handleSave}
-            leftIcon={<Save className="w-3.5 h-3.5" />}
+            onClick={handleResetDemo}
+            leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
           >
-            Save changes
+            Reset demo data
           </Button>
-        )}
+          {hasChanges && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSave}
+              leftIcon={<Save className="w-3.5 h-3.5" />}
+            >
+              Save changes
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Sub-nav tabs */}

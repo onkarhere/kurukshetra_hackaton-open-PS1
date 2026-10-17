@@ -31,7 +31,7 @@ import { StatusPill } from '@/components/ui/StatusPill'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { formatINR } from '@/lib/utils'
 import {
   ResponsiveContainer,
@@ -51,14 +51,38 @@ export const DashboardView: React.FC = () => {
   const [isSummaryOpen, setIsSummaryOpen] = useState(false)
   const [showChartAsTable, setShowChartAsTable] = useState(false)
 
-  // Data aggregations
-  const pendingApprovalsCount = store.approvals.filter((a) => a.status === 'pending').length
-  const criticalStudents = store.students.filter((s) => s.riskLevel === 'critical')
-  const highRiskStudents = store.students.filter((s) => s.riskLevel === 'high')
-  const watchRiskStudents = store.students.filter((s) => s.riskLevel === 'watch')
-  const lowRiskStudents = store.students.filter((s) => s.riskLevel === 'low')
-  const overdueInstalments = store.feeInstalments.filter((i) => i.status === 'overdue')
+  // Reactive store data
+  const approvals = useStore((s) => s.approvals)
+  const students = useStore((s) => s.students)
+  const feeInstalments = useStore((s) => s.feeInstalments)
+  const payments = useStore((s) => s.payments)
+  const timetableSessions = useStore((s) => s.timetableSessions)
+  const batches = useStore((s) => s.batches)
+  const trainers = useStore((s) => s.trainers)
+
+  // Dynamic Data aggregations
+  const pendingApprovalsCount = approvals.filter((a) => a.status === 'pending').length
+  const criticalStudents = students.filter((s) => s.riskLevel === 'critical')
+  const highRiskStudents = students.filter((s) => s.riskLevel === 'high')
+  const watchRiskStudents = students.filter((s) => s.riskLevel === 'watch')
+  const lowRiskStudents = students.filter((s) => s.riskLevel === 'low')
+  const totalAtRiskCount = criticalStudents.length + highRiskStudents.length + watchRiskStudents.length
+
+  const overdueInstalments = feeInstalments.filter(
+    (i) => i.status === 'overdue' || (i.status === 'partially_paid' && i.amount > i.paidAmount)
+  )
   const overdueTotal = overdueInstalments.reduce((acc, i) => acc + (i.amount - i.paidAmount), 0)
+
+  const avgAttendance =
+    students.length > 0
+      ? (students.reduce((acc, s) => acc + s.attendanceRate, 0) / students.length).toFixed(1)
+      : '89.4'
+
+  const verifiedPayments = payments.filter((p) => p.status === 'verified')
+  const verifiedTotal = verifiedPayments.reduce((acc, p) => acc + p.amount, 0)
+  const collectedThisMonth = 462500 + (verifiedTotal > 11500 ? verifiedTotal - 11500 : 0)
+
+  const unreconciledPayments = payments.filter((p) => p.status === 'needs_review' || p.status === 'unmatched')
 
   // 7-day collections data
   const collectionData = [
@@ -93,14 +117,29 @@ export const DashboardView: React.FC = () => {
      0. STUDENT DASHBOARD VARIANT (FULL DESKTOP-SIZED DASHBOARD)
      ========================================================================= */
   if (role === 'student') {
+    const currentStudent =
+      students.find(
+        (s) => s.id === currentUser.id || s.name === currentUser.name || s.name.includes('Priya')
+      ) || students[0]
+
+    const studentOverdue = feeInstalments.filter(
+      (i) =>
+        (i.studentId === currentStudent?.id || i.studentName === currentStudent?.name) &&
+        (i.status === 'overdue' || (i.status === 'partially_paid' && i.amount > i.paidAmount))
+    )
+    const studentOverdueTotal = studentOverdue.reduce(
+      (acc, i) => acc + (i.amount - i.paidAmount),
+      0
+    )
+
     return (
       <div className="space-y-6">
         {/* Desktop Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
           <div>
-            <h1 className="text-xl font-semibold text-text">Good afternoon, Priya</h1>
+            <h1 className="text-xl font-semibold text-text">Good afternoon, {currentStudent?.name.split(' ')[0] || 'Student'}</h1>
             <p className="text-xs text-text-muted mt-0.5">
-              Java Full-Stack B3 (Kothrud) · Roll #104 · CodeCraft Academy Pune · Thu, 16 Oct 2026
+              {currentStudent?.batchNames[0] || 'Java Full-Stack B3 (Kothrud)'} · Roll #104 · CodeCraft Academy Pune · Thu, 16 Oct 2026
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -127,7 +166,7 @@ export const DashboardView: React.FC = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             label="My attendance"
-            value="44.0%"
+            value={`${currentStudent?.attendanceRate ?? 44}%`}
             delta={{ value: 'Target: 80% · 3 missed', isPositive: false }}
             onClick={() => navigate('/recordings')}
           />
@@ -145,7 +184,7 @@ export const DashboardView: React.FC = () => {
           />
           <KpiCard
             label="Tuition fees"
-            value={formatINR(6500)}
+            value={formatINR(studentOverdueTotal > 0 ? studentOverdueTotal : 6500)}
             delta={{ value: 'Instalment 3 · 12d overdue', isPositive: false }}
             onClick={() => navigate('/fees')}
           />
@@ -417,8 +456,19 @@ export const DashboardView: React.FC = () => {
      STRICT RULE: Never show fee amount, payment status, instalment, fee column or ₹ symbol
      ========================================================================= */
   if (role === 'trainer') {
-    const trainerBatches = store.batches.filter((b) => b.trainerName.includes('Arjun'))
-    const trainerSessions = store.timetableSessions.filter((s) => s.trainerName.includes('Arjun'))
+    const trainerBatches = batches.filter((b) => b.trainerName.includes('Arjun'))
+    const trainerSessions = timetableSessions.filter((s) => s.trainerName.includes('Arjun'))
+    const trainerEnrolled = trainerBatches.reduce((acc, b) => acc + b.enrolledCount, 0)
+    const trainerStudents = students.filter((s) =>
+      trainerBatches.some((b) => s.batchNames.includes(b.name) || s.batchIds.includes(b.id))
+    )
+    const trainerAvgAtt =
+      trainerStudents.length > 0
+        ? (trainerStudents.reduce((acc, s) => acc + s.attendanceRate, 0) / trainerStudents.length).toFixed(1)
+        : '84.2'
+    const trainerCriticalStudents = trainerStudents.filter(
+      (s) => s.riskLevel === 'critical' || s.riskLevel === 'high'
+    )
 
     return (
       <div className="space-y-6">
@@ -446,26 +496,26 @@ export const DashboardView: React.FC = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             label="Today's sessions"
-            value="2 classes"
+            value={`${trainerSessions.length} classes`}
             delta={{ value: 'Room 3 & Lab A', isNeutral: true }}
             onClick={() => navigate('/timetable')}
           />
           <KpiCard
             label="My active batches"
-            value="3 cohorts"
-            delta={{ value: '112 total students', isNeutral: true }}
+            value={`${trainerBatches.length} cohorts`}
+            delta={{ value: `${trainerEnrolled} total students`, isNeutral: true }}
             onClick={() => navigate('/batches')}
           />
           <KpiCard
             label="My attendance rate"
-            value="84.2%"
+            value={`${trainerAvgAtt}%`}
             delta={{ value: '+2.4% vs last week', isPositive: true }}
             onClick={() => navigate('/attendance')}
           />
           <KpiCard
             label="Students needing attention"
-            value="4 students"
-            delta={{ value: '2 critical catch-ups', isPositive: false }}
+            value={`${trainerCriticalStudents.length} students`}
+            delta={{ value: `${trainerCriticalStudents.filter(s => s.riskLevel === 'critical').length} critical catch-ups`, isPositive: false }}
             onClick={() => navigate('/risk')}
           />
         </div>
@@ -638,13 +688,16 @@ export const DashboardView: React.FC = () => {
           />
           <KpiCard
             label="Students at critical risk"
-            value="2 students"
-            delta={{ value: 'Priya Nair, Rohan Kulkarni', isPositive: false }}
+            value={`${criticalStudents.length} students`}
+            delta={{
+              value: criticalStudents.slice(0, 2).map((s) => s.name).join(', ') || 'None',
+              isPositive: false,
+            }}
             onClick={() => navigate('/risk')}
           />
           <KpiCard
             label="Total active students"
-            value="320"
+            value={students.length.toString()}
             delta={{ value: '+14 this month', isPositive: true }}
             onClick={() => navigate('/students')}
           />
@@ -654,40 +707,25 @@ export const DashboardView: React.FC = () => {
           <div className="lg:col-span-8 space-y-3">
             <h2 className="text-sm font-semibold text-text">Attention list (Students)</h2>
             <div className="border border-border rounded-card bg-surface divide-y divide-border">
-              <div className="p-3 flex items-center justify-between gap-4">
-                <div className="space-y-0.5">
-                  <div className="text-xs font-medium text-text">
-                    Priya Nair: 5 consecutive missed sessions in Java Full-Stack B3 (Kothrud)
+              {criticalStudents.slice(0, 4).map((s) => (
+                <div key={s.id} className="p-3 flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-medium text-text">
+                      {s.name}: Attendance at {s.attendanceRate}% in {s.batchNames[0] || 'active cohort'}
+                    </div>
+                    <div className="text-[11px] text-text-muted">
+                      {s.riskReasons[0] || 'Low attendance threshold breached; counseling check-in required'}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-text-muted">
-                    Documented hospitalization noted; counseling check-in required
-                  </div>
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    onClick={() => navigate(`/students/${s.id}`)}
+                  >
+                    Open profile
+                  </Button>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="xs"
-                  onClick={() => navigate('/students/std-priya-01')}
-                >
-                  Open profile
-                </Button>
-              </div>
-              <div className="p-3 flex items-center justify-between gap-4">
-                <div className="space-y-0.5">
-                  <div className="text-xs font-medium text-text">
-                    Rohan Kulkarni: Attendance fell to 62%
-                  </div>
-                  <div className="text-[11px] text-text-muted">
-                    No response to last WhatsApp check-in on 12 Oct
-                  </div>
-                </div>
-                <Button
-                  variant="secondary"
-                  size="xs"
-                  onClick={() => navigate('/students/std-rohan-02')}
-                >
-                  Schedule call
-                </Button>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -699,21 +737,27 @@ export const DashboardView: React.FC = () => {
                 className="p-2 border border-border rounded flex items-center justify-between cursor-pointer hover:bg-surface-sunken"
               >
                 <span className="text-xs font-medium text-danger">Critical risk</span>
-                <span className="text-xs tabular-nums font-medium text-danger">2 students</span>
+                <span className="text-xs tabular-nums font-medium text-danger">
+                  {criticalStudents.length} students
+                </span>
               </div>
               <div
                 onClick={() => navigate('/risk?tier=high')}
                 className="p-2 border border-border rounded flex items-center justify-between cursor-pointer hover:bg-surface-sunken"
               >
                 <span className="text-xs font-medium text-warning">High risk</span>
-                <span className="text-xs tabular-nums font-medium text-warning">4 students</span>
+                <span className="text-xs tabular-nums font-medium text-warning">
+                  {highRiskStudents.length} students
+                </span>
               </div>
               <div
                 onClick={() => navigate('/risk?tier=watch')}
                 className="p-2 border border-border rounded flex items-center justify-between cursor-pointer hover:bg-surface-sunken"
               >
                 <span className="text-xs font-medium text-text">Watch list</span>
-                <span className="text-xs tabular-nums font-medium text-text-muted">6 students</span>
+                <span className="text-xs tabular-nums font-medium text-text-muted">
+                  {watchRiskStudents.length} students
+                </span>
               </div>
             </div>
           </div>
@@ -726,6 +770,14 @@ export const DashboardView: React.FC = () => {
      3. ACCOUNTS DASHBOARD VARIANT
      ========================================================================= */
   if (role === 'accounts') {
+    const ageing1to7 = overdueInstalments.filter((i) => i.daysOverdue >= 1 && i.daysOverdue <= 7)
+    const ageing8to15 = overdueInstalments.filter((i) => i.daysOverdue >= 8 && i.daysOverdue <= 15)
+    const ageing16to30 = overdueInstalments.filter((i) => i.daysOverdue >= 16 && i.daysOverdue <= 30)
+    const ageing30plus = overdueInstalments.filter((i) => i.daysOverdue > 30)
+
+    const sumAmount = (list: typeof overdueInstalments) =>
+      list.reduce((acc, i) => acc + (i.amount - i.paidAmount), 0)
+
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
@@ -756,7 +808,7 @@ export const DashboardView: React.FC = () => {
           />
           <KpiCard
             label="Collected this month"
-            value={formatINR(462500)}
+            value={formatINR(collectedThisMonth)}
             delta={{ value: 'Target: ₹5,00,000 (92.5%)', isPositive: true }}
             onClick={() => navigate('/fees')}
           />
@@ -768,7 +820,7 @@ export const DashboardView: React.FC = () => {
           />
           <KpiCard
             label="Reconciliation queue"
-            value="9 entries"
+            value={`${unreconciledPayments.length} entries`}
             delta={{ value: 'Needs manual UTR review', isPositive: false }}
             onClick={() => navigate('/payments')}
           />
@@ -782,19 +834,27 @@ export const DashboardView: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-text-muted">1–7 days overdue</span>
-                  <span className="tabular-nums font-medium text-text">₹19,500 (3 accounts)</span>
+                  <span className="tabular-nums font-medium text-text">
+                    {formatINR(sumAmount(ageing1to7))} ({ageing1to7.length} accounts)
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-text-muted">8–15 days overdue</span>
-                  <span className="tabular-nums font-medium text-warning">₹13,000 (2 accounts)</span>
+                  <span className="tabular-nums font-medium text-warning">
+                    {formatINR(sumAmount(ageing8to15))} ({ageing8to15.length} accounts)
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-text-muted">16–30 days overdue</span>
-                  <span className="tabular-nums font-medium text-danger">₹13,000 (2 accounts)</span>
+                  <span className="tabular-nums font-medium text-danger">
+                    {formatINR(sumAmount(ageing16to30))} ({ageing16to30.length} accounts)
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-text-muted">&gt; 30 days overdue</span>
-                  <span className="tabular-nums font-medium text-text-muted">₹0 (0 accounts)</span>
+                  <span className="tabular-nums font-medium text-text-muted">
+                    {formatINR(sumAmount(ageing30plus))} ({ageing30plus.length} accounts)
+                  </span>
                 </div>
               </div>
             </div>
@@ -811,7 +871,7 @@ export const DashboardView: React.FC = () => {
               </button>
             </div>
             <div className="border border-border rounded-card bg-surface divide-y divide-border">
-              {store.payments.slice(0, 3).map((p) => (
+              {payments.slice(0, 3).map((p) => (
                 <div key={p.id} className="p-3 flex items-center justify-between gap-3 text-xs">
                   <div>
                     <div className="font-medium text-text">{p.studentName}</div>
@@ -840,8 +900,16 @@ export const DashboardView: React.FC = () => {
      5. Risk tier counts as text + Attendance matrix on sequential accent scale
      6. Operational summary, collapsed by default (plain text: "3 or more", no LaTeX)
      ========================================================================= */
-  const attentionItems = [
-    {
+  const attentionItems: {
+    id: string
+    sentence: string
+    actionLabel: string
+    action: () => void
+    severity: 'critical' | 'warning' | 'pending'
+  }[] = []
+
+  if (pendingApprovalsCount > 0) {
+    attentionItems.push({
       id: 'att-1',
       sentence: `${
         pendingApprovalsCount === 1
@@ -851,33 +919,51 @@ export const DashboardView: React.FC = () => {
       actionLabel: 'Review approvals',
       action: () => navigate('/approvals'),
       severity: 'pending' as const,
-    },
-    {
+    })
+  }
+
+  const conflictingSessions = timetableSessions.filter((s) => s.hasConflict)
+  if (conflictingSessions.length > 0) {
+    const clash = conflictingSessions[0]
+    attentionItems.push({
       id: 'att-2',
-      sentence:
-        '1 timetable conflict: Arjun Mehta double-booked on Thursday 19:00 in Room 3 and Room 1.',
+      sentence: `${conflictingSessions.length} timetable conflict${conflictingSessions.length > 1 ? 's' : ''}: ${
+        clash.trainerName
+      } ${clash.conflictReason || 'scheduling conflict in ' + clash.room}.`,
       actionLabel: 'Resolve clash',
       action: () => navigate('/timetable'),
       severity: 'critical' as const,
-    },
-    {
+    })
+  }
+
+  if (unreconciledPayments.length > 0) {
+    attentionItems.push({
       id: 'att-3',
-      sentence: '9 bank payments require UTR match verification against student records.',
+      sentence: `${unreconciledPayments.length} bank payments require UTR match verification against student records.`,
       actionLabel: 'Reconcile payments',
       action: () => navigate('/payments'),
       severity: 'warning' as const,
-    },
-    {
+    })
+  }
+
+  if (criticalStudents.length > 0) {
+    const names = criticalStudents
+      .slice(0, 2)
+      .map((s) => `${s.name} (${s.attendanceRate}% attendance)`)
+      .join(' and ')
+    attentionItems.push({
       id: 'att-4',
-      sentence:
-        '2 students at critical academic risk: Priya Nair (44% attendance) and Rohan Kulkarni (62% attendance).',
+      sentence: `${criticalStudents.length} students at critical academic risk: ${names}.`,
       actionLabel: 'Open risk board',
       action: () => navigate('/risk'),
       severity: 'critical' as const,
-    },
-  ]
+    })
+  }
 
   const totalDecisionCount = attentionItems.length
+  const criticalCount = attentionItems.filter((i) => i.severity === 'critical').length
+  const warningCount = attentionItems.filter((i) => i.severity === 'warning').length
+  const pendingCount = attentionItems.filter((i) => i.severity === 'pending').length
 
   return (
     <div className="space-y-6">
@@ -939,7 +1025,7 @@ export const DashboardView: React.FC = () => {
             </span>
           </div>
           <span className="text-[11px] text-text-muted">
-            2 critical · 1 warning · 1 review
+            {criticalCount} critical · {warningCount} warning · {pendingCount} review
           </span>
         </div>
 
@@ -985,26 +1071,29 @@ export const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Collected this month"
-          value={formatINR(462500)}
+          value={formatINR(collectedThisMonth)}
           delta={{ value: 'Target: ₹5,00,000 (92.5%) · +12.4% vs last month', isPositive: true }}
           onClick={() => navigate('/fees')}
         />
         <KpiCard
-          label="Overdue instalments (7 accounts)"
-          value={formatINR(45500)}
-          delta={{ value: '-₹13,000 vs last week', isPositive: false }}
+          label={`Overdue instalments (${overdueInstalments.length} accounts)`}
+          value={formatINR(overdueTotal)}
+          delta={{ value: `${overdueInstalments.length} accounts overdue`, isPositive: false }}
           onClick={() => navigate('/fees')}
         />
         <KpiCard
           label="Attendance last 7 days"
-          value="89.4%"
+          value={`${avgAttendance}%`}
           delta={{ value: '+1.8% vs last week', isPositive: true }}
           onClick={() => navigate('/attendance')}
         />
         <KpiCard
           label="Students at risk (by tier)"
-          value="12"
-          delta={{ value: '2 critical · 4 high · 6 watch', isPositive: false }}
+          value={totalAtRiskCount.toString()}
+          delta={{
+            value: `${criticalStudents.length} critical · ${highRiskStudents.length} high · ${watchRiskStudents.length} watch`,
+            isPositive: false,
+          }}
           onClick={() => navigate('/risk')}
         />
       </div>

@@ -8,12 +8,12 @@ import {
 } from 'lucide-react'
 import { ApprovalCard } from '@/components/app/ApprovalCard'
 import { ReasonChip } from '@/components/ui/ReasonChip'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { ApprovalAction } from '@/types'
 import { cn } from '@/lib/utils'
 
 export const ApprovalsView: React.FC = () => {
-  const [approvals, setApprovals] = useState<ApprovalAction[]>([...store.approvals])
+  const approvals = useStore((s) => s.approvals)
   const [selectedApprovalId, setSelectedApprovalId] = useState<string>(
     store.approvals[0]?.id || ''
   )
@@ -137,8 +137,6 @@ export const ApprovalsView: React.FC = () => {
               <div className="sticky top-20">
                 <ApprovalCard
                   approval={selectedApproval}
-                  onApproved={() => setApprovals([...store.approvals])}
-                  onRejected={() => setApprovals([...store.approvals])}
                 />
               </div>
             ) : (

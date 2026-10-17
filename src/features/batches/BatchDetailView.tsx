@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -11,20 +11,96 @@ import {
   Download,
   CheckCircle2,
   AlertTriangle,
+  X,
+  Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { useToast } from '@/context/ToastContext'
+import { exportToCsv } from '@/lib/exportCsv'
+
+interface RoomOption {
+  name: string
+  capacity: number
+}
+
+const AVAILABLE_ROOMS: RoomOption[] = [
+  { name: 'Room 1', capacity: 30 },
+  { name: 'Room 2', capacity: 25 },
+  { name: 'Room 3', capacity: 28 },
+  { name: 'Room 4', capacity: 42 },
+  { name: 'Lab A', capacity: 36 },
+  { name: 'Lab B', capacity: 32 },
+]
 
 export const BatchDetailView: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { success } = useToast()
+  const { success, error } = useToast()
 
-  const batch = store.batches.find((b) => b.id === id) || store.batches[0]
-  const enrolledStudents = store.students.filter((s) => s.batchIds.includes(batch.id))
+  const batches = useStore((s) => s.batches)
+  const students = useStore((s) => s.students)
+  const timetableSessions = useStore((s) => s.timetableSessions)
+
+  const batch = batches.find((b) => b.id === id) || batches[0]
+  const enrolledStudents = students.filter((s) => s.batchIds.includes(batch.id))
 
   const isOverCapacity = batch.enrolledCount > batch.capacity
+
+  // Room reassignment modal state
+  const [showRoomModal, setShowRoomModal] = useState(false)
+  const [selectedRoom, setSelectedRoom] = useState(batch.room)
+
+  const handleReassignRoom = (targetRoomName?: string) => {
+    const roomToAssign = targetRoomName || selectedRoom
+    const roomDef = AVAILABLE_ROOMS.find((r) => r.name === roomToAssign)
+
+    if (roomDef && roomDef.capacity < batch.enrolledCount) {
+      error(
+        'Capacity shortfall',
+        `${roomToAssign} capacity (${roomDef.capacity}) is less than enrolled count (${batch.enrolledCount}).`
+      )
+      return
+    }
+
+    // Check for room clash in current schedule
+    const clashSession = timetableSessions.find(
+      (s) =>
+        s.room === roomToAssign &&
+        s.batchId !== batch.id &&
+        s.batchName !== batch.name &&
+        s.dayOfWeek === 1 // sample day check
+    )
+
+    if (clashSession) {
+      error(
+        'Room schedule clash',
+        `${roomToAssign} is already booked by ${clashSession.batchName} on Mon ${clashSession.startTime}-${clashSession.endTime}.`
+      )
+      return
+    }
+
+    store.reassignBatchRoom(batch.id, roomToAssign)
+    setShowRoomModal(false)
+    success(
+      'Room reassigned',
+      `${batch.name} relocated to ${roomToAssign}. Timetable sessions updated.`
+    )
+  }
+
+  const handleExportRoster = () => {
+    const exportRows = enrolledStudents.map((s) => ({
+      ID: s.id,
+      Name: s.name,
+      Email: s.email,
+      Phone: s.phone,
+      Batch: batch.name,
+      'Attendance Rate': `${s.attendanceRate}%`,
+      'Risk Level': s.riskLevel,
+    }))
+    exportToCsv(exportRows, `batch_${batch.code}_roster.csv`)
+    success('Roster exported', `Downloaded ${enrolledStudents.length} student records as CSV.`)
+  }
 
   const renderRiskGlyph = (risk: string) => {
     switch (risk) {
@@ -85,6 +161,14 @@ export const BatchDetailView: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowRoomModal(true)}
+              leftIcon={<Building2 className="w-3.5 h-3.5" />}
+            >
+              Reassign room
+            </Button>
+            <Button
               variant="primary"
               size="sm"
               onClick={() => navigate('/sessions/sess-m2')}
@@ -107,9 +191,9 @@ export const BatchDetailView: React.FC = () => {
             <Button
               variant="secondary"
               size="xs"
-              onClick={() => success('Room re-assignment staged')}
+              onClick={() => handleReassignRoom('Room 4')}
             >
-              Move to Room 4
+              Relocate to Room 4 (Cap 42)
             </Button>
           </div>
         )}
@@ -146,7 +230,7 @@ export const BatchDetailView: React.FC = () => {
           <Button
             variant="secondary"
             size="xs"
-            onClick={() => success('Exporting batch roster...')}
+            onClick={handleExportRoster}
             leftIcon={<Download className="w-3 h-3" />}
           >
             Export roster
@@ -194,6 +278,100 @@ export const BatchDetailView: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Reassign Room Modal */}
+      {showRoomModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setShowRoomModal(false)}
+        >
+          <div
+            className="w-full max-w-md bg-surface border border-border rounded-dialog shadow-dialog p-5 text-text space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="text-sm font-semibold text-text">Reassign lecture room</h3>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Batch: {batch.name} ({batch.enrolledCount} enrolled)
+                </p>
+              </div>
+              <button
+                onClick={() => setShowRoomModal(false)}
+                className="text-text-muted hover:text-text p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <label className="block text-text-muted font-medium">Select target facility</label>
+              <div className="space-y-2">
+                {AVAILABLE_ROOMS.map((rm) => {
+                  const hasCapacity = rm.capacity >= batch.enrolledCount
+                  const isCurrent = rm.name === batch.room
+                  const isSelected = rm.name === selectedRoom
+
+                  return (
+                    <div
+                      key={rm.name}
+                      onClick={() => setSelectedRoom(rm.name)}
+                      className={`p-3 rounded-control border cursor-pointer flex items-center justify-between transition-colors ${
+                        isSelected
+                          ? 'border-border-strong bg-surface-sunken'
+                          : 'border-border bg-surface hover:bg-surface-sunken/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-text-muted" />
+                        <div>
+                          <div className="font-medium text-text">
+                            {rm.name} {isCurrent && '(Current)'}
+                          </div>
+                          <div className="text-[11px] text-text-muted">
+                            Capacity: {rm.capacity} seats
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        {hasCapacity ? (
+                          <span className="text-[10px] text-success font-medium px-2 py-0.5 rounded bg-success/10 border border-success/20">
+                            Fits {batch.enrolledCount}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-danger font-medium px-2 py-0.5 rounded bg-danger/10 border border-danger/20">
+                            Too small ({rm.capacity})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="pt-3 border-t border-border flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowRoomModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => handleReassignRoom()}
+                >
+                  Confirm reassignment
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -10,10 +10,11 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ReasonChip } from '@/components/ui/ReasonChip'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { cn } from '@/lib/utils'
+import { replan } from '@/features/timetable/scheduler'
 
 export const TrainerProfileView: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -21,7 +22,9 @@ export const TrainerProfileView: React.FC = () => {
   const { role } = useApp()
   const { success } = useToast()
 
-  const trainer = store.trainers.find((t) => t.id === id) || store.trainers[0]
+  const trainers = useStore((s) => s.trainers)
+  const batches = useStore((s) => s.batches)
+  const trainer = trainers.find((t) => t.id === id) || trainers[0]
 
   // Availability matrix state (7 days x 14 hourly slots)
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -68,6 +71,35 @@ export const TrainerProfileView: React.FC = () => {
     }
   }
 
+  const handleSaveAvailability = () => {
+    store.updateTrainerAvailability(trainer.id, availability)
+    success('Updated and saved availability matrix.')
+  }
+
+  const handleApproveLeave = (leaveId: string, leaveDate: string) => {
+    store.approveTrainerLeave(trainer.id, leaveId)
+    const replanResult = replan(
+      store.timetableSessions,
+      { type: 'trainer_leave', trainerId: trainer.id, dates: [leaveDate] },
+      store.trainers,
+      batches
+    )
+    store.timetableSessions = replanResult.updatedSessions
+    store.createTimetablePublishApproval(
+      replanResult.diff.map((d) => ({
+        before: d.before,
+        after: d.after,
+        reason: d.reason,
+      }))
+    )
+    store.notify()
+    success(
+      'Leave approved',
+      `Timetable re-planned (${replanResult.movedCount} moved, ${replanResult.substituteCount} substitute assigned)`
+    )
+    navigate('/timetable', { state: { diffMode: true } })
+  }
+
   return (
     <div className="space-y-4">
       {/* Back button */}
@@ -106,7 +138,7 @@ export const TrainerProfileView: React.FC = () => {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => success('Updated trainer availability matrix.')}
+              onClick={handleSaveAvailability}
             >
               Save availability
             </Button>
@@ -231,7 +263,7 @@ export const TrainerProfileView: React.FC = () => {
                   <Button
                     variant="secondary"
                     size="xs"
-                    onClick={() => success('Approved leave and scheduled re-plan diff')}
+                    onClick={() => handleApproveLeave(l.id, l.date)}
                   >
                     Approve leave
                   </Button>

@@ -6,6 +6,8 @@ import { ToastProvider } from '@/context/ToastContext'
 import { AppProvider } from '@/context/AppContext'
 import { AppLayout } from '@/components/app/AppLayout'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import { ErrorBoundary } from '@/components/common/ErrorBoundary'
+import { ROUTE_ROLES } from '@/lib/permissions'
 
 // Features
 import { DashboardView } from '@/features/dashboard/DashboardView'
@@ -45,53 +47,251 @@ export function App() {
         <ToastProvider>
           <BrowserRouter>
             <AppProvider>
-              <Routes>
-                {/* Public & Isolated Routes */}
-                <Route path="/login" element={<LoginView />} />
-                <Route path="/verify/:certNo" element={<CertificateVerifyView />} />
+              <ErrorBoundary>
+                <Routes>
+                  {/* Public & Isolated Routes */}
+                  <Route path="/login" element={<LoginView />} />
+                  <Route path="/verify/:certNo" element={<CertificateVerifyView />} />
 
-                {/* Student Portal (Direct or mobile access) */}
-                <Route path="/s/*" element={<StudentPortalView />} />
-                <Route path="/s" element={<StudentPortalView />} />
+                  {/* Student Portal (Requires logged in student, owner, or admin) */}
+                  <Route
+                    path="/s/*"
+                    element={
+                      <ProtectedRoute allowedRoles={ROUTE_ROLES['/s']}>
+                        <StudentPortalView />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/s"
+                    element={
+                      <ProtectedRoute allowedRoles={ROUTE_ROLES['/s']}>
+                        <StudentPortalView />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Authenticated Application Shell protected by ProtectedRoute */}
-                <Route
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="/" element={<DashboardView />} />
-                  <Route path="/setup" element={<OnboardingView />} />
-                  <Route path="/copilot" element={<CopilotView pageContext="On: Copilot Full View" />} />
-                  <Route path="/approvals" element={<ApprovalsView />} />
-                  <Route path="/timetable" element={<TimetableView />} />
-                  <Route path="/sessions/:id" element={<SessionLiveView />} />
-                  <Route path="/attendance" element={<AttendanceView />} />
-                  <Route path="/recordings" element={<RecordingsView />} />
-                  <Route path="/students" element={<StudentsView />} />
-                  <Route path="/students/:id" element={<StudentProfileView />} />
-                  <Route path="/risk" element={<RiskBoardView />} />
-                  <Route path="/trainers" element={<TrainersView />} />
-                  <Route path="/trainers/:id" element={<TrainerProfileView />} />
-                  <Route path="/courses" element={<CoursesView />} />
-                  <Route path="/batches" element={<BatchesView />} />
-                  <Route path="/batches/:id" element={<BatchDetailView />} />
-                  <Route path="/certificates" element={<CertificatesView />} />
-                  <Route path="/fees" element={<FeesView />} />
-                  <Route path="/payments" element={<PaymentsView />} />
-                  <Route path="/payments/reconcile" element={<PaymentsView />} />
-                  <Route path="/analytics" element={<AnalyticsView />} />
-                  <Route path="/messages" element={<MessagesView />} />
-                  <Route path="/audit" element={<AuditLogView />} />
-                  <Route path="/settings" element={<SettingsView />} />
-                  <Route path="/settings/*" element={<SettingsView />} />
-                  <Route path="/me" element={<ProfileView />} />
-                </Route>
+                  {/* Authenticated Application Shell protected by ProtectedRoute */}
+                  <Route
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/']}>
+                          <DashboardView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/setup"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/setup']}>
+                          <OnboardingView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/copilot"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/copilot']}>
+                          <CopilotView pageContext="On: Copilot Full View" />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/approvals"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/approvals']}>
+                          <ApprovalsView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/timetable"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/timetable']}>
+                          <TimetableView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/sessions/:id"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/sessions']}>
+                          <SessionLiveView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/attendance"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/attendance']}>
+                          <AttendanceView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/recordings"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/recordings']}>
+                          <RecordingsView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/students"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/students']}>
+                          <StudentsView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/students/:id"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/students']}>
+                          <StudentProfileView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/risk"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/risk']}>
+                          <RiskBoardView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/trainers"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/trainers']}>
+                          <TrainersView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/trainers/:id"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/trainers']}>
+                          <TrainerProfileView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/courses"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/courses']}>
+                          <CoursesView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/batches"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/batches']}>
+                          <BatchesView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/batches/:id"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/batches']}>
+                          <BatchDetailView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/certificates"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/certificates']}>
+                          <CertificatesView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/fees"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/fees']}>
+                          <FeesView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/payments"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/payments']}>
+                          <PaymentsView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/payments/reconcile"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/payments/reconcile']}>
+                          <PaymentsView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/analytics"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/analytics']}>
+                          <AnalyticsView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/messages"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/messages']}>
+                          <MessagesView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/audit"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/audit']}>
+                          <AuditLogView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/settings']}>
+                          <SettingsView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings/*"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/settings']}>
+                          <SettingsView />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/me"
+                      element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES['/me']}>
+                          <ProfileView />
+                        </ProtectedRoute>
+                      }
+                    />
+                  </Route>
 
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </ErrorBoundary>
             </AppProvider>
           </BrowserRouter>
         </ToastProvider>

@@ -1,23 +1,19 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
-  ShieldCheck,
   CheckCircle2,
-  Lock,
   ArrowRight,
   Building2,
-  User,
-  Mail,
-  KeyRound,
   AlertCircle,
   Eye,
   EyeOff,
-  Phone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
 import { UserRole, Branch } from '@/types'
+import { store } from '@/mocks/store'
+import { canAccess } from '@/lib/permissions'
 
 export const LoginView: React.FC = () => {
   const navigate = useNavigate()
@@ -38,19 +34,27 @@ export const LoginView: React.FC = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [isOtpSent, setIsOtpSent] = useState(false)
 
-  // Sign up fields
+  // Sign up fields (strictly student role)
   const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
-  const [regRole, setRegRole] = useState<UserRole>('trainer')
   const [regBranch, setRegBranch] = useState<Branch>('Kothrud')
 
-  const redirectAfterAuth = (_userRole?: UserRole) => {
-    const from = (location.state as any)?.from?.pathname || '/'
-    navigate(from, { replace: true })
+  const redirectAfterAuth = (userRole?: UserRole) => {
+    const currentRole = userRole || store.currentUser.role
+    if (currentRole === 'student') {
+      navigate('/s', { replace: true })
+      return
+    }
+    const from = (location.state as any)?.from?.pathname
+    if (from && from !== '/login' && !from.startsWith('/s') && canAccess(currentRole, from)) {
+      navigate(from, { replace: true })
+    } else {
+      navigate('/', { replace: true })
+    }
   }
 
-  // Handle direct Email + Password sign in (NO OTP interception)
+  // Handle direct Email + Password sign in
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMessage(null)
@@ -62,27 +66,28 @@ export const LoginView: React.FC = () => {
           return
         }
         setIsOtpSent(true)
-        success('Verification code generated', `6-digit OTP sent to ${phone}. Enter below to sign in.`)
+        success('Verification code generated', 'Demo code: 482913. Enter below to sign in.')
         return
       }
 
       const enteredOtp = otp.join('')
-      if (enteredOtp.length < 6) {
-        setErrorMessage('Please enter the complete 6-digit verification code.')
+      // P0-2: Phone OTP must accept only the demo code 482913; never accept any random 6 digits
+      if (enteredOtp !== '482913') {
+        setErrorMessage('Invalid verification code. Enter the demo code: 482913.')
         return
       }
 
       setIsLoading(true)
       const res = await login({
-        email: `${phone.replace(/\D/g, '')}@phone.codecraft.ac.in`,
-        name: `User (+91 ${phone.slice(-4)})`,
-        role: 'owner',
+        email: 'priya.nair@gmail.com',
+        role: 'student',
+        isPersonaSwitch: true,
       })
       setIsLoading(false)
 
       if (res.success) {
-        success('Verified successfully', `Signed in with phone number ${phone}`)
-        redirectAfterAuth('owner')
+        success('Verified successfully', `Signed in with demo phone verification`)
+        redirectAfterAuth('student')
       } else {
         setErrorMessage(res.error || 'Verification failed. Please try again.')
       }
@@ -101,14 +106,14 @@ export const LoginView: React.FC = () => {
 
     if (res.success) {
       success('Authentication successful', `Signed in as ${email.trim()}`)
-      redirectAfterAuth()
+      redirectAfterAuth(res.user?.role)
     } else {
-      setErrorMessage(res.error || 'Authentication failed. Please verify your credentials.')
-      toastError('Authentication failed', res.error)
+      setErrorMessage(res.error || 'Incorrect email or password.')
+      toastError('Authentication failed', res.error || 'Incorrect email or password')
     }
   }
 
-  // Handle Account Registration
+  // Handle Account Registration - strictly Student role
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMessage(null)
@@ -123,21 +128,25 @@ export const LoginView: React.FC = () => {
       name: regName.trim(),
       email: regEmail.trim(),
       password: regPassword,
-      role: regRole,
       branch: regBranch,
     })
     setIsLoading(false)
 
     if (res.success) {
-      success('Account created', `Welcome, ${regName}! Signed in as ${regRole}.`)
-      redirectAfterAuth(regRole)
+      if (res.message) {
+        success('Registration submitted', res.message)
+        setMode('signin')
+      } else {
+        success('Account created', `Welcome, ${regName}! Signed in as student.`)
+        redirectAfterAuth('student')
+      }
     } else {
       setErrorMessage(res.error || 'Registration failed. Please try again.')
       toastError('Registration error', res.error)
     }
   }
 
-  // Quick Persona Instant Login
+  // Demo Persona Quick-Login Switcher
   const handleQuickPersona = async (persona: {
     name: string
     email: string
@@ -146,12 +155,12 @@ export const LoginView: React.FC = () => {
   }) => {
     setIsLoading(true)
     setEmail(persona.email)
-    setPassword('Admin@1234')
     const res = await login({
       email: persona.email,
       name: persona.name,
       role: persona.role,
       branch: persona.branch,
+      isPersonaSwitch: true,
     })
     setIsLoading(false)
     if (res.success) {
@@ -262,7 +271,7 @@ export const LoginView: React.FC = () => {
                     : 'border-transparent text-text-muted hover:text-text'
                 }`}
               >
-                Create account
+                Create student account
               </button>
             </div>
             <span className="text-xs text-text-muted">CodeCraft Pune</span>
@@ -377,6 +386,9 @@ export const LoginView: React.FC = () => {
                           required
                           className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 font-mono"
                         />
+                        <p className="text-[11px] text-text-muted font-mono pt-1">
+                          Demo code: <strong>482913</strong>
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -389,6 +401,9 @@ export const LoginView: React.FC = () => {
                           >
                             Change number
                           </button>
+                        </div>
+                        <div className="p-2 rounded-control bg-accent/10 border border-accent/20 text-xs text-accent font-medium">
+                          Demo code: <strong>482913</strong>
                         </div>
                         <div className="flex items-center justify-between gap-1.5 pt-1">
                           {otp.map((digit, idx) => (
@@ -424,10 +439,10 @@ export const LoginView: React.FC = () => {
                 </Button>
               </form>
 
-              {/* Persona Quick-Login Switcher */}
+              {/* Demo accounts Section */}
               <div className="pt-3 border-t border-border space-y-2">
                 <div className="text-[11px] font-medium text-text-muted">
-                  Or instant demo login with pre-configured role:
+                  Demo accounts (Quick sign in):
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <button
@@ -443,7 +458,7 @@ export const LoginView: React.FC = () => {
                     className="p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
                   >
                     <div className="font-medium text-text">Rajesh Sharma</div>
-                    <div className="text-[11px] text-text-muted">Owner (Full access)</div>
+                    <div className="text-[11px] text-text-muted">Owner · Pass: Admin@1234</div>
                   </button>
 
                   <button
@@ -459,7 +474,7 @@ export const LoginView: React.FC = () => {
                     className="p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
                   >
                     <div className="font-medium text-text">Arjun Mehta</div>
-                    <div className="text-[11px] text-text-muted">Trainer (Zero fee view)</div>
+                    <div className="text-[11px] text-text-muted">Trainer · Pass: Trainer@1234</div>
                   </button>
 
                   <button
@@ -475,7 +490,7 @@ export const LoginView: React.FC = () => {
                     className="p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
                   >
                     <div className="font-medium text-text">Snehal Kulkarni</div>
-                    <div className="text-[11px] text-text-muted">Counselor (Admissions)</div>
+                    <div className="text-[11px] text-text-muted">Counselor · Pass: Counselor@1234</div>
                   </button>
 
                   <button
@@ -491,7 +506,7 @@ export const LoginView: React.FC = () => {
                     className="p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
                   >
                     <div className="font-medium text-text">Sunita Accounts</div>
-                    <div className="text-[11px] text-text-muted">Finance & Collections</div>
+                    <div className="text-[11px] text-text-muted">Accounts · Pass: Accounts@1234</div>
                   </button>
 
                   <button
@@ -507,7 +522,7 @@ export const LoginView: React.FC = () => {
                     className="col-span-2 p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
                   >
                     <div className="font-medium text-text">Priya Nair</div>
-                    <div className="text-[11px] text-text-muted">Student (Mobile Student Portal · Attendance & Catch-up)</div>
+                    <div className="text-[11px] text-text-muted">Student · Pass: Student@1234</div>
                   </button>
                 </div>
               </div>
@@ -518,9 +533,9 @@ export const LoginView: React.FC = () => {
           {mode === 'signup' && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-semibold text-text">Create a new account</h2>
+                <h2 className="text-lg font-semibold text-text">Create a student account</h2>
                 <p className="text-xs text-text-muted mt-0.5">
-                  Register your account with Supabase Authentication
+                  Sign up for course access. Staff roles are assigned by an institute owner.
                 </p>
               </div>
 
@@ -542,7 +557,7 @@ export const LoginView: React.FC = () => {
                   <input
                     type="email"
                     required
-                    placeholder="name@codecraft.ac.in"
+                    placeholder="student@gmail.com"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
@@ -562,33 +577,16 @@ export const LoginView: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-text-muted font-normal">Role</label>
-                    <select
-                      value={regRole}
-                      onChange={(e) => setRegRole(e.target.value as UserRole)}
-                      className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent"
-                    >
-                      <option value="owner">Owner / Director</option>
-                      <option value="trainer">Trainer / Faculty</option>
-                      <option value="counselor">Counselor</option>
-                      <option value="accounts">Accounts</option>
-                      <option value="student">Student</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-text-muted font-normal">Branch</label>
-                    <select
-                      value={regBranch}
-                      onChange={(e) => setRegBranch(e.target.value as Branch)}
-                      className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent"
-                    >
-                      <option value="Kothrud">Kothrud Campus</option>
-                      <option value="Baner">Baner Campus</option>
-                    </select>
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-text-muted font-normal">Branch</label>
+                  <select
+                    value={regBranch}
+                    onChange={(e) => setRegBranch(e.target.value as Branch)}
+                    className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="Kothrud">Kothrud Campus</option>
+                    <option value="Baner">Baner Campus</option>
+                  </select>
                 </div>
 
                 <Button
@@ -599,7 +597,7 @@ export const LoginView: React.FC = () => {
                   isLoading={isLoading}
                   rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
                 >
-                  Create account
+                  Register student account
                 </Button>
               </form>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2,
@@ -10,30 +10,68 @@ import {
   UserPlus,
   ArrowRight,
   Database,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import { store, useStore } from '@/mocks/store'
 
 export const OnboardingView: React.FC = () => {
   const navigate = useNavigate()
   const { success } = useToast()
 
-  const [activeStep, setActiveStep] = useState(4)
+  const courses = useStore((s) => s.courses)
+  const trainers = useStore((s) => s.trainers)
+  const batches = useStore((s) => s.batches)
+  const students = useStore((s) => s.students)
+  const instalments = useStore((s) => s.feeInstalments)
+  const settings = useStore((s) => s.settings)
 
   const steps = [
-    { title: 'Institute profile', desc: 'CodeCraft Academy, Pune', isDone: true },
-    { title: 'Branches & rooms', desc: 'Kothrud & Baner (8 rooms configured)', isDone: true },
-    { title: 'Courses & syllabus', desc: '6 technical diploma & stack courses', isDone: true },
-    { title: 'Faculty & trainers', desc: '8 instructors with availability grids', isDone: true },
-    { title: 'Import students', desc: 'CSV column mapper & deduplication', isDone: false },
-    { title: 'Invite staff team', desc: 'Accounts & counseling staff roles', isDone: false },
+    {
+      title: 'Institute profile',
+      desc: `${settings.instituteName || 'CodeCraft Academy'}, Pune Campus`,
+      route: '/settings',
+      isDone: !!settings.instituteName,
+    },
+    {
+      title: 'Campuses & active rooms',
+      desc: `${batches.length} active cohorts mapped across campus facilities`,
+      route: '/batches',
+      isDone: batches.length > 0,
+    },
+    {
+      title: 'Courses & curricula',
+      desc: `${courses.length} certified diploma & technology curricula`,
+      route: '/courses',
+      isDone: courses.length > 0,
+    },
+    {
+      title: 'Faculty & trainers',
+      desc: `${trainers.length} qualified instructors with availability calendars`,
+      route: '/trainers',
+      isDone: trainers.length > 0,
+    },
+    {
+      title: 'Student directory & rosters',
+      desc: `${students.length} candidates enrolled with attendance baselines`,
+      route: '/students',
+      isDone: students.length > 0,
+    },
+    {
+      title: 'Fee schedules & reconciliations',
+      desc: `${instalments.length} payment instalments and collection ledgers`,
+      route: '/fees',
+      isDone: instalments.length > 0,
+    },
   ]
 
-  const completionPct = Math.round((4 / 6) * 100)
+  const completedCount = steps.filter((s) => s.isDone).length
+  const completionPct = Math.round((completedCount / steps.length) * 100)
 
   const handleUseSampleData = () => {
-    success('Sample data loaded', 'Loaded 320 students and 14 batches into CodeCraft Academy.')
-    navigate('/')
+    store.resetDemo()
+    success('Sample data loaded', 'Restored complete seed dataset across all academic and financial entities.')
   }
 
   return (
@@ -59,10 +97,12 @@ export const OnboardingView: React.FC = () => {
       <div className="p-5 rounded-card border border-border bg-surface flex items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="text-xs font-medium text-text">
-            Setup progress: <span className="tabular-nums font-medium">4 of 6</span> steps completed
+            Setup progress: <span className="tabular-nums font-medium">{completedCount} of {steps.length}</span> steps completed
           </div>
           <div className="text-[11px] text-text-muted">
-            All core infrastructure configured. Import student roster to launch live operations.
+            {completedCount === steps.length
+              ? 'All core academic infrastructure is configured and operational.'
+              : 'Complete pending modules or click "Load Pune sample dataset" to bootstrap demonstration data.'}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -80,9 +120,7 @@ export const OnboardingView: React.FC = () => {
             className={`p-4 rounded-card border flex items-center justify-between transition-colors ${
               st.isDone
                 ? 'border-border bg-surface'
-                : idx === activeStep
-                ? 'border-border-strong bg-surface ring-1 ring-accent'
-                : 'border-border bg-surface opacity-75'
+                : 'border-border-strong bg-surface ring-1 ring-accent'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -90,9 +128,7 @@ export const OnboardingView: React.FC = () => {
                 className={`w-7 h-7 rounded-control flex items-center justify-center text-xs font-medium ${
                   st.isDone
                     ? 'bg-surface-sunken text-success border border-border'
-                    : idx === activeStep
-                    ? 'bg-accent text-accent-fg'
-                    : 'bg-surface-sunken text-text-muted border border-border'
+                    : 'bg-accent text-accent-fg'
                 }`}
               >
                 {st.isDone ? <CheckCircle2 className="w-4 h-4" /> : <span className="tabular-nums">{idx + 1}</span>}
@@ -103,19 +139,16 @@ export const OnboardingView: React.FC = () => {
               </div>
             </div>
 
-            <Button
-              variant={idx === activeStep ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => {
-                if (st.isDone) {
-                  success('Step already configured.')
-                } else {
-                  handleUseSampleData()
-                }
-              }}
-            >
-              {st.isDone ? 'Review' : 'Configure'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={st.isDone ? 'secondary' : 'primary'}
+                size="sm"
+                onClick={() => navigate(st.route)}
+                rightIcon={<ArrowRight className="w-3 h-3" />}
+              >
+                {st.isDone ? 'Manage' : 'Configure'}
+              </Button>
+            </div>
           </div>
         ))}
       </div>

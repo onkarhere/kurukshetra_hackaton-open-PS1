@@ -26,6 +26,8 @@ import { useToast } from '@/context/ToastContext'
 import { store } from '@/mocks/store'
 import { CopilotMessage } from '@/types'
 import { cn } from '@/lib/utils'
+import { queryEngine } from './queryEngine'
+import { exportToCsv } from '@/lib/exportCsv'
 
 interface CopilotViewProps {
   pageContext?: string
@@ -54,7 +56,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   // Sort state for result table
-  const [sortField, setSortField] = useState<SortField>('missed')
+  const [sortField, setSortField] = useState<string>('missed')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   const chatEndRef = useRef<HTMLDivElement>(null)
@@ -93,7 +95,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     success('Copied to clipboard')
   }
 
-  const handleSort = (field: SortField) => {
+  const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -107,10 +109,10 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
       let aVal = a[sortField]
       let bVal = b[sortField]
 
-      if (sortField === 'missed') {
+      if (sortField === 'missed' || typeof aVal === 'number') {
         aVal = Number(aVal) || 0
         bVal = Number(bVal) || 0
-      } else if (sortField === 'amount') {
+      } else if (sortField === 'amount' || sortField === 'collected') {
         aVal = Number(String(aVal).replace(/[^0-9]/g, '')) || 0
         bVal = Number(String(bVal).replace(/[^0-9]/g, '')) || 0
       } else {
@@ -142,103 +144,43 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
     // Progression of stages with neutral StageTicker
     setActiveStage('understanding')
-    setTimeout(() => setActiveStage('finding_data'), 500)
-    setTimeout(() => setActiveStage('checking_safety'), 1000)
-    setTimeout(() => setActiveStage('running_query'), 1500)
-    setTimeout(() => setActiveStage('writing_answer'), 2000)
+    setTimeout(() => setActiveStage('finding_data'), 250)
+    setTimeout(() => setActiveStage('checking_safety'), 500)
+    setTimeout(() => setActiveStage('running_query'), 750)
+    setTimeout(() => setActiveStage('writing_answer'), 1000)
 
     setTimeout(() => {
       setActiveStage('completed')
       setIsGenerating(false)
 
-      const isTrainer = role === 'trainer'
-      const responseMsg: CopilotMessage = isTrainer
-        ? {
-            id: `asst-${Date.now()}`,
-            sender: 'assistant',
-            timestamp: 'Just now',
-            query: queryText,
-            content: `I analyzed attendance records for **Java Full-Stack B3 (Kothrud)** based on your prompt: "${queryText}".`,
-            stage: 'completed',
-            refusal: {
-              isRefused: true,
-              reason: "Fee information isn't available to your role (Trainer). Here's the attendance part.",
-              permittedPart: 'Academic attendance and session records',
-            },
-            sql: `SELECT s.id, s.name, a.missed_sessions, a.attendance_rate\nFROM v_active_students s\nJOIN v_attendance_summary a ON s.id = a.student_id\nWHERE s.batch_id = 'batch-java-b3'\n  AND a.missed_sessions >= 3\nORDER BY a.missed_sessions DESC LIMIT 500;`,
-            dataSources: [
-              { name: 'v_active_students', type: 'view', columns: ['id', 'name', 'phone', 'batch_id'] },
-              { name: 'v_attendance_summary', type: 'view', columns: ['student_id', 'missed_sessions', 'attendance_rate'] },
-            ],
-            filters: [
-              { label: 'Role Context', value: 'Trainer (Fee tables masked by security rule)' },
-              { label: 'Batch Filter', value: "batch_id = 'batch-java-b3'" },
-            ],
-            safetyChecks: [
-              { check: 'Single SELECT statement executed', passed: true },
-              { check: 'Financial tables masked', passed: true },
-              { check: 'Row limit 500 enforced', passed: true },
-            ],
-            executionTimeMs: 198,
-            rowsCount: 5,
-            viewsCount: 2,
-            confidence: 'High',
-            tableData: [
-              { name: 'Priya Nair', phone: '+91 98••• ••432', missed: 5, rate: '44%', academicStatus: 'Critical catch-up' },
-              { name: 'Rohan Kulkarni', phone: '+91 98••• ••988', missed: 4, rate: '62%', academicStatus: 'Remedial lab needed' },
-              { name: 'Devendra Joshi', phone: '+91 98••• ••781', missed: 3, rate: '68%', academicStatus: 'Assignment 2 pending' },
-              { name: 'Amit Sane', phone: '+91 97••• ••920', missed: 3, rate: '70%', academicStatus: 'Spring doubts' },
-              { name: 'Sunita Rao', phone: '+91 98••• ••324', missed: 3, rate: '71%', academicStatus: 'Active' },
-            ],
-            suggestedFollowUps: [
-              'Generate remedial assignment for Priya Nair',
-              'Check lecture attendance on Zoom for Rohan',
-            ],
-          }
-        : {
-            id: `asst-${Date.now()}`,
-            sender: 'assistant',
-            timestamp: 'Just now',
-            query: queryText,
-            content: `I analyzed attendance ledgers and outstanding fees for **Java Full-Stack B3 (Kothrud)**.\n\nFound **5 students** with 3 or more missed sessions and an EMI due or overdue for the week of **12–18 Oct 2026**. An action has been prepared below for your review.`,
-            stage: 'completed',
-            sql: `SELECT s.id, s.name, s.phone, a.missed_sessions, f.due_date, f.amount\nFROM v_active_students s\nJOIN v_attendance_summary a ON s.id = a.student_id\nJOIN v_fee_instalments f ON s.id = f.student_id\nWHERE s.batch_id = 'batch-java-b3'\n  AND a.missed_sessions >= 3\n  AND f.due_date BETWEEN '2026-10-12' AND '2026-10-18'\nLIMIT 500;`,
-            dataSources: [
-              { name: 'v_active_students', type: 'view', columns: ['id', 'name', 'phone', 'batch_id'] },
-              { name: 'v_attendance_summary', type: 'view', columns: ['student_id', 'missed_sessions'] },
-              { name: 'v_fee_instalments', type: 'view', columns: ['student_id', 'due_date', 'amount', 'status'] },
-            ],
-            filters: [
-              { label: 'Role Context', value: 'Owner (Unrestricted access)' },
-              { label: 'Date Window', value: "'this week' = 12–18 Oct 2026" },
-            ],
-            safetyChecks: [
-              { check: 'Single SELECT statement executed', passed: true },
-              { check: 'Sanctioned views only', passed: true },
-              { check: 'Row limit 500 enforced', passed: true },
-            ],
-            executionTimeMs: 312,
-            rowsCount: 5,
-            viewsCount: 3,
-            confidence: 'High',
-            tableData: [
-              { name: 'Priya Nair', phone: '+91 98••• ••432', missed: 5, instalment: '3 of 6', dueDate: '12 Oct (Overdue)', amount: '₹6,500', risk: 'Critical' },
-              { name: 'Rohan Kulkarni', phone: '+91 98••• ••988', missed: 4, instalment: '2 of 6', dueDate: '14 Oct (Overdue)', amount: '₹6,500', risk: 'Critical' },
-              { name: 'Devendra Joshi', phone: '+91 98••• ••781', missed: 3, instalment: '3 of 6', dueDate: '16 Oct (Due soon)', amount: '₹6,500', risk: 'High' },
-              { name: 'Amit Sane', phone: '+91 97••• ••920', missed: 3, instalment: '3 of 6', dueDate: '17 Oct (Due soon)', amount: '₹6,500', risk: 'High' },
-              { name: 'Sunita Rao', phone: '+91 98••• ••324', missed: 3, instalment: '3 of 6', dueDate: '18 Oct (Due soon)', amount: '₹6,500', risk: 'Watch' },
-            ],
-            approvalProposal: store.approvals[0],
-            suggestedFollowUps: [
-              'Schedule a 1-on-1 counseling call for Priya Nair and Rohan Kulkarni',
-              'Show attendance trend for Java Full-Stack B3 (Kothrud) over last 6 weeks',
-            ],
-          }
+      const result = queryEngine.answer(queryText, role, store)
+
+      const responseMsg: CopilotMessage = {
+        id: `asst-${Date.now()}`,
+        sender: 'assistant',
+        timestamp: 'Just now',
+        query: queryText,
+        content: result.summary,
+        stage: 'completed',
+        sql: result.sql,
+        dataSources: result.dataSources,
+        filters: result.filters,
+        safetyChecks: result.safetyChecks,
+        executionTimeMs: result.executionTimeMs,
+        rowsCount: result.rowsCount,
+        viewsCount: result.viewsCount,
+        confidence: result.confidence,
+        tableData: result.rows,
+        columns: result.columns,
+        approvalProposal: result.approvalProposal,
+        refusal: result.refusal,
+        suggestedFollowUps: result.suggestedFollowUps || result.suggestions,
+      }
 
       setMessages((prev) => [...prev, responseMsg])
       setSelectedMessageId(responseMsg.id)
       store.addCopilotMessage(responseMsg)
-    }, 2500)
+    }, 1300)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -361,105 +303,131 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                   </div>
 
                   {/* Sortable Result Table */}
-                  {msg.tableData && msg.tableData.length > 0 && (
-                    <div className="rounded-card border border-border bg-surface overflow-hidden">
-                      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface-sunken/40 text-[11px] text-text-muted">
-                        <span>
-                          {msg.tableData.length} records returned
-                        </span>
-                        <button
-                          onClick={() => success('Exporting CSV...')}
-                          className="hover:text-text flex items-center gap-1"
-                        >
-                          <Download className="w-3 h-3" />
-                          <span>CSV</span>
-                        </button>
-                      </div>
+                  {msg.tableData && msg.tableData.length > 0 && (() => {
+                    const displayColumns =
+                      msg.columns && msg.columns.length > 0
+                        ? msg.columns
+                        : Object.keys(msg.tableData[0] || {})
+                            .filter((k) => k !== 'id' && k !== 'phone')
+                            .map((k) => ({
+                              key: k,
+                              label: k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'),
+                              align: typeof msg.tableData![0][k] === 'number' ? ('right' as const) : ('left' as const),
+                              isReason:
+                                k.toLowerCase().includes('status') ||
+                                k.toLowerCase().includes('tier') ||
+                                k.toLowerCase().includes('reason') ||
+                                k.toLowerCase().includes('trend') ||
+                                k.toLowerCase().includes('conflict'),
+                            }))
 
-                      <div className="overflow-x-auto max-h-56">
-                        <table className="w-full text-xs text-left">
-                          <thead className="bg-surface-sunken border-b border-border text-[11px] text-text-muted sticky top-0">
-                            <tr>
-                              <th
-                                onClick={() => handleSort('name')}
-                                className="py-1.5 px-2.5 font-medium cursor-pointer hover:text-text"
-                              >
-                                <span className="inline-flex items-center gap-1">
-                                  Student
-                                  {sortField === 'name' ? (
-                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                                  ) : (
-                                    <ArrowUpDown className="w-2.5 h-2.5 opacity-50" />
-                                  )}
-                                </span>
-                              </th>
-                              <th
-                                onClick={() => handleSort('missed')}
-                                className="py-1.5 px-2.5 font-medium cursor-pointer hover:text-text text-right"
-                              >
-                                <span className="inline-flex items-center gap-1 justify-end">
-                                  Missed
-                                  {sortField === 'missed' ? (
-                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                                  ) : (
-                                    <ArrowUpDown className="w-2.5 h-2.5 opacity-50" />
-                                  )}
-                                </span>
-                              </th>
-                              {role !== 'trainer' && (
-                                <th
-                                  onClick={() => handleSort('amount')}
-                                  className="py-1.5 px-2.5 font-medium cursor-pointer hover:text-text text-right"
-                                >
-                                  <span className="inline-flex items-center gap-1 justify-end">
-                                    Due
-                                    {sortField === 'amount' ? (
-                                      sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                                    ) : (
-                                      <ArrowUpDown className="w-2.5 h-2.5 opacity-50" />
+                    return (
+                      <div className="rounded-card border border-border bg-surface overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface-sunken/40 text-[11px] text-text-muted">
+                          <span>
+                            {msg.tableData.length} records returned
+                          </span>
+                          <button
+                            onClick={() => {
+                              const colsToExport = displayColumns.map((c) => ({ key: c.key, label: c.label }))
+                              exportToCsv(
+                                `copilot_results_${Date.now()}.csv`,
+                                colsToExport,
+                                msg.tableData!
+                              )
+                              success('Exported query results to CSV')
+                            }}
+                            className="hover:text-text flex items-center gap-1 font-medium transition-colors"
+                          >
+                            <Download className="w-3 h-3" />
+                            <span>CSV</span>
+                          </button>
+                        </div>
+
+                        <div className="overflow-x-auto max-h-56">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-surface-sunken border-b border-border text-[11px] text-text-muted sticky top-0">
+                              <tr>
+                                {displayColumns.map((col) => (
+                                  <th
+                                    key={col.key}
+                                    onClick={() => handleSort(col.key)}
+                                    className={cn(
+                                      'py-1.5 px-2.5 font-medium cursor-pointer hover:text-text select-none',
+                                      col.align === 'right' && 'text-right'
                                     )}
-                                  </span>
-                                </th>
-                              )}
-                              <th className="py-1.5 px-2.5 font-medium">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                            {sortedRows.map((row, rIdx) => (
-                              <tr key={rIdx} className="hover:bg-surface-sunken/40">
-                                <td className="py-2 px-2.5 font-medium text-text">
-                                  {row.name}
-                                  <div className="text-[10px] text-text-muted font-mono">
-                                    {row.phone}
-                                  </div>
-                                </td>
-                                <td className="py-2 px-2.5 text-right tabular-nums text-text font-normal">
-                                  {row.missed}
-                                </td>
-                                {role !== 'trainer' && (
-                                  <td className="py-2 px-2.5 text-right tabular-nums font-medium text-text">
-                                    {row.amount}
-                                  </td>
-                                )}
-                                <td className="py-2 px-2.5">
-                                  <ReasonChip
-                                    reason={row.risk || row.academicStatus}
-                                    variant={
-                                      row.risk === 'Critical'
-                                        ? 'danger'
-                                        : row.risk === 'High'
-                                        ? 'warning'
-                                        : 'neutral'
-                                    }
-                                  />
-                                </td>
+                                  >
+                                    <span
+                                      className={cn(
+                                        'inline-flex items-center gap-1',
+                                        col.align === 'right' && 'justify-end'
+                                      )}
+                                    >
+                                      {col.label}
+                                      {sortField === col.key ? (
+                                        sortDirection === 'asc' ? (
+                                          <ArrowUp className="w-3 h-3" />
+                                        ) : (
+                                          <ArrowDown className="w-3 h-3" />
+                                        )
+                                      ) : (
+                                        <ArrowUpDown className="w-2.5 h-2.5 opacity-40" />
+                                      )}
+                                    </span>
+                                  </th>
+                                ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {sortedRows.map((row, rIdx) => (
+                                <tr key={rIdx} className="hover:bg-surface-sunken/40">
+                                  {displayColumns.map((col) => (
+                                    <td
+                                      key={col.key}
+                                      className={cn(
+                                        'py-2 px-2.5 text-text',
+                                        col.align === 'right' && 'text-right tabular-nums',
+                                        col.key === 'name' || col.key === 'studentName'
+                                          ? 'font-medium'
+                                          : 'font-normal'
+                                      )}
+                                    >
+                                      {col.isReason ? (
+                                        <ReasonChip
+                                          reason={String(row[col.key] || '')}
+                                          variant={
+                                            String(row[col.key]).toLowerCase().includes('critical') ||
+                                            String(row[col.key]).toLowerCase().includes('danger') ||
+                                            String(row[col.key]).toLowerCase().includes('clash')
+                                              ? 'danger'
+                                              : String(row[col.key]).toLowerCase().includes('high') ||
+                                                String(row[col.key]).toLowerCase().includes('overdue') ||
+                                                String(row[col.key]).toLowerCase().includes('review') ||
+                                                String(row[col.key]).toLowerCase().includes('moderate')
+                                              ? 'warning'
+                                              : 'neutral'
+                                          }
+                                        />
+                                      ) : (
+                                        <>
+                                          {row[col.key]}
+                                          {col.key === 'name' && row.phone && (
+                                            <div className="text-[10px] text-text-muted font-mono">
+                                              {row.phone}
+                                            </div>
+                                          )}
+                                        </>
+                                      )}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )
+                  })()}
 
                   {/* Actions requiring approval render as ApprovalCard */}
                   {msg.approvalProposal && role !== 'trainer' && (
@@ -473,7 +441,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                     <div className="flex items-center gap-1.5 font-mono">
                       <span>{msg.executionTimeMs || 312} ms</span>
                       <span>·</span>
-                      <span>{msg.rowsCount || 5} rows</span>
+                      <span>{msg.rowsCount || (msg.tableData ? msg.tableData.length : 0)} rows</span>
                       <span>·</span>
                       <span>{msg.confidence || 'High'} confidence</span>
                     </div>
@@ -491,18 +459,36 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                         )}
                       </button>
                       <button
-                        onClick={() => success('Feedback noted')}
-                        className="p-1 hover:text-text rounded-control"
+                        onClick={() => {
+                          store.setCopilotFeedback(msg.id, 'up')
+                          setMessages([...store.copilotMessages])
+                          success('Feedback noted: Helpful')
+                        }}
+                        className={cn(
+                          'p-1 rounded-control transition-colors',
+                          msg.feedback === 'up'
+                            ? 'text-success bg-success/10 font-bold'
+                            : 'hover:text-text text-text-muted'
+                        )}
                         aria-label="Helpful"
                       >
-                        <ThumbsUp className="w-3.5 h-3.5" />
+                        <ThumbsUp className={cn('w-3.5 h-3.5', msg.feedback === 'up' && 'fill-current')} />
                       </button>
                       <button
-                        onClick={() => success('Feedback noted')}
-                        className="p-1 hover:text-text rounded-control"
+                        onClick={() => {
+                          store.setCopilotFeedback(msg.id, 'down')
+                          setMessages([...store.copilotMessages])
+                          success('Feedback noted: Not helpful')
+                        }}
+                        className={cn(
+                          'p-1 rounded-control transition-colors',
+                          msg.feedback === 'down'
+                            ? 'text-danger bg-danger/10 font-bold'
+                            : 'hover:text-text text-text-muted'
+                        )}
                         aria-label="Not helpful"
                       >
-                        <ThumbsDown className="w-3.5 h-3.5" />
+                        <ThumbsDown className={cn('w-3.5 h-3.5', msg.feedback === 'down' && 'fill-current')} />
                       </button>
                     </div>
                   </div>

@@ -1,18 +1,28 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://slqdpipsrbtrfjjxnvpd.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zmOYfWAqfVX8YCYwAyZTNA_YphBB_NW'
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 export const isSupabaseConfigured = Boolean(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
 )
 
+export const USE_SUPABASE = false
+
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : (null as any)
+
 /**
  * Supabase Authentication Services
  */
 export async function signInWithSupabase(email: string, password: string) {
+  if (!isSupabaseConfigured || !supabase) {
+    return {
+      data: { user: null, session: null },
+      error: new Error('Supabase credentials not configured in environment. Please use demo credentials.'),
+    }
+  }
   try {
     const res = await supabase.auth.signInWithPassword({ email, password })
     return res
@@ -26,6 +36,12 @@ export async function signUpWithSupabase(
   password: string,
   metadata: { name: string; role: string; branch: string }
 ) {
+  if (!isSupabaseConfigured || !supabase) {
+    return {
+      data: { user: null, session: null },
+      error: new Error('Supabase credentials not configured in environment.'),
+    }
+  }
   try {
     const res = await supabase.auth.signUp({
       email,
@@ -41,6 +57,7 @@ export async function signUpWithSupabase(
 }
 
 export async function signOutSupabase() {
+  if (!isSupabaseConfigured || !supabase) return
   try {
     await supabase.auth.signOut()
   } catch (err) {
@@ -49,67 +66,11 @@ export async function signOutSupabase() {
 }
 
 export async function getSupabaseSession() {
+  if (!isSupabaseConfigured || !supabase) return null
   try {
     const { data } = await supabase.auth.getSession()
     return data.session
   } catch (err) {
     return null
   }
-}
-
-/**
- * Supabase Data Access Services
- */
-export async function getStudentsFromDb() {
-  const { data, error } = await supabase.from('students').select('*').order('name')
-  if (error) {
-    console.warn('Supabase fetch error, fallback to mock layer:', error)
-    return null
-  }
-  return data
-}
-
-export async function getCoursesFromDb() {
-  const { data, error } = await supabase.from('courses').select('*').order('title')
-  if (error) {
-    console.warn('Supabase fetch error, fallback to mock layer:', error)
-    return null
-  }
-  return data
-}
-
-export async function getBatchesFromDb() {
-  const { data, error } = await supabase.from('batches').select('*').order('name')
-  if (error) {
-    console.warn('Supabase fetch error, fallback to mock layer:', error)
-    return null
-  }
-  return data
-}
-
-export async function getTrainersFromDb() {
-  const { data, error } = await supabase.from('trainers').select('*').order('name')
-  if (error) {
-    console.warn('Supabase fetch error, fallback to mock layer:', error)
-    return null
-  }
-  return data
-}
-
-export async function getFeeInstalmentsFromDb() {
-  const { data, error } = await supabase.from('fee_instalments').select('*').order('due_date')
-  if (error) {
-    console.warn('Supabase fetch error, fallback to mock layer:', error)
-    return null
-  }
-  return data
-}
-
-export async function getCertificatesFromDb() {
-  const { data, error } = await supabase.from('certificates').select('*').order('issue_date', { ascending: false })
-  if (error) {
-    console.warn('Supabase fetch error, fallback to mock layer:', error)
-    return null
-  }
-  return data
 }

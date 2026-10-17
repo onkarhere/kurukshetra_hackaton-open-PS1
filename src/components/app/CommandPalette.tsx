@@ -12,15 +12,19 @@ import {
   ChevronRight,
   X,
   ArrowRight,
+  CreditCard,
+  Landmark,
 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { store } from '@/mocks/store'
+import { canAccess } from '@/lib/permissions'
 
 interface CommandItem {
   id: string
   label: string
   category: 'Commands' | 'Entities'
   shortcut?: string
+  path?: string
   icon: React.ReactNode
   action: () => void
 }
@@ -61,12 +65,13 @@ export const CommandPalette: React.FC = () => {
         'Collections this week vs target in Kothrud branch',
       ]
 
-  const commands: CommandItem[] = [
+  const rawCommands: CommandItem[] = [
     {
       id: 'cmd-student-new',
       label: 'New student registration',
       category: 'Commands',
       shortcut: 'C S',
+      path: '/students',
       icon: <UserPlus className="w-4 h-4 text-text-muted" />,
       action: () => {
         setCommandPaletteOpen(false)
@@ -78,6 +83,7 @@ export const CommandPalette: React.FC = () => {
       label: 'Create new batch',
       category: 'Commands',
       shortcut: 'C B',
+      path: '/batches',
       icon: <Layers className="w-4 h-4 text-text-muted" />,
       action: () => {
         setCommandPaletteOpen(false)
@@ -89,6 +95,7 @@ export const CommandPalette: React.FC = () => {
       label: 'Mark session attendance',
       category: 'Commands',
       shortcut: 'A',
+      path: '/attendance',
       icon: <ClipboardCheck className="w-4 h-4 text-text-muted" />,
       action: () => {
         setCommandPaletteOpen(false)
@@ -100,20 +107,49 @@ export const CommandPalette: React.FC = () => {
       label: 'Generate timetable schedule',
       category: 'Commands',
       shortcut: 'R',
+      path: '/timetable',
       icon: <Calendar className="w-4 h-4 text-text-muted" />,
       action: () => {
         setCommandPaletteOpen(false)
         navigate('/timetable')
       },
     },
+    {
+      id: 'cmd-fees-view',
+      label: 'Fees & instalments ledger',
+      category: 'Commands',
+      shortcut: 'F',
+      path: '/fees',
+      icon: <CreditCard className="w-4 h-4 text-text-muted" />,
+      action: () => {
+        setCommandPaletteOpen(false)
+        navigate('/fees')
+      },
+    },
+    {
+      id: 'cmd-payments-reconcile',
+      label: 'Reconcile bank payments & UTR',
+      category: 'Commands',
+      shortcut: 'P',
+      path: '/payments',
+      icon: <Landmark className="w-4 h-4 text-text-muted" />,
+      action: () => {
+        setCommandPaletteOpen(false)
+        navigate('/payments')
+      },
+    },
   ]
 
-  // Dynamic entities from store
-  const entityItems: CommandItem[] = [
+  // Filter commands by permissions
+  const commands = rawCommands.filter((cmd) => (cmd.path ? canAccess(role, cmd.path) : true))
+
+  // Dynamic entities from store filtered by permissions
+  const rawEntityItems: CommandItem[] = [
     ...store.students.slice(0, 4).map((s) => ({
       id: `ent-std-${s.id}`,
       label: `${s.name} (${s.batchNames[0] || 'Student'})`,
       category: 'Entities' as const,
+      path: `/students/${s.id}`,
       icon: <GraduationCap className="w-4 h-4 text-text-muted" />,
       action: () => {
         setCommandPaletteOpen(false)
@@ -124,6 +160,7 @@ export const CommandPalette: React.FC = () => {
       id: `ent-batch-${b.id}`,
       label: `${b.name} · ${b.room}`,
       category: 'Entities' as const,
+      path: `/batches/${b.id}`,
       icon: <Layers className="w-4 h-4 text-text-muted" />,
       action: () => {
         setCommandPaletteOpen(false)
@@ -134,13 +171,29 @@ export const CommandPalette: React.FC = () => {
       id: `ent-cert-${c.id}`,
       label: `Certificate ${c.certificateNo} · ${c.studentName}`,
       category: 'Entities' as const,
+      path: `/verify/${c.certificateNo}`,
       icon: <Award className="w-4 h-4 text-text-muted" />,
       action: () => {
         setCommandPaletteOpen(false)
         navigate(`/verify/${c.certificateNo}`)
       },
     })),
+    ...(canAccess(role, '/payments')
+      ? store.payments.slice(0, 3).map((p) => ({
+          id: `ent-pay-${p.id}`,
+          label: `Payment ${p.receiptNo} · ${p.studentName}`,
+          category: 'Entities' as const,
+          path: '/payments',
+          icon: <Landmark className="w-4 h-4 text-text-muted" />,
+          action: () => {
+            setCommandPaletteOpen(false)
+            navigate('/payments')
+          },
+        }))
+      : []),
   ]
+
+  const entityItems = rawEntityItems.filter((ent) => (ent.path ? canAccess(role, ent.path) : true))
 
   const filteredCommands = commands.filter((c) =>
     c.label.toLowerCase().includes(query.toLowerCase())

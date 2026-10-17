@@ -8,21 +8,36 @@ import {
   Download,
   Check,
   Lock,
+  X,
+  Search,
+  UserCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { formatINR, cn } from '@/lib/utils'
+import { exportToCsv } from '@/lib/exportCsv'
+import { PaymentRecord } from '@/types'
 
 export const PaymentsView: React.FC = () => {
   const { role } = useApp()
-  const { success } = useToast()
+  const { success, error } = useToast()
   const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<'reconcile' | 'all'>('reconcile')
   const [bankFormat, setBankFormat] = useState('HDFC Bank NetBanking CSV')
-  const [payments, setPayments] = useState([...store.payments])
+
+  // Modals state
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [csvContent, setCsvContent] = useState('')
+  const [manualMatchPayment, setManualMatchPayment] = useState<PaymentRecord | null>(null)
+  const [studentSearchQuery, setStudentSearchQuery] = useState('')
+
+  // Reactive store slices
+  const payments = useStore((s) => s.payments)
+  const students = useStore((s) => s.students)
+  const instalments = useStore((s) => s.feeInstalments)
 
   // Trainer access lockdown
   if (role === 'trainer') {
@@ -46,13 +61,123 @@ export const PaymentsView: React.FC = () => {
 
   const handleConfirmMatch = (paymentId: string) => {
     store.reconcilePayment(paymentId)
-    setPayments([...store.payments])
     success('Transaction matched & verified', 'Receipt generated and ledger updated.')
+  }
+
+  const handleMarkNonFee = (paymentId: string) => {
+    store.markPaymentNonFee(paymentId)
+    success('Marked as non-fee transaction', 'Item moved to verified non-tuition entries.')
+  }
+
+  const handleAssignStudent = (studentId: string) => {
+    if (!manualMatchPayment) return
+    store.matchPaymentManually(manualMatchPayment.id, studentId)
+    setManualMatchPayment(null)
+    success('Payment assigned successfully', 'Student EMI settled and transaction verified.')
+  }
+
+  // P1: Parse statement CSV
+  const handleProcessStatement = (rawCsv: string) => {
+    const lines = rawCsv.split('\n').map((l) => l.trim()).filter(Boolean)
+    if (lines.length <= 1) {
+      error('Invalid statement', 'Please provide a CSV with header and transaction rows.')
+      return
+    }
+
+    const newRecords: PaymentRecord[] = []
+
+    // Format: Date, Amount, Narration, Reference
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(',').map((p) => p.trim())
+      if (parts.length < 3) continue
+
+      const dateStr = parts[0]
+      const amount = parseFloat(parts[1]) || 6500
+      const narration = parts[2]
+      const ref = parts[3] || `REF-${Math.floor(100000 + Math.random() * 900000)}`
+
+      // Match logic: Match against overdue instalments by amount + narration name/phone
+      const matchInstalment = instalments.find((inst) => {
+        const namePart = inst.studentName.toLowerCase()
+        const narrationLower = narration.toLowerCase()
+        return (
+          inst.amount === amount &&
+          (narrationLower.includes(namePart.split(' ')[0]) || narrationLower.includes(namePart.split(' ')[1] || ''))
+        )
+      })
+
+      let confidence = 40
+      let status: PaymentRecord['status'] = 'unmatched'
+      let matchedStudentName = 'Unknown Sender'
+      let matchedStudentId = ''
+      const reasons: string[] = []
+
+      if (matchInstalment) {
+        matchedStudentName = matchInstalment.studentName
+        matchedStudentId = matchInstalment.studentId
+        confidence = 96
+        status = 'verified'
+        reasons.push(`Exact amount match ₹${amount} and student name in narration.`)
+      } else {
+        // Partial match
+        const student = students.find((s) => narration.toLowerCase().includes(s.name.split(' ')[0].toLowerCase()))
+        if (student) {
+          matchedStudentName = student.name
+          matchedStudentId = student.id
+          confidence = 85
+          status = 'needs_review'
+          reasons.push(`Sender name matches student "${student.name}". Amount requires verification.`)
+        } else {
+          reasons.push('No student phone or name match in payment note.')
+        }
+      }
+
+      newRecords.push({
+        id: `pay-${Date.now()}-${i}`,
+        receiptNo: `REC-2026-${Math.floor(3000 + Math.random() * 6000)}`,
+        studentName: matchedStudentName,
+        studentId: matchedStudentId,
+        amount,
+        date: dateStr || '16 Oct 2026',
+        method: narration.toUpperCase().includes('NEFT') ? 'Bank Transfer' : 'UPI',
+        utrNo: ref,
+        status,
+        confidence,
+        reconcileReasons: reasons,
+      })
+    }
+
+    const imported = store.importPayments(newRecords)
+    setShowImportModal(false)
+    success('Statement imported', `Processed ${newRecords.length} records (${imported} new transactions added to ledger).`)
+  }
+
+  // P1: Export visible rows as CSV
+  const handleExport = () => {
+    const rows = (activeTab === 'reconcile' ? payments : payments).map((p) => ({
+      'Receipt No': p.receiptNo,
+      'Student Name': p.studentName,
+      Date: p.date,
+      Amount: p.amount,
+      Method: p.method,
+      'UTR Reference': p.utrNo,
+      Status: p.status,
+      Confidence: p.confidence ? `${p.confidence}%` : '—',
+    }))
+    exportToCsv(rows, `payments_reconciliation_${new Date().toISOString().slice(0, 10)}.csv`)
+    success('Payments exported', `${rows.length} rows exported to CSV.`)
   }
 
   const needsReviewItems = payments.filter((p) => p.status === 'needs_review')
   const autoMatchedItems = payments.filter((p) => p.status === 'verified')
   const unmatchedItems = payments.filter((p) => p.status === 'unmatched')
+
+  const filteredCandidateSearch = students.filter(
+    (s) =>
+      s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+      s.email.toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+      s.id.toLowerCase().includes(studentSearchQuery.toLowerCase())
+  )
 
   return (
     <div className="space-y-4">
@@ -69,10 +194,18 @@ export const PaymentsView: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => success('Exporting bank reconciliation audit sheet...')}
+            onClick={handleExport}
             leftIcon={<Download className="w-3.5 h-3.5" />}
           >
             Export audit sheet
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setShowImportModal(true)}
+            leftIcon={<Upload className="w-3.5 h-3.5" />}
+          >
+            Import statement
           </Button>
         </div>
       </div>
@@ -135,7 +268,7 @@ export const PaymentsView: React.FC = () => {
               <Button
                 variant="primary"
                 size="xs"
-                onClick={() => success('Bank statement parsed: 4 records imported.')}
+                onClick={() => setShowImportModal(true)}
               >
                 Upload file
               </Button>
@@ -234,7 +367,7 @@ export const PaymentsView: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="xs"
-                        onClick={() => success('Marked as non-fee deposit')}
+                        onClick={() => handleMarkNonFee(p.id)}
                       >
                         Not a fee
                       </Button>
@@ -282,7 +415,7 @@ export const PaymentsView: React.FC = () => {
                       variant="outline"
                       size="xs"
                       className="w-full"
-                      onClick={() => success('Lookup student directory drawer opened')}
+                      onClick={() => setManualMatchPayment(p)}
                     >
                       Assign manually
                     </Button>
@@ -335,6 +468,160 @@ export const PaymentsView: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Import Statement Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-surface border border-border rounded-card max-w-lg w-full p-5 space-y-4 shadow-dialog">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <h3 className="text-sm font-semibold text-text">Import Bank Settlement Statement</h3>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="text-text-muted hover:text-text p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-text-muted leading-relaxed">
+              Upload bank statement CSV (Format: Date, Amount, Narration, Reference). System automatically reconciles against overdue student EMIs with ≥95% confidence matching.
+            </p>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-text">Statement CSV Rows</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sample = `Date,Amount,Narration,Reference\n16 Oct 2026,6500,UPI-PRIYA NAIR-FEE-OCT,UPI/329910283011\n16 Oct 2026,6500,NEFT-ROHAN KULKARNI-EMIS,NEFT/HDFC2910291\n16 Oct 2026,12000,CANTEEN VENDOR SETTLEMENT,UTR/VENDOR/8912`
+                    setCsvContent(sample)
+                  }}
+                  className="text-accent hover:underline"
+                >
+                  Load sample statement
+                </button>
+              </div>
+              <textarea
+                value={csvContent}
+                onChange={(e) => setCsvContent(e.target.value)}
+                placeholder="Date,Amount,Narration,Reference&#10;16 Oct 2026,6500,UPI-PRIYA NAIR,UPI/12345678"
+                rows={5}
+                className="w-full text-xs font-mono p-2.5 rounded-control border border-border bg-surface-sunken text-text focus:outline-none focus:border-accent"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <label className="cursor-pointer text-xs text-accent hover:underline flex items-center gap-1.5">
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload .csv</span>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      const reader = new FileReader()
+                      reader.onload = (event) => {
+                        const content = event.target?.result as string
+                        setCsvContent(content || '')
+                      }
+                      reader.readAsText(file)
+                    }
+                  }}
+                />
+              </label>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowImportModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => handleProcessStatement(csvContent)}
+                  disabled={!csvContent.trim()}
+                >
+                  Parse & reconcile
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Student Search & Match Modal */}
+      {manualMatchPayment && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-surface border border-border rounded-card max-w-md w-full p-5 space-y-4 shadow-dialog">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <h3 className="text-sm font-semibold text-text">Assign Payment to Student</h3>
+              <button
+                onClick={() => setManualMatchPayment(null)}
+                className="text-text-muted hover:text-text p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-control bg-surface-sunken border border-border text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-text-muted">Transaction UTR:</span>
+                <span className="font-mono font-medium text-text">{manualMatchPayment.utrNo}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-muted">Amount:</span>
+                <span className="font-bold text-success tabular-nums">{formatINR(manualMatchPayment.amount)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search student by name, ID or email..."
+                  value={studentSearchQuery}
+                  onChange={(e) => setStudentSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-control border border-border bg-surface text-text focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div className="max-h-56 overflow-y-auto divide-y divide-border border border-border rounded-control">
+                {filteredCandidateSearch.slice(0, 6).map((st) => (
+                  <div
+                    key={st.id}
+                    className="p-2.5 hover:bg-surface-sunken cursor-pointer flex items-center justify-between text-xs transition-colors"
+                    onClick={() => handleAssignStudent(st.id)}
+                  >
+                    <div>
+                      <div className="font-medium text-text">{st.name}</div>
+                      <div className="text-[11px] text-text-muted font-mono">{st.id} · {st.branch}</div>
+                    </div>
+                    <Button variant="secondary" size="xs" leftIcon={<UserCheck className="w-3 h-3" />}>
+                      Match
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-border">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setManualMatchPayment(null)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
