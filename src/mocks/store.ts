@@ -1597,6 +1597,47 @@ export class MockStore {
     this.notify()
   }
 
+  addTimetableSession(newSession: TimetableSession) {
+    this.timetableSessions.unshift(newSession)
+    this.audit({
+      action: `Manually added lecture: ${newSession.batchName} (${newSession.startTime}–${newSession.endTime}, ${newSession.room})`,
+      entity: 'timetable',
+      entityId: newSession.id,
+      after: newSession,
+    })
+    this.notify()
+  }
+
+  updateTimetableSession(sessionId: string, updates: Partial<TimetableSession>) {
+    const idx = this.timetableSessions.findIndex((s) => s.id === sessionId)
+    if (idx !== -1) {
+      const before = { ...this.timetableSessions[idx] }
+      this.timetableSessions[idx] = { ...this.timetableSessions[idx], ...updates }
+      this.audit({
+        action: `Manually updated lecture: ${this.timetableSessions[idx].batchName}`,
+        entity: 'timetable',
+        entityId: sessionId,
+        before,
+        after: this.timetableSessions[idx],
+      })
+      this.notify()
+    }
+  }
+
+  deleteTimetableSession(sessionId: string) {
+    const sess = this.timetableSessions.find((s) => s.id === sessionId)
+    if (sess) {
+      this.timetableSessions = this.timetableSessions.filter((s) => s.id !== sessionId)
+      this.audit({
+        action: `Deleted lecture: ${sess.batchName} (${sess.startTime}–${sess.endTime}, ${sess.room})`,
+        entity: 'timetable',
+        entityId: sessionId,
+        before: sess,
+      })
+      this.notify()
+    }
+  }
+
   createSendMessageApproval(
     title: string,
     summary: string,

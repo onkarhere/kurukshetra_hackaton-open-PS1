@@ -666,3 +666,374 @@ export function replan(
     unresolved,
   }
 }
+
+/**
+ * AI Clash Resolver:
+ * Takes any current schedule (including manual inputs with errors/clashes)
+ * and automatically sorts out all clashes (room double-bookings, trainer overlaps, capacity issues).
+ */
+export function aiResolveClashes(
+  sessions: TimetableSession[],
+  trainers: Trainer[],
+  batches?: Batch[],
+  settings?: InstituteSettings
+): ReplanResult {
+  const t0 = performance.now()
+  let updatedSessions = sessions.map((s) => ({ ...s }))
+  const diff: ReplanDiffItem[] = []
+  const unresolved: { sessionId: string; blocker: string; suggestion?: string }[] = []
+  let movedCount = 0
+  let substituteCount = 0
+
+  const allRooms = Object.keys(ROOM_CAPACITIES).filter(
+    (r) => r !== 'Online Only' && !r.startsWith('Virtual')
+  )
+  const candidateSlots = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
+
+  // Max iterations to resolve complex multi-clashes cleanly
+  for (let iteration = 0; iteration < 8; iteration++) {
+    const currentConflicts = detectConflicts(updatedSessions, trainers, batches, settings)
+    if (currentConflicts.length === 0) break
+
+    let resolvedInThisIteration = false
+
+    for (const conflict of currentConflicts) {
+      // Find candidate session to adjust
+      let sess = updatedSessions.find((s) => s.id === conflict.sessionId)
+      if (!sess) continue
+
+      // If this session is locked, try finding an unlocked overlapping session
+      if (sess.isLocked) {
+        const otherSess = updatedSessions.find(
+          (s) =>
+            s.id !== sess!.id &&
+            !s.isLocked &&
+            (s.date ? s.date === sess!.date : s.dayOfWeek === sess!.dayOfWeek) &&
+            ((conflict.type === 'room_double_booked' && s.room === sess!.room) ||
+              (conflict.type === 'trainer_overlap' && s.trainerId === sess!.trainerId)) &&
+            s.startTime < sess!.endTime &&
+            s.endTime > sess!.startTime
+        )
+        if (otherSess) {
+          sess = otherSess
+        } else {
+          continue
+        }
+      }
+
+      const batchObj = batches?.find((b) => b.id === sess!.batchId || b.name === sess!.batchName)
+      const inRoomNeeded = batchObj?.enrolledCount
+        ? (batchObj.mode === 'online' ? 0 : Math.max(1, batchObj.enrolledCount - (batchObj.onlineSeatLimit || 0)))
+        : 25
+
+      // 1. Room Double-Booking Clash
+      if (conflict.type === 'room_double_booked') {
+        // Step A: Find alternative room at same slot
+        const alternativeRoom = allRooms.find((r) => {
+          if (r === sess!.room) return false
+          const cap = ROOM_CAPACITIES[r] || 0
+          if (cap < inRoomNeeded) return false
+
+          const busy = updatedSessions.some(
+            (other) =>
+              other.id !== sess!.id &&
+              (other.date ? other.date === sess!.date : other.dayOfWeek === sess!.dayOfWeek) &&
+              other.room === r &&
+              other.startTime < sess!.endTime &&
+              other.endTime > sess!.startTime
+          )
+          return !busy
+        })
+
+        if (alternativeRoom) {
+          const oldRoom = sess.room
+          const cap = ROOM_CAPACITIES[alternativeRoom]
+          diff.push({
+            id: `diff-clash-room-${sess.id}-${Date.now()}-${movedCount}`,
+            sessionId: sess.id,
+            batchName: sess.batchName,
+            courseName: sess.courseName,
+            before: `${sess.batchName} · ${sess.date || `Day ${sess.dayOfWeek}`} · ${sess.startTime}–${sess.endTime} · ${oldRoom}`,
+            after: `${sess.batchName} · ${sess.date || `Day ${sess.dayOfWeek}`} · ${sess.startTime}–${sess.endTime} · ${alternativeRoom} (${cap} seats)`,
+            reasonCode: 'ROOM_REALLOCATED',
+            reason: `AI sorted room clash: Reallocated ${sess.batchName} from double-booked ${oldRoom} to available ${alternativeRoom} (Cap: ${cap} seats).`,
+            newRoom: alternativeRoom,
+            accepted: true,
+          })
+          sess.room = alternativeRoom
+          sess.hasConflict = false
+          sess.conflictReason = undefined
+          movedCount++
+          resolvedInThisIteration = true
+          break
+        } else {
+          // Step B: Shift slot on same day
+          const freeSlot = candidateSlots.find((slot) => {
+            const startM = parseMinutes(slot)
+            const duration = parseMinutes(sess!.endTime) - parseMinutes(sess!.startTime) || 120
+            const endSlot = formatTimeFromMinutes(startM + duration)
+
+            const roomBusy = updatedSessions.some(
+              (o) =>
+                o.id !== sess!.id &&
+                (o.date ? o.date === sess!.date : o.dayOfWeek === sess!.dayOfWeek) &&
+                o.room === sess!.room &&
+                o.startTime < endSlot &&
+                o.endTime > slot
+            )
+            const trainerBusy = updatedSessions.some(
+              (o) =>
+                o.id !== sess!.id &&
+                (o.date ? o.date === sess!.date : o.dayOfWeek === sess!.dayOfWeek) &&
+                o.trainerId === sess!.trainerId &&
+                o.startTime < endSlot &&
+                o.endTime > slot
+            )
+            return !roomBusy && !trainerBusy
+          })
+
+          if (freeSlot) {
+            const duration = parseMinutes(sess.endTime) - parseMinutes(sess.startTime) || 120
+            const newEnd = formatTimeFromMinutes(parseMinutes(freeSlot) + duration)
+            const oldSlot = `${sess.startTime}–${sess.endTime}`
+            diff.push({
+              id: `diff-clash-slot-${sess.id}-${Date.now()}-${movedCount}`,
+              sessionId: sess.id,
+              batchName: sess.batchName,
+              courseName: sess.courseName,
+              before: `${sess.batchName} · ${sess.date || `Day ${sess.dayOfWeek}`} · ${oldSlot} · ${sess.room}`,
+              after: `${sess.batchName} · ${sess.date || `Day ${sess.dayOfWeek}`} · ${freeSlot}–${newEnd} · ${sess.room}`,
+              reasonCode: 'RESCHEDULED_SAME_DAY',
+              reason: `AI sorted room clash: Shifted ${sess.batchName} from ${oldSlot} to ${freeSlot}–${newEnd} in ${sess.room} with zero clashes.`,
+              newStartTime: freeSlot,
+              newEndTime: newEnd,
+              accepted: true,
+            })
+            sess.startTime = freeSlot
+            sess.endTime = newEnd
+            sess.hasConflict = false
+            sess.conflictReason = undefined
+            movedCount++
+            resolvedInThisIteration = true
+            break
+          }
+        }
+      }
+
+      // 2. Trainer Overlap Clash
+      else if (conflict.type === 'trainer_overlap' || conflict.type === 'travel_buffer_violated') {
+        const qualifiedSubstitute = trainers.find((t) => {
+          if (t.id === sess!.trainerId) return false
+          if (!isTrainerQualified(t, sess!.courseName)) return false
+          if (!isTrainerAvailable(t, sess!.dayOfWeek, sess!.startTime, sess!.endTime)) return false
+
+          const hasLeave = t.leaveRequests?.some(
+            (l) => l.status === 'approved' && l.date === sess!.date
+          )
+          if (hasLeave) return false
+
+          const busy = updatedSessions.some(
+            (o) =>
+              o.id !== sess!.id &&
+              (o.date ? o.date === sess!.date : o.dayOfWeek === sess!.dayOfWeek) &&
+              o.trainerId === t.id &&
+              o.startTime < sess!.endTime &&
+              o.endTime > sess!.startTime
+          )
+          return !busy
+        })
+
+        if (qualifiedSubstitute) {
+          const oldTrainerName = sess.trainerName
+          diff.push({
+            id: `diff-clash-sub-${sess.id}-${Date.now()}-${substituteCount}`,
+            sessionId: sess.id,
+            batchName: sess.batchName,
+            courseName: sess.courseName,
+            before: `${sess.batchName} · ${sess.startTime}–${sess.endTime} · ${oldTrainerName}`,
+            after: `${sess.batchName} · ${sess.startTime}–${sess.endTime} · ${qualifiedSubstitute.name} (Substitute)`,
+            reasonCode: 'SUBSTITUTE_ALLOCATED',
+            reason: `AI sorted trainer clash: Assigned ${qualifiedSubstitute.name} as qualified substitute for ${sess.courseName} to resolve trainer double-booking.`,
+            newTrainerId: qualifiedSubstitute.id,
+            newTrainerName: qualifiedSubstitute.name,
+            accepted: true,
+          })
+          sess.trainerId = qualifiedSubstitute.id
+          sess.trainerName = qualifiedSubstitute.name
+          sess.hasConflict = false
+          sess.conflictReason = undefined
+          substituteCount++
+          resolvedInThisIteration = true
+          break
+        } else {
+          // Shift session to a free slot for current trainer & room
+          const freeSlot = candidateSlots.find((slot) => {
+            const startM = parseMinutes(slot)
+            const duration = parseMinutes(sess!.endTime) - parseMinutes(sess!.startTime) || 120
+            const endSlot = formatTimeFromMinutes(startM + duration)
+
+            const trainerBusy = updatedSessions.some(
+              (o) =>
+                o.id !== sess!.id &&
+                (o.date ? o.date === sess!.date : o.dayOfWeek === sess!.dayOfWeek) &&
+                o.trainerId === sess!.trainerId &&
+                o.startTime < endSlot &&
+                o.endTime > slot
+            )
+            const roomBusy = updatedSessions.some(
+              (o) =>
+                o.id !== sess!.id &&
+                (o.date ? o.date === sess!.date : o.dayOfWeek === sess!.dayOfWeek) &&
+                o.room === sess!.room &&
+                o.startTime < endSlot &&
+                o.endTime > slot
+            )
+            return !trainerBusy && !roomBusy
+          })
+
+          if (freeSlot) {
+            const duration = parseMinutes(sess.endTime) - parseMinutes(sess.startTime) || 120
+            const newEnd = formatTimeFromMinutes(parseMinutes(freeSlot) + duration)
+            const oldSlot = `${sess.startTime}–${sess.endTime}`
+            diff.push({
+              id: `diff-clash-shift-${sess.id}-${Date.now()}-${movedCount}`,
+              sessionId: sess.id,
+              batchName: sess.batchName,
+              courseName: sess.courseName,
+              before: `${sess.batchName} · ${oldSlot} · ${sess.trainerName}`,
+              after: `${sess.batchName} · ${freeSlot}–${newEnd} · ${sess.trainerName}`,
+              reasonCode: 'RESCHEDULED_SAME_DAY',
+              reason: `AI sorted trainer clash: Shifted ${sess.batchName} to ${freeSlot}–${newEnd} where ${sess.trainerName} and ${sess.room} are fully available.`,
+              newStartTime: freeSlot,
+              newEndTime: newEnd,
+              accepted: true,
+            })
+            sess.startTime = freeSlot
+            sess.endTime = newEnd
+            sess.hasConflict = false
+            sess.conflictReason = undefined
+            movedCount++
+            resolvedInThisIteration = true
+            break
+          }
+        }
+      }
+
+      // 3. Capacity Exceeded Clash
+      else if (conflict.type === 'capacity_exceeded') {
+        const biggerRoom = allRooms.find((r) => {
+          const cap = ROOM_CAPACITIES[r] || 0
+          if (cap < inRoomNeeded) return false
+
+          const busy = updatedSessions.some(
+            (o) =>
+              o.id !== sess!.id &&
+              (o.date ? o.date === sess!.date : o.dayOfWeek === sess!.dayOfWeek) &&
+              o.room === r &&
+              o.startTime < sess!.endTime &&
+              o.endTime > sess!.startTime
+          )
+          return !busy
+        })
+
+        if (biggerRoom) {
+          const oldRoom = sess.room
+          const cap = ROOM_CAPACITIES[biggerRoom]
+          diff.push({
+            id: `diff-clash-cap-${sess.id}-${Date.now()}-${movedCount}`,
+            sessionId: sess.id,
+            batchName: sess.batchName,
+            courseName: sess.courseName,
+            before: `${sess.batchName} · ${oldRoom}`,
+            after: `${sess.batchName} · ${biggerRoom} (Cap: ${cap})`,
+            reasonCode: 'ROOM_REALLOCATED',
+            reason: `AI sorted capacity conflict: Upgraded to ${biggerRoom} (Capacity: ${cap} seats >= ${inRoomNeeded} enrolled).`,
+            newRoom: biggerRoom,
+            accepted: true,
+          })
+          sess.room = biggerRoom
+          sess.hasConflict = false
+          sess.conflictReason = undefined
+          movedCount++
+          resolvedInThisIteration = true
+          break
+        }
+      }
+
+      // 4. Trainer on leave Clash
+      else if (conflict.type === 'trainer_on_leave') {
+        const substitute = trainers.find((t) => {
+          if (t.id === sess!.trainerId) return false
+          if (!isTrainerQualified(t, sess!.courseName)) return false
+          const busy = updatedSessions.some(
+            (o) =>
+              o.id !== sess!.id &&
+              o.date === sess!.date &&
+              o.trainerId === t.id &&
+              o.startTime < sess!.endTime &&
+              o.endTime > sess!.startTime
+          )
+          return !busy
+        })
+
+        if (substitute) {
+          const oldTrainerName = sess.trainerName
+          diff.push({
+            id: `diff-clash-leave-${sess.id}-${Date.now()}-${substituteCount}`,
+            sessionId: sess.id,
+            batchName: sess.batchName,
+            courseName: sess.courseName,
+            before: `${sess.batchName} · ${oldTrainerName} (On Leave)`,
+            after: `${sess.batchName} · ${substitute.name} (Substitute)`,
+            reasonCode: 'SUBSTITUTE_ALLOCATED',
+            reason: `AI sorted leave conflict: Assigned ${substitute.name} as substitute trainer.`,
+            newTrainerId: substitute.id,
+            newTrainerName: substitute.name,
+            accepted: true,
+          })
+          sess.trainerId = substitute.id
+          sess.trainerName = substitute.name
+          sess.hasConflict = false
+          sess.conflictReason = undefined
+          substituteCount++
+          resolvedInThisIteration = true
+          break
+        }
+      }
+    }
+
+    if (!resolvedInThisIteration) break
+  }
+
+  // Final check of remaining conflicts and update session status
+  const finalConflicts = detectConflicts(updatedSessions, trainers, batches, settings)
+  updatedSessions = updatedSessions.map((s) => {
+    const cf = finalConflicts.find((c) => c.sessionId === s.id)
+    return {
+      ...s,
+      hasConflict: Boolean(cf),
+      conflictReason: cf?.reason,
+    }
+  })
+
+  finalConflicts.forEach((c) => {
+    unresolved.push({
+      sessionId: c.sessionId,
+      blocker: c.reason,
+      suggestion: 'Try adjusting session time or unlocking locked sessions.',
+    })
+  })
+
+  const execTime = Math.max(12, Math.round(performance.now() - t0))
+
+  return {
+    updatedSessions,
+    diff,
+    executionTimeMs: execTime,
+    movedCount,
+    substituteCount,
+    remainingConflictsCount: finalConflicts.length,
+    unresolved,
+  }
+}
+

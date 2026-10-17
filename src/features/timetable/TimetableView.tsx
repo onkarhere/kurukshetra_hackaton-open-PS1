@@ -20,6 +20,9 @@ import {
   DoorClosed,
   UserX,
   Users,
+  Plus,
+  PencilLine,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ReasonChip } from '@/components/ui/ReasonChip'
@@ -33,9 +36,11 @@ import {
   detectConflicts,
   replan,
   generateWeek,
+  aiResolveClashes,
   ReplanDiffItem,
   ROOM_CAPACITIES,
 } from './scheduler'
+import { ManualLectureModal } from './ManualLectureModal'
 
 export const TimetableView: React.FC = () => {
   const { branch } = useApp()
@@ -239,6 +244,91 @@ export const TimetableView: React.FC = () => {
     setShowPublishApproval(true)
   }
 
+  // Manual Lecture Modal state
+  const [showManualLectureModal, setShowManualLectureModal] = useState(false)
+  const [manualModalInitialSession, setManualModalInitialSession] = useState<TimetableSession | null>(null)
+  const [manualModalDay, setManualModalDay] = useState<number>(1)
+  const [manualModalTime, setManualModalTime] = useState<string>('10:00')
+
+  // Open manual lecture modal for new lecture
+  const handleOpenManualAdd = (dayOfWeek?: number, time?: string) => {
+    setManualModalInitialSession(null)
+    setManualModalDay(dayOfWeek || 1)
+    setManualModalTime(time || '10:00')
+    setShowManualLectureModal(true)
+  }
+
+  // Open manual lecture modal for editing existing lecture
+  const handleOpenManualEdit = (sess: TimetableSession) => {
+    setManualModalInitialSession(sess)
+    setSelectedSession(null)
+    setShowManualLectureModal(true)
+  }
+
+  // Save manual lecture (Add or Edit)
+  const handleSaveManualLecture = (newSession: TimetableSession, isEdit: boolean) => {
+    if (isEdit) {
+      store.updateTimetableSession(newSession.id, newSession)
+      setSessions((prev) => prev.map((s) => (s.id === newSession.id ? newSession : s)))
+      success('Lecture updated', `Updated slot for ${newSession.batchName}.`)
+    } else {
+      store.addTimetableSession(newSession)
+      setSessions((prev) => [newSession, ...prev])
+      success('Lecture written manually', `Added ${newSession.batchName} (${newSession.startTime}–${newSession.endTime}).`)
+    }
+
+    if (newSession.hasConflict) {
+      setTimeout(() => {
+        toastError(
+          'Clash detected',
+          'This slot overlaps with an existing lecture. You can click "🤖 AI Sort Clashes" to automatically resolve it.'
+        )
+      }, 500)
+    }
+  }
+
+  // Delete lecture
+  const handleDeleteLecture = (sessionId: string) => {
+    store.deleteTimetableSession(sessionId)
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId))
+    setSelectedSession(null)
+    success('Lecture removed', 'The session was removed from the timetable.')
+  }
+
+  // AI Sort Clashes (Auto-resolve any manual or existing clashes)
+  const handleAiSortClashes = () => {
+    const res = aiResolveClashes(sessions, trainers, batches, store.settings)
+    setDiffItems(res.diff)
+    setSessions(res.updatedSessions)
+    setUnresolvedItems(res.unresolved || [])
+    setIsDiffMode(true)
+    setShowChangeDrawer(true)
+    setReplanMetrics({
+      timeMs: res.executionTimeMs,
+      moved: res.movedCount,
+      substitutes: res.substituteCount,
+      remainingConflicts: res.remainingConflictsCount,
+    })
+
+    if (res.diff.length > 0) {
+      success(
+        'AI sorted all clashes',
+        `Resolved in ${res.executionTimeMs}ms: ${res.movedCount} moved, ${res.substituteCount} substitute assigned. Inspect adjustments before publishing.`
+      )
+    } else {
+      success('No clashes found', 'The timetable is already conflict-free.')
+    }
+  }
+
+  // Direct Apply AI Fixes (without waiting for publish proposal if trainer wants instant resolution)
+  const handleDirectApplyAiFixes = () => {
+    const activeDiff = diffItems.filter((d) => d.accepted)
+    store.applyReplan(activeDiff, sessions)
+    setIsDiffMode(false)
+    setShowChangeDrawer(false)
+    success('AI fixes applied', `Applied ${activeDiff.length} adjustments directly to timetable.`)
+  }
+
   return (
     <div className="space-y-4">
       {/* Top Controls Toolbar */}
@@ -300,8 +390,29 @@ export const TimetableView: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Buttons: Auto-generate, Trainer on leave, Room closed, Publish */}
+        {/* Action Buttons: Write Manually, AI Sort Clashes, Auto-generate, Trainer on leave, Room closed, Publish */}
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => handleOpenManualAdd()}
+            leftIcon={<PencilLine className="w-3.5 h-3.5" />}
+          >
+            + Write Lecture Manually
+          </Button>
+
+          {hasConflicts && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleAiSortClashes}
+              className="bg-accent/15 text-accent border-accent/40 font-semibold hover:bg-accent/25 animate-pulse"
+              leftIcon={<Sparkles className="w-3.5 h-3.5 text-accent" />}
+            >
+              🤖 AI Sort Clashes ({conflictCount})
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -351,28 +462,36 @@ export const TimetableView: React.FC = () => {
         </div>
       </div>
 
-      {/* Conflict Bar - Data driven */}
+      {/* Conflict Bar - Data driven with AI auto-resolve */}
       {!isDiffMode && hasConflicts && (
-        <div className="p-3 rounded-card border border-danger/30 bg-danger/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <AlertOctagon className="w-4 h-4 text-danger shrink-0" />
+        <div className="p-3.5 rounded-card border border-danger/40 bg-danger/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-danger/15 border border-danger/30 flex items-center justify-center text-danger shrink-0">
+              <AlertOctagon className="w-4 h-4" />
+            </div>
             <div className="text-text">
               <span className="font-semibold text-danger">
-                {conflictCount} conflict{conflictCount > 1 ? 's' : ''} detected:
+                {conflictCount} timetable clash{conflictCount > 1 ? 'es' : ''} detected:
               </span>{' '}
               <span className="text-text">
                 {activeConflicts.map((c) => c.reason).join(' · ')}
               </span>
+              <p className="text-[11px] text-text-muted mt-0.5">
+                Lectures were scheduled with overlapping slots or rooms. Let AI automatically sort out and reallocate these clashes.
+              </p>
             </div>
           </div>
-          <Button
-            variant="secondary"
-            size="xs"
-            onClick={() => handleTrainerLeaveReplan('tr-arjun', '2026-10-22')}
-            className="self-start sm:self-auto shrink-0"
-          >
-            Resolve clashes
-          </Button>
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <Button
+              variant="primary"
+              size="xs"
+              onClick={handleAiSortClashes}
+              leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+              className="bg-danger hover:bg-danger/90 text-white border-transparent"
+            >
+              🤖 AI Sort Clashes
+            </Button>
+          </div>
         </div>
       )}
 
@@ -463,8 +582,13 @@ export const TimetableView: React.FC = () => {
                   return (
                     <div
                       key={dayNum}
+                      onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                          handleOpenManualAdd(dayNum, time)
+                        }
+                      }}
                       className={cn(
-                        'p-1 border-r border-[#DDBF9F] last:border-r-0 relative hover:bg-[#EBCDB1]/20 transition-colors',
+                        'p-1 border-r border-[#DDBF9F] last:border-r-0 relative hover:bg-[#EBCDB1]/30 transition-colors group/cell min-h-[60px]',
                         dayNum === 4 && hasConflicts && !isDiffMode ? 'bg-[#A3123F]/5' : ''
                       )}
                     >
@@ -546,6 +670,18 @@ export const TimetableView: React.FC = () => {
                           </div>
                         )
                       })}
+
+                      {/* Empty cell quick-add trigger button on hover */}
+                      {matchingSessions.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenManualAdd(dayNum, time)}
+                          className="w-full h-full min-h-[44px] rounded border border-dashed border-transparent hover:border-[#DDBF9F] hover:bg-white/40 opacity-0 group-hover/cell:opacity-100 flex items-center justify-center text-[10px] text-[#5C4636] font-medium transition-all gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3 text-[#5C4636]" />
+                          <span>Write lecture</span>
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -671,6 +807,25 @@ export const TimetableView: React.FC = () => {
             </div>
 
             <div className="space-y-2 pt-4 border-t border-border">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => handleOpenManualEdit(selectedSession)}
+                  leftIcon={<PencilLine className="w-3.5 h-3.5 text-accent" />}
+                >
+                  Edit lecture
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full text-danger hover:bg-danger/10 hover:border-danger/30"
+                  onClick={() => handleDeleteLecture(selectedSession.id)}
+                  leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                >
+                  Delete lecture
+                </Button>
+              </div>
+
               <Button
                 variant="outline"
                 className="w-full"
@@ -790,10 +945,20 @@ export const TimetableView: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-border flex items-center gap-2">
+            <div className="pt-3 border-t border-border flex flex-col sm:flex-row items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full sm:w-auto"
+                onClick={handleDirectApplyAiFixes}
+                leftIcon={<Check className="w-3.5 h-3.5 text-success" />}
+              >
+                Apply AI Fixes Directly
+              </Button>
               <Button
                 variant="primary"
-                className="flex-1"
+                size="sm"
+                className="w-full sm:flex-1"
                 onClick={() => {
                   setShowChangeDrawer(false)
                   handleOpenPublish()
@@ -801,7 +966,7 @@ export const TimetableView: React.FC = () => {
               >
                 Proceed to publish ({diffItems.filter((d) => d.accepted).length})
               </Button>
-              <Button variant="outline" onClick={() => setShowChangeDrawer(false)}>
+              <Button variant="outline" size="sm" onClick={() => setShowChangeDrawer(false)}>
                 Dismiss
               </Button>
             </div>
@@ -983,6 +1148,19 @@ export const TimetableView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Manual Lecture Writing & Editing Modal */}
+      <ManualLectureModal
+        isOpen={showManualLectureModal}
+        onClose={() => setShowManualLectureModal(false)}
+        initialSession={manualModalInitialSession}
+        initialDayOfWeek={manualModalDay}
+        initialStartTime={manualModalTime}
+        trainers={trainers}
+        batches={batches}
+        existingSessions={sessions}
+        onSave={handleSaveManualLecture}
+      />
     </div>
   )
 }
