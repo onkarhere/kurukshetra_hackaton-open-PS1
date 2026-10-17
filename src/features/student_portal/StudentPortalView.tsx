@@ -1080,7 +1080,7 @@ export const StudentPortalView: React.FC = () => {
               {upiQrUrl ? (
                 <img src={upiQrUrl} alt="UPI QR" className="w-48 h-48 mx-auto" />
               ) : (
-                <div className="w-48 h-48 flex items-center justify-center text-xs text-neutral-500">
+                <div className="w-48 h-48 flex items-center justify-center text-xs text-text-muted">
                   Generating UPI QR...
                 </div>
               )}
@@ -1220,7 +1220,7 @@ export const StudentPortalView: React.FC = () => {
             </div>
 
             {/* Video Player */}
-            <div className="relative w-full aspect-video bg-black rounded overflow-hidden">
+            <div className="relative w-full aspect-video bg-[#33251F] rounded overflow-hidden">
               <video
                 src={activeVideo.url}
                 controls

@@ -35,11 +35,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variantClasses = {
       primary:
-        'bg-accent text-accent-fg hover:bg-accent-hover transition-colors active:opacity-95 disabled:opacity-50 disabled:pointer-events-none',
+        'bg-[var(--btn-primary-bg,#4A3528)] text-[var(--btn-primary-fg,#F8F4EF)] hover:bg-[var(--btn-primary-hover,#33251F)] transition-colors active:opacity-95 disabled:opacity-50 disabled:pointer-events-none',
       secondary:
-        'bg-surface text-text hover:bg-surface-sunken border border-border-strong transition-colors active:opacity-95 disabled:opacity-50',
+        'bg-[var(--btn-secondary-bg,transparent)] text-[var(--btn-secondary-fg,#1E140E)] border border-[var(--btn-secondary-border,#9A7655)] hover:bg-[var(--btn-secondary-hover,#EBCDB1)] transition-colors active:opacity-95 disabled:opacity-50',
       outline:
-        'border border-border-strong text-text hover:bg-surface-sunken transition-colors active:opacity-95 disabled:opacity-50',
+        'border border-[var(--btn-secondary-border,#9A7655)] text-[var(--btn-secondary-fg,#1E140E)] hover:bg-[var(--btn-secondary-hover,#EBCDB1)] transition-colors active:opacity-95 disabled:opacity-50',
       ghost:
         'text-text-muted hover:text-text hover:bg-surface-sunken transition-colors disabled:opacity-50',
       destructive:
@@ -51,7 +51,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          'inline-flex items-center justify-center select-none font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+          'inline-flex items-center justify-center select-none font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,#7A5A3E)] focus-visible:ring-offset-1',
           sizeClasses[size],
           variantClasses[variant],
           className

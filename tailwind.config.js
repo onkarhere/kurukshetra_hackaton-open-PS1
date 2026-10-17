@@ -12,6 +12,7 @@ export default {
         surface: {
           DEFAULT: 'var(--surface)',
           sunken: 'var(--surface-sunken)',
+          strong: 'var(--surface-strong)',
         },
         border: {
           DEFAULT: 'var(--border)',
@@ -47,6 +48,62 @@ export default {
           DEFAULT: 'var(--ai-chip)',
           bg: 'var(--ai-chip-bg)',
         },
+        // Espresso & Peach warm palette
+        espresso: {
+          DEFAULT: '#4A3528',
+          deep: '#33251F',
+          ink: '#2A1C14',
+          hover: '#5A4334',
+        },
+        peach: {
+          DEFAULT: '#F6E3D1',
+          strong: '#EBCDB1',
+          soft: '#FFF8F1',
+          hover: '#F1DCC8',
+        },
+        ink: {
+          DEFAULT: '#1E140E',
+          muted: '#5C4636',
+        },
+        ivory: {
+          DEFAULT: '#F8F4EF',
+          muted: '#E3D2C1',
+          hover: '#EADBC8',
+        },
+        'pearl-gold': {
+          DEFAULT: '#D6B48A',
+          hover: '#B9926A',
+        },
+        'champagne-gold': '#B9926A',
+        'border-peach': '#DDBF9F',
+        'input-border': '#9A7655',
+        'focus-light': '#7A5A3E',
+        magenta: {
+          DEFAULT: '#B21E63',
+          hover: '#8F1650',
+        },
+        berry: '#8F1650',
+        sidebar: {
+          DEFAULT: '#33251F',
+          fg: '#F3E9DE',
+          muted: '#CDB9A6',
+          border: '#4F3B2E',
+          hover: '#4F3B2E',
+          'active-bg': '#D6B48A',
+          'active-fg': '#2A1C14',
+        },
+        pastel: {
+          peach: '#F4C7A1',
+          sage: '#C5D9B8',
+          sky: '#BCD4E6',
+          lavender: '#D7C7E8',
+          mustard: '#EBD08F',
+          rose: '#EEC0C8',
+          teal: '#B4DCD6',
+          sand: '#E2CDB0',
+          coral: '#F2B5A0',
+          mint: '#CDE8CF',
+        },
       },
       fontFamily: {
         sans: ['IBM Plex Sans', 'Source Sans 3', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
@@ -59,8 +116,9 @@ export default {
         full: '9999px',
       },
       boxShadow: {
-        popover: '0 8px 24px rgba(0, 0, 0, 0.10)',
-        dialog: '0 16px 48px rgba(0, 0, 0, 0.16)',
+        card: 'var(--card-shadow, 0 8px 24px -12px rgba(74, 53, 40, 0.25))',
+        popover: '0 8px 24px -12px rgba(74, 53, 40, 0.25)',
+        dialog: '0 16px 48px -12px rgba(74, 53, 40, 0.35)',
       },
       transitionDuration: {
         DEFAULT: '120ms',

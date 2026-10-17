@@ -188,16 +188,16 @@ GROUP BY r.id, r.room_number;`,
             {activeReport === 'collections' && (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={collectionsData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--border)" strokeOpacity={0.08} vertical={false} />
+                  <CartesianGrid stroke="#DDBF9F" strokeOpacity={0.6} vertical={false} />
                   <XAxis
                     dataKey="name"
-                    stroke="var(--text-muted)"
+                    stroke="#5C4636"
                     fontSize={11}
                     tickLine={false}
-                    axisLine={{ stroke: 'var(--border)' }}
+                    axisLine={{ stroke: '#DDBF9F' }}
                   />
                   <YAxis
-                    stroke="var(--text-muted)"
+                    stroke="#5C4636"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
@@ -209,17 +209,17 @@ GROUP BY r.id, r.room_number;`,
                       name === 'amount' ? 'Collected' : 'Target',
                     ]}
                     contentStyle={{
-                      backgroundColor: 'var(--surface)',
-                      borderColor: 'var(--border)',
+                      backgroundColor: '#F6E3D1',
+                      borderColor: '#D6B48A',
                       borderRadius: '6px',
                       fontSize: '12px',
-                      color: 'var(--text)',
+                      color: '#1E140E',
                     }}
                   />
                   <Line
                     type="monotone"
                     dataKey="target"
-                    stroke="var(--text-muted)"
+                    stroke="#B9926A"
                     strokeWidth={1.5}
                     strokeDasharray="4 4"
                     dot={false}
@@ -227,9 +227,9 @@ GROUP BY r.id, r.room_number;`,
                   <Line
                     type="monotone"
                     dataKey="amount"
-                    stroke="var(--accent)"
+                    stroke="#4A3528"
                     strokeWidth={2}
-                    dot={{ r: 3, fill: 'var(--accent)' }}
+                    dot={{ r: 3, fill: '#4A3528' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -238,16 +238,16 @@ GROUP BY r.id, r.room_number;`,
             {activeReport === 'attendance' && (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={attendanceData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--border)" strokeOpacity={0.08} vertical={false} />
+                  <CartesianGrid stroke="#DDBF9F" strokeOpacity={0.6} vertical={false} />
                   <XAxis
                     dataKey="name"
-                    stroke="var(--text-muted)"
+                    stroke="#5C4636"
                     fontSize={11}
                     tickLine={false}
-                    axisLine={{ stroke: 'var(--border)' }}
+                    axisLine={{ stroke: '#DDBF9F' }}
                   />
                   <YAxis
-                    stroke="var(--text-muted)"
+                    stroke="#5C4636"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
@@ -257,14 +257,14 @@ GROUP BY r.id, r.room_number;`,
                   <Tooltip
                     formatter={(val: any) => [`${val}%`, 'Turnout']}
                     contentStyle={{
-                      backgroundColor: 'var(--surface)',
-                      borderColor: 'var(--border)',
+                      backgroundColor: '#F6E3D1',
+                      borderColor: '#D6B48A',
                       borderRadius: '6px',
                       fontSize: '12px',
-                      color: 'var(--text)',
+                      color: '#1E140E',
                     }}
                   />
-                  <Bar dataKey="turnout" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="turnout" fill="#4A3528" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -272,16 +272,16 @@ GROUP BY r.id, r.room_number;`,
             {activeReport === 'trainer_load' && (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={trainerLoadData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--border)" strokeOpacity={0.08} vertical={false} />
+                  <CartesianGrid stroke="#DDBF9F" strokeOpacity={0.6} vertical={false} />
                   <XAxis
                     dataKey="name"
-                    stroke="var(--text-muted)"
+                    stroke="#5C4636"
                     fontSize={11}
                     tickLine={false}
-                    axisLine={{ stroke: 'var(--border)' }}
+                    axisLine={{ stroke: '#DDBF9F' }}
                   />
                   <YAxis
-                    stroke="var(--text-muted)"
+                    stroke="#5C4636"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
@@ -290,14 +290,14 @@ GROUP BY r.id, r.room_number;`,
                   <Tooltip
                     formatter={(val: any) => [`${val} hrs`, 'Weekly Hours']}
                     contentStyle={{
-                      backgroundColor: 'var(--surface)',
-                      borderColor: 'var(--border)',
+                      backgroundColor: '#F6E3D1',
+                      borderColor: '#D6B48A',
                       borderRadius: '6px',
                       fontSize: '12px',
-                      color: 'var(--text)',
+                      color: '#1E140E',
                     }}
                   />
-                  <Bar dataKey="hours" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="hours" fill="#4A3528" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

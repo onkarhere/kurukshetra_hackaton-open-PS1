@@ -182,67 +182,67 @@ export const LoginView: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-12 bg-canvas text-text select-none font-sans">
+    <div className="min-h-screen grid grid-cols-1 md:grid-cols-12 bg-[#4A3528] text-[#F8F4EF] select-none font-sans">
       {/* Left Brand Panel (5 cols) */}
-      <div className="md:col-span-5 bg-surface-sunken border-r border-border p-8 md:p-12 flex flex-col justify-between">
+      <div className="md:col-span-5 bg-[#33251F] border-r border-[#4F3B2E] p-8 md:p-12 flex flex-col justify-between text-[#F8F4EF]">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-control bg-accent text-accent-fg font-medium text-xs flex items-center justify-center">
+          <div className="w-8 h-8 rounded-control bg-[#4A3528] border border-[#6B5040] text-[#F8F4EF] font-medium text-xs flex items-center justify-center">
             IO
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-sm text-text leading-tight">Institute OS</span>
-            <span className="text-[11px] text-text-muted">Batchwise · Enterprise Platform</span>
+            <span className="font-semibold text-sm text-[#F8F4EF] leading-tight">Institute OS</span>
+            <span className="text-[11px] text-[#E3D2C1]">Batchwise · Enterprise Platform</span>
           </div>
         </div>
 
         <div className="space-y-6 my-auto max-w-sm">
           <div>
-            <div className="text-xs text-text-muted uppercase tracking-wider font-normal">
+            <div className="text-xs text-[#E3D2C1] uppercase tracking-wider font-normal">
               Enterprise Operations Platform
             </div>
-            <h1 className="text-2xl font-semibold text-text tracking-tight mt-2 leading-snug">
+            <h1 className="text-2xl font-semibold text-[#F8F4EF] tracking-tight mt-2 leading-snug">
               Precision operations, attendance, timetable scheduling and fee governance.
             </h1>
           </div>
 
-          <div className="space-y-3.5 text-xs text-text-muted">
+          <div className="space-y-3.5 text-xs text-[#E3D2C1]">
             <div className="flex items-start gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-4 h-4 text-[#D6B48A] shrink-0 mt-0.5" />
               <div>
-                <span className="font-medium text-text">Supabase cloud security: </span>
+                <span className="font-medium text-[#F8F4EF]">Supabase cloud security: </span>
                 Multi-tenant session tokens, encrypted credentials, and automated schema policies.
               </div>
             </div>
 
             <div className="flex items-start gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-4 h-4 text-[#D6B48A] shrink-0 mt-0.5" />
               <div>
-                <span className="font-medium text-text">Dual-control safety: </span>
+                <span className="font-medium text-[#F8F4EF]">Dual-control safety: </span>
                 Automated reminders, timetable replans, and waivers require explicit owner authorization.
               </div>
             </div>
 
             <div className="flex items-start gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-4 h-4 text-[#D6B48A] shrink-0 mt-0.5" />
               <div>
-                <span className="font-medium text-text">Role-based privacy: </span>
+                <span className="font-medium text-[#F8F4EF]">Role-based privacy: </span>
                 Strict financial opacity ensures instructors focus purely on academics and student outcomes.
               </div>
             </div>
           </div>
         </div>
 
-        <div className="text-xs text-text-muted flex items-center gap-2">
+        <div className="text-xs text-[#E3D2C1] flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5" />
           <span>CodeCraft Academy · Pune, Maharashtra</span>
         </div>
       </div>
 
       {/* Right Form Panel (7 cols) */}
-      <div className="md:col-span-7 p-6 sm:p-10 md:p-14 flex items-center justify-center bg-surface overflow-y-auto">
+      <div className="md:col-span-7 p-6 sm:p-10 md:p-14 flex items-center justify-center bg-[#F6E3D1] text-[#1E140E] overflow-y-auto">
         <div className="w-full max-w-md space-y-5">
           {/* Top Switcher: Sign In vs Create Account */}
-          <div className="flex items-center justify-between pb-1 border-b border-border">
+          <div className="flex items-center justify-between pb-1 border-b border-[#DDBF9F]">
             <div className="flex items-center gap-4">
               <button
                 type="button"
@@ -253,8 +253,8 @@ export const LoginView: React.FC = () => {
                 }}
                 className={`text-sm font-semibold transition-colors pb-2 border-b-2 ${
                   mode === 'signin'
-                    ? 'border-accent text-text'
-                    : 'border-transparent text-text-muted hover:text-text'
+                    ? 'border-[#4A3528] text-[#1E140E]'
+                    : 'border-transparent text-[#5C4636] hover:text-[#1E140E]'
                 }`}
               >
                 Sign in
@@ -267,14 +267,14 @@ export const LoginView: React.FC = () => {
                 }}
                 className={`text-sm font-semibold transition-colors pb-2 border-b-2 ${
                   mode === 'signup'
-                    ? 'border-accent text-text'
-                    : 'border-transparent text-text-muted hover:text-text'
+                    ? 'border-[#4A3528] text-[#1E140E]'
+                    : 'border-transparent text-[#5C4636] hover:text-[#1E140E]'
                 }`}
               >
                 Create student account
               </button>
             </div>
-            <span className="text-xs text-text-muted">CodeCraft Pune</span>
+            <span className="text-xs text-[#5C4636]">CodeCraft Pune</span>
           </div>
 
           {errorMessage && (
@@ -440,8 +440,8 @@ export const LoginView: React.FC = () => {
               </form>
 
               {/* Demo accounts Section */}
-              <div className="pt-3 border-t border-border space-y-2">
-                <div className="text-[11px] font-medium text-text-muted">
+              <div className="pt-3 border-t border-[#DDBF9F] space-y-2">
+                <div className="text-[11px] font-medium text-[#5C4636]">
                   Demo accounts (Quick sign in):
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -455,10 +455,10 @@ export const LoginView: React.FC = () => {
                         branch: 'All',
                       })
                     }
-                    className="p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
+                    className="p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
                   >
-                    <div className="font-medium text-text">Rajesh Sharma</div>
-                    <div className="text-[11px] text-text-muted">Owner · Pass: Admin@1234</div>
+                    <div className="font-medium text-[#1E140E]">Rajesh Sharma</div>
+                    <div className="text-[11px] text-[#5C4636]">Owner · Pass: Admin@1234</div>
                   </button>
 
                   <button
@@ -471,10 +471,10 @@ export const LoginView: React.FC = () => {
                         branch: 'Kothrud',
                       })
                     }
-                    className="p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
+                    className="p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
                   >
-                    <div className="font-medium text-text">Arjun Mehta</div>
-                    <div className="text-[11px] text-text-muted">Trainer · Pass: Trainer@1234</div>
+                    <div className="font-medium text-[#1E140E]">Arjun Mehta</div>
+                    <div className="text-[11px] text-[#5C4636]">Trainer · Pass: Trainer@1234</div>
                   </button>
 
                   <button
@@ -487,10 +487,10 @@ export const LoginView: React.FC = () => {
                         branch: 'Baner',
                       })
                     }
-                    className="p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
+                    className="p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
                   >
-                    <div className="font-medium text-text">Snehal Kulkarni</div>
-                    <div className="text-[11px] text-text-muted">Counselor · Pass: Counselor@1234</div>
+                    <div className="font-medium text-[#1E140E]">Snehal Kulkarni</div>
+                    <div className="text-[11px] text-[#5C4636]">Counselor · Pass: Counselor@1234</div>
                   </button>
 
                   <button
@@ -503,10 +503,10 @@ export const LoginView: React.FC = () => {
                         branch: 'All',
                       })
                     }
-                    className="p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
+                    className="p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
                   >
-                    <div className="font-medium text-text">Sunita Accounts</div>
-                    <div className="text-[11px] text-text-muted">Accounts · Pass: Accounts@1234</div>
+                    <div className="font-medium text-[#1E140E]">Sunita Accounts</div>
+                    <div className="text-[11px] text-[#5C4636]">Accounts · Pass: Accounts@1234</div>
                   </button>
 
                   <button
@@ -519,10 +519,10 @@ export const LoginView: React.FC = () => {
                         branch: 'Kothrud',
                       })
                     }
-                    className="col-span-2 p-2 text-left rounded-control border border-border bg-surface-sunken hover:bg-surface hover:border-border-strong transition-colors"
+                    className="col-span-2 p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
                   >
-                    <div className="font-medium text-text">Priya Nair</div>
-                    <div className="text-[11px] text-text-muted">Student · Pass: Student@1234</div>
+                    <div className="font-medium text-[#1E140E]">Priya Nair</div>
+                    <div className="text-[11px] text-[#5C4636]">Student · Pass: Student@1234</div>
                   </button>
                 </div>
               </div>

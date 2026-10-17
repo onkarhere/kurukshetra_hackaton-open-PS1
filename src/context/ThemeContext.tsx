@@ -14,7 +14,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('batchwise-theme') as Theme
-    return saved || 'system'
+    return saved || 'dark'
   })
 
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light')

@@ -3,64 +3,139 @@
 @tailwind utilities;
 
 @layer base {
+  /* LIGHT MODE (Ivory shell, peach highlighted boxes) */
   :root {
-    --canvas: #F7F6F3;
-    --surface: #FFFFFF;
-    --surface-sunken: #F1F0EC;
-    --border: #E3E1DB;
-    --border-strong: #8C8A84;
-    --text: #1C1F23;
-    --text-muted: #5F6670;
-    
-    --accent: #1F5C4A;
-    --accent-hover: #174739;
-    --accent-fg: #FFFFFF;
-    --accent-subtle: #EBF3F0;
+    --canvas: #F8F4EF;          /* ivory page */
+    --surface: #FFFFFF;         /* plain cards */
+    --surface-sunken: #F1DCC8;  /* strong surface / sunken */
+    --surface-strong: #F1DCC8;
+    --card-highlight: #F6E3D1;  /* peach for highlighted boxes */
+    --border: #E3D2BE;
+    --border-strong: #9A7655;
+    --card-border: #E3D2BE;
+    --text: #4A3528;            /* espresso text on ivory */
+    --text-muted: #6E5747;      /* muted text on ivory */
+    --card-shadow: 0 10px 30px -10px rgba(74, 53, 40, 0.10);
 
-    --success: #2F6B3A;
-    --success-subtle: #EDF6EE;
+    --primary: #4A3528;
+    --primary-foreground: #F8F4EF;
 
-    --warning: #8A5A00;
-    --warning-subtle: #FAF4E8;
+    /* Buttons inside light cards */
+    --btn-primary-bg: #4A3528;
+    --btn-primary-fg: #F8F4EF;
+    --btn-primary-hover: #33251F;
+    --btn-secondary-bg: transparent;
+    --btn-secondary-border: #9A7655;
+    --btn-secondary-fg: #1E140E;
+    --btn-secondary-hover: #EBCDB1;
 
-    --danger: #A3262B;
-    --danger-subtle: #FBEFF0;
+    --accent: #D6B48A;
+    --accent-hover: #B9926A;
+    --accent-fg: #2A1C14;
+    --accent-subtle: #F6E3D1;
 
-    --info: #2A5D8F;
-    --info-subtle: #EDF4FA;
+    /* Status colours on peach / white / ivory */
+    --success: #1F6B3A;
+    --success-subtle: rgba(31, 107, 58, 0.12);
+    --warning: #8A5300;
+    --warning-subtle: rgba(138, 83, 0, 0.12);
+    --danger: #A3123F;
+    --danger-subtle: rgba(163, 18, 63, 0.12);
+    --info: #1F5785;
+    --info-subtle: rgba(31, 87, 133, 0.12);
 
-    --ai-chip: #3B3F4A;
-    --ai-chip-bg: #EAEBED;
+    --ai-chip: #5C4636;
+    --ai-chip-bg: #F6E3D1;
+
+    --scrollbar-track: #F8F4EF;
+    --focus-ring: #7A5A3E;
   }
 
+  /* DARK MODE (Espresso shell, peach boxes, ink text) - Default Look */
   .dark {
-    --canvas: #111315;
-    --surface: #181A1D;
-    --surface-sunken: #1E2125;
-    --border: #2A2E33;
-    --border-strong: #646A73;
-    --text: #E8EAED;
-    --text-muted: #9AA1AB;
+    --canvas: #4A3528;          /* espresso page */
+    --surface: #F6E3D1;         /* peach boxes */
+    --surface-sunken: #EBCDB1;  /* peach-strong */
+    --surface-strong: #EBCDB1;
+    --border: #D6B48A;          /* pearl-gold card borders */
+    --border-strong: #9A7655;   /* input-border */
+    --card-border: #D6B48A;
+    --text: #F8F4EF;            /* ivory text on espresso page */
+    --text-muted: #E3D2C1;      /* ivory-muted on espresso */
+    --card-shadow: 0 8px 24px -12px rgba(74, 53, 40, 0.25);
 
-    --accent: #5FB39A;
-    --accent-hover: #4FA38A;
-    --accent-fg: #111315;
-    --accent-subtle: #172B24;
+    --primary: #4A3528;
+    --primary-foreground: #F8F4EF;
 
-    --success: #6FBF7D;
-    --success-subtle: #182C1B;
+    /* Buttons on espresso page headers */
+    --btn-primary-bg: #F8F4EF;
+    --btn-primary-fg: #4A3528;
+    --btn-primary-hover: #EADBC8;
+    --btn-secondary-bg: transparent;
+    --btn-secondary-border: #D6B48A;
+    --btn-secondary-fg: #F8F4EF;
+    --btn-secondary-hover: #5A4334;
 
-    --warning: #E0A93B;
-    --warning-subtle: #2E220D;
+    --accent: #D6B48A;          /* pearl-gold */
+    --accent-hover: #B9926A;
+    --accent-fg: #2A1C14;
+    --accent-subtle: rgba(214, 180, 138, 0.18);
 
-    --danger: #E5676B;
-    --danger-subtle: #2F1618;
+    /* Status colours on peach / white */
+    --success: #1F6B3A;
+    --success-subtle: rgba(31, 107, 58, 0.12);
+    --warning: #8A5300;
+    --warning-subtle: rgba(138, 83, 0, 0.12);
+    --danger: #A3123F;
+    --danger-subtle: rgba(163, 18, 63, 0.12);
+    --info: #1F5785;
+    --info-subtle: rgba(31, 87, 133, 0.12);
 
-    --info: #7AAEDB;
-    --info-subtle: #172433;
+    --ai-chip: #2A1C14;
+    --ai-chip-bg: #EBCDB1;
 
-    --ai-chip: #B8BCC6;
-    --ai-chip-bg: #22252B;
+    --scrollbar-track: #33251F;
+    --focus-ring: #D6B48A;
+  }
+
+  /* Scoped inner tokens for cards, panels, modals, drawers, tables in dark mode */
+  .dark .bg-surface,
+  .dark .rounded-card,
+  .dark table,
+  .dark [role="dialog"],
+  .dark [role="menu"],
+  .dark [role="listbox"],
+  .dark .bg-surface-sunken {
+    --text: #1E140E;            /* ink */
+    --text-muted: #5C4636;      /* ink-muted */
+    --border: #DDBF9F;          /* border-peach inside cards */
+    --border-strong: #9A7655;   /* input-border */
+    --focus-ring: #7A5A3E;
+
+    /* Buttons inside peach boxes */
+    --btn-primary-bg: #4A3528;
+    --btn-primary-fg: #F8F4EF;
+    --btn-primary-hover: #33251F;
+    --btn-secondary-bg: transparent;
+    --btn-secondary-border: #9A7655;
+    --btn-secondary-fg: #1E140E;
+    --btn-secondary-hover: #EBCDB1;
+  }
+
+  /* Card outer borders on espresso shell */
+  .dark .rounded-card,
+  .dark [role="dialog"],
+  .dark .shadow-popover,
+  .dark .shadow-dialog {
+    border-color: #D6B48A;
+  }
+
+  /* Dividers and hr lines inside dark mode */
+  .dark hr {
+    border-color: #DDBF9F;
+  }
+  .dark .divide-border > :not([hidden]) ~ :not([hidden]) {
+    border-color: #DDBF9F;
   }
 
   * {
@@ -81,46 +156,169 @@
     overflow-x: hidden;
   }
 
-  /* Global tabular numbers for sans-serif */
+  /* Global tabular numbers */
   .tnum {
     font-feature-settings: "tnum" 1;
     font-variant-numeric: tabular-nums;
   }
 }
 
+/* Form Inputs, Selects, and Textareas */
+input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]),
+select,
+textarea {
+  background-color: #FFF8F1;
+  border-color: #9A7655;
+  color: #1E140E;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #7D6656;
+}
+
+/* Tables */
+table {
+  background-color: #F6E3D1;
+  color: #1E140E;
+}
+
+table thead,
+table thead tr {
+  background-color: #EBCDB1 !important;
+  color: #1E140E !important;
+}
+
+table thead th {
+  color: #1E140E !important;
+  border-color: #DDBF9F !important;
+}
+
+table tbody tr {
+  border-color: #DDBF9F;
+  transition: background-color 120ms ease;
+}
+
+table tbody tr:hover {
+  background-color: #F1DCC8;
+}
+
+table tbody tr[aria-selected="true"],
+table tbody tr.selected {
+  background-color: #EBCDB1;
+}
+
+table tbody td {
+  border-color: #DDBF9F;
+}
+
+/* Modal Backdrops & Overlay behind modals */
+.bg-black\/20,
+.bg-black\/40,
+.bg-black\/50,
+.bg-black\/60,
+.bg-black\/80 {
+  background-color: rgba(30, 20, 14, 0.55) !important;
+}
+
+/* Links */
+main a:not([class*="btn"]):not([class*="Button"]) {
+  color: #B21E63;
+  transition: color 120ms ease;
+}
+main a:not([class*="btn"]):not([class*="Button"]):hover {
+  color: #8F1650;
+}
+.dark body > a,
+.dark main > a,
+.dark nav[aria-label="Breadcrumb"] a {
+  color: #D6B48A;
+}
+.dark body > a:hover,
+.dark main > a:hover,
+.dark nav[aria-label="Breadcrumb"] a:hover {
+  color: #F8F4EF;
+}
+
+/* Sidebar navigation typography - dark charcoal/near-black #1F1F1F */
+aside nav a,
+aside nav a span,
+aside a,
+aside a span {
+  color: #1F1F1F !important;
+}
+aside nav a:hover,
+aside nav a:hover span {
+  color: #1F1F1F !important;
+}
+aside nav a.active,
+aside nav a[aria-current="page"] {
+  color: #1F1F1F !important;
+}
+
 /* Scroll shadow utilities */
 .scroll-shadow-y {
   background: 
-    linear-gradient(var(--surface) 30%, rgba(255, 255, 255, 0)),
-    linear-gradient(rgba(255, 255, 255, 0), var(--surface) 70%) 0 100%,
-    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0)),
-    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0)) 0 100%;
+    linear-gradient(var(--surface) 30%, rgba(246, 227, 209, 0)),
+    linear-gradient(rgba(246, 227, 209, 0), var(--surface) 70%) 0 100%,
+    radial-gradient(farthest-side at 50% 0, rgba(74, 53, 40, 0.15), rgba(0, 0, 0, 0)),
+    radial-gradient(farthest-side at 50% 100%, rgba(74, 53, 40, 0.15), rgba(0, 0, 0, 0)) 0 100%;
   background-repeat: no-repeat;
   background-color: var(--surface);
   background-size: 100% 40px, 100% 40px, 100% 12px, 100% 12px;
   background-attachment: local, local, scroll, scroll;
 }
 
-/* Restrained scrollbar */
+/* Scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: #D6B48A;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-strong);
+  background: #B9926A;
 }
 
-/* High-contrast accessible focus ring */
+/* Text Selection */
+::selection {
+  background-color: #B21E63;
+  color: #FFFFFF;
+}
+
+/* Accessible 2px Focus Ring */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring, #7A5A3E);
   outline-offset: 2px;
+}
+
+/* Skeleton shimmer */
+@keyframes warm-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-pulse,
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #EBCDB1 25%, #F1DCC8 50%, #EBCDB1 75%);
+  background-size: 200% 100%;
+  animation: warm-shimmer 1.8s infinite ease-in-out;
+}
+
+/* Error banner */
+.error-banner {
+  background-color: rgba(163, 18, 63, 0.10);
+  color: #A3123F;
+  border-color: rgba(163, 18, 63, 0.35);
 }
 
 @media (prefers-reduced-motion: reduce) {

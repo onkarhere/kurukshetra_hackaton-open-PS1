@@ -52,18 +52,18 @@ export const RecordingsView: React.FC = () => {
             className="rounded-card border border-border bg-surface overflow-hidden hover:border-border-strong transition-colors cursor-pointer flex flex-col justify-between"
           >
             <div>
-              <div className="relative aspect-video bg-[#111315] overflow-hidden group">
+              <div className="relative aspect-video bg-[#33251F] overflow-hidden group">
                 <img
                   src={rec.thumbnailUrl}
                   alt={rec.title}
                   className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-200"
                 />
-                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                  <div className="w-9 h-9 rounded-full bg-surface text-text flex items-center justify-center shadow-dialog">
+                <div className="absolute inset-0 bg-[rgba(30,20,14,0.35)] flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-full bg-[#F6E3D1] text-[#1E140E] flex items-center justify-center shadow-dialog">
                     <Play className="w-3.5 h-3.5 ml-0.5" />
                   </div>
                 </div>
-                <span className="absolute bottom-2 right-2 bg-black/80 text-white font-mono text-[10px] px-1.5 py-0.5 rounded">
+                <span className="absolute bottom-2 right-2 bg-[#33251F]/90 text-[#F8F4EF] font-mono text-[10px] px-1.5 py-0.5 rounded">
                   {rec.duration}
                 </span>
               </div>
@@ -123,7 +123,7 @@ export const RecordingsView: React.FC = () => {
               </button>
             </div>
 
-            <div className="aspect-video bg-black flex items-center justify-center">
+            <div className="aspect-video bg-[#33251F] flex items-center justify-center">
               <video
                 controls
                 src={selectedRecording.videoUrl}

@@ -104,13 +104,13 @@ export const DashboardView: React.FC = () => {
     { batch: 'React Frontend B1 (Online)', mon: 91, tue: 89, wed: 90, thu: 92, fri: 91 },
   ]
 
-  // Sequential accent scale helper
+  // Sequential scale of peach to espresso: #F6E3D1 → #E2C6A7 → #C9A57F → #9A7655 → #6E5040
   const getSequentialAccentClass = (pct: number) => {
-    if (pct >= 95) return 'bg-accent text-white dark:text-ink font-semibold'
-    if (pct >= 90) return 'bg-accent/70 text-white dark:text-ink font-medium'
-    if (pct >= 85) return 'bg-accent/40 text-text font-medium'
-    if (pct >= 80) return 'bg-accent/25 text-text'
-    return 'bg-accent/15 text-text-muted'
+    if (pct >= 95) return 'bg-[#6E5040] text-[#F8F4EF] font-semibold'
+    if (pct >= 90) return 'bg-[#9A7655] text-[#F8F4EF] font-medium'
+    if (pct >= 85) return 'bg-[#C9A57F] text-[#1E140E] font-medium'
+    if (pct >= 80) return 'bg-[#E2C6A7] text-[#1E140E]'
+    return 'bg-[#F6E3D1] text-[#1E140E]'
   }
 
   /* =========================================================================
@@ -1164,16 +1164,16 @@ export const DashboardView: React.FC = () => {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={collectionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid stroke="var(--border)" strokeOpacity={0.08} vertical={false} />
+                    <CartesianGrid stroke="#DDBF9F" strokeOpacity={0.6} vertical={false} />
                     <XAxis
                       dataKey="day"
-                      stroke="var(--text-muted)"
+                      stroke="#5C4636"
                       fontSize={11}
                       tickLine={false}
-                      axisLine={{ stroke: 'var(--border)' }}
+                      axisLine={{ stroke: '#DDBF9F' }}
                     />
                     <YAxis
-                      stroke="var(--text-muted)"
+                      stroke="#5C4636"
                       fontSize={11}
                       tickLine={false}
                       axisLine={false}
@@ -1185,29 +1185,29 @@ export const DashboardView: React.FC = () => {
                         name === 'amount' ? 'Collected' : 'Target',
                       ]}
                       contentStyle={{
-                        backgroundColor: 'var(--surface)',
-                        borderColor: 'var(--border)',
+                        backgroundColor: '#F6E3D1',
+                        borderColor: '#D6B48A',
                         borderRadius: '6px',
                         fontSize: '12px',
-                        color: 'var(--text)',
+                        color: '#1E140E',
                       }}
                     />
-                    {/* Target line: dashed neutral */}
+                    {/* Target line: dashed champagne-gold #B9926A */}
                     <Line
                       type="monotone"
                       dataKey="target"
-                      stroke="var(--text-muted)"
+                      stroke="#B9926A"
                       strokeWidth={1.5}
                       strokeDasharray="4 4"
                       dot={false}
                     />
-                    {/* Accent series line: single flat accent line, zero gradient fill */}
+                    {/* Main line: espresso #4A3528 */}
                     <Line
                       type="monotone"
                       dataKey="amount"
-                      stroke="var(--accent)"
+                      stroke="#4A3528"
                       strokeWidth={2}
-                      dot={{ r: 3, fill: 'var(--accent)' }}
+                      dot={{ r: 3, fill: '#4A3528' }}
                       activeDot={{ r: 5 }}
                     />
                   </LineChart>
@@ -1406,19 +1406,19 @@ export const DashboardView: React.FC = () => {
             <span>Sequential scale:</span>
             <div className="flex items-center gap-1.5">
               <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded bg-accent/15" /> &lt;80%
+                <span className="w-2.5 h-2.5 rounded bg-[#F6E3D1] border border-[#DDBF9F]" /> &lt;80%
               </span>
               <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded bg-accent/25" /> 80–84%
+                <span className="w-2.5 h-2.5 rounded bg-[#E2C6A7]" /> 80–84%
               </span>
               <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded bg-accent/40" /> 85–89%
+                <span className="w-2.5 h-2.5 rounded bg-[#C9A57F]" /> 85–89%
               </span>
               <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded bg-accent/70" /> 90–94%
+                <span className="w-2.5 h-2.5 rounded bg-[#9A7655]" /> 90–94%
               </span>
               <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded bg-accent" /> ≥95%
+                <span className="w-2.5 h-2.5 rounded bg-[#6E5040]" /> ≥95%
               </span>
             </div>
           </div>

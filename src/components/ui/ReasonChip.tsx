@@ -16,10 +16,10 @@ export const ReasonChip: React.FC<ReasonChipProps> = ({
   icon,
 }) => {
   const variantStyles = {
-    neutral: 'bg-surface-sunken text-text-muted border-border',
-    warning: 'bg-warning-subtle text-warning border-border',
-    danger: 'bg-danger-subtle text-danger border-border',
-    info: 'bg-info-subtle text-info border-border',
+    neutral: 'bg-peach-strong text-ink-muted border-border-peach',
+    warning: 'bg-[rgba(138,83,0,0.12)] text-[#8A5300] border-[rgba(138,83,0,0.35)]',
+    danger: 'bg-[rgba(163,18,63,0.12)] text-[#A3123F] border-[rgba(163,18,63,0.35)]',
+    info: 'bg-[rgba(31,87,133,0.12)] text-[#1F5785] border-[rgba(31,87,133,0.35)]',
   }
 
   const defaultIcon = () => {

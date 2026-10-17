@@ -76,8 +76,8 @@ export const SessionLiveView: React.FC = () => {
       width: 256,
       margin: 1,
       color: {
-        dark: '#000000',
-        light: '#ffffff',
+        dark: '#1E140E',
+        light: '#FFF8F1',
       },
     })
       .then((url) => setQrDataUrl(url))
@@ -469,16 +469,16 @@ export const SessionLiveView: React.FC = () => {
       {/* Fullscreen QR Projector Modal */}
       {fullscreenQR && (
         <div
-          className="fixed inset-0 z-50 bg-[#111315] flex flex-col items-center justify-center p-8 text-center text-white select-none"
+          className="fixed inset-0 z-50 bg-[#33251F] flex flex-col items-center justify-center p-8 text-center text-[#F8F4EF] select-none"
           onClick={() => setFullscreenQR(false)}
         >
           <div className="space-y-4 max-w-sm">
-            <h2 className="text-xl font-semibold tracking-tight">Scan classroom check-in QR</h2>
-            <p className="text-xs text-neutral-400">
+            <h2 className="text-xl font-semibold tracking-tight text-[#F8F4EF]">Scan classroom check-in QR</h2>
+            <p className="text-xs text-[#E3D2C1]">
               Java Full-Stack B3 (Kothrud) · CodeCraft Academy
             </p>
 
-            <div className="w-64 h-64 bg-white p-3 rounded-card mx-auto flex items-center justify-center shadow-dialog">
+            <div className="w-64 h-64 bg-white p-3 rounded-card mx-auto flex items-center justify-center shadow-dialog border border-[#D6B48A]">
               {qrDataUrl && (
                 <img
                   src={qrDataUrl}
@@ -488,10 +488,10 @@ export const SessionLiveView: React.FC = () => {
               )}
             </div>
 
-            <div className="text-xs font-mono text-neutral-300">
-              Rotates in {countdown}s · Demo Token: <span className="text-accent font-bold">{currentToken}</span>
+            <div className="text-xs font-mono text-[#E3D2C1]">
+              Rotates in {countdown}s · Demo Token: <span className="text-[#D6B48A] font-bold">{currentToken}</span>
             </div>
-            <p className="text-[11px] text-neutral-500">Click anywhere to close</p>
+            <p className="text-[11px] text-[#CDB9A6]">Click anywhere to close</p>
           </div>
         </div>
       )}

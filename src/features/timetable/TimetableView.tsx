@@ -342,20 +342,20 @@ export const TimetableView: React.FC = () => {
       )}
 
       {/* Timetable Week Grid (08:00 - 21:00 x Mon - Sun) */}
-      <div className="rounded-card border border-border bg-surface overflow-x-auto">
+      <div className="rounded-card border border-[#D6B48A] bg-[#F6E3D1] overflow-x-auto shadow-card">
         <div className="min-w-[960px]">
           {/* Header Days Row */}
-          <div className="grid grid-cols-8 border-b border-border bg-surface-sunken text-xs font-semibold text-text">
-            <div className="p-2.5 border-r border-border text-center text-text-muted font-mono">
+          <div className="grid grid-cols-8 border-b border-[#DDBF9F] bg-[#EBCDB1] text-xs font-semibold text-[#1E140E]">
+            <div className="p-2.5 border-r border-[#DDBF9F] text-center text-[#5C4636] font-mono">
               Time (IST)
             </div>
             {days.map((day, dIdx) => (
               <div
                 key={dIdx}
                 className={cn(
-                  'p-2.5 text-center border-r border-border last:border-r-0',
+                  'p-2.5 text-center border-r border-[#DDBF9F] last:border-r-0 text-[#5C4636]',
                   dIdx === 3 && hasConflicts && !isDiffMode
-                    ? 'text-danger font-semibold bg-danger/5'
+                    ? 'text-[#A3123F] font-semibold bg-[#A3123F]/10'
                     : ''
                 )}
               >
@@ -365,11 +365,11 @@ export const TimetableView: React.FC = () => {
           </div>
 
           {/* Time Slots */}
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-[#DDBF9F]">
             {timeSlots.map((time) => (
               <div key={time} className="grid grid-cols-8 min-h-[60px]">
                 {/* Time Column */}
-                <div className="p-2 border-r border-border bg-surface-sunken/40 text-[11px] font-mono text-text-muted text-center flex items-center justify-center">
+                <div className="p-2 border-r border-[#DDBF9F] bg-[#EBCDB1]/25 text-[11px] font-mono text-[#5C4636] text-center flex items-center justify-center">
                   {time}
                 </div>
 
@@ -383,53 +383,74 @@ export const TimetableView: React.FC = () => {
                     <div
                       key={dayNum}
                       className={cn(
-                        'p-1 border-r border-border last:border-r-0 relative hover:bg-surface-sunken/30 transition-colors',
-                        dayNum === 4 && hasConflicts && !isDiffMode ? 'bg-danger/5' : ''
+                        'p-1 border-r border-[#DDBF9F] last:border-r-0 relative hover:bg-[#EBCDB1]/20 transition-colors',
+                        dayNum === 4 && hasConflicts && !isDiffMode ? 'bg-[#A3123F]/5' : ''
                       )}
                     >
-                      {matchingSessions.map((sess) => (
-                        <div
-                          key={sess.id}
-                          onClick={() => setSelectedSession(sess)}
-                          className={cn(
-                            'p-2 rounded-control text-xs cursor-pointer border transition-all mb-1',
-                            sess.hasConflict
-                              ? 'border-danger bg-surface text-text'
-                              : isDiffMode && (sess.id === 'sess-th1' || sess.id === 'sess-f2')
-                              ? 'border-accent bg-surface text-text'
-                              : 'border-border bg-surface hover:border-border-strong text-text'
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="font-medium truncate">{sess.batchName}</span>
-                            {sess.isLocked ? (
-                              <Lock className="w-3 h-3 text-text-muted shrink-0" />
-                            ) : null}
-                          </div>
+                      {matchingSessions.map((sess) => {
+                        // 10 pastel order: peach, sage, sky, lavender, mustard, rose, teal, sand, coral, mint
+                        const pastelOrder = [
+                          { bg: '#F4C7A1', border: '#DCA477' }, // peach
+                          { bg: '#C5D9B8', border: '#A3BC94' }, // sage
+                          { bg: '#BCD4E6', border: '#9AB6CB' }, // sky
+                          { bg: '#D7C7E8', border: '#BAA5CF' }, // lavender
+                          { bg: '#EBD08F', border: '#CEB06A' }, // mustard
+                          { bg: '#EEC0C8', border: '#D49AA4' }, // rose
+                          { bg: '#B4DCD6', border: '#8FBFB7' }, // teal
+                          { bg: '#E2CDB0', border: '#C3AA8A' }, // sand
+                          { bg: '#F2B5A0', border: '#D79178' }, // coral
+                          { bg: '#CDE8CF', border: '#A6CBA8' }, // mint
+                        ]
+                        let charSum = 0
+                        const key = sess.batchName || sess.id
+                        for (let i = 0; i < key.length; i++) charSum += key.charCodeAt(i)
+                        const pastel = pastelOrder[charSum % pastelOrder.length]
 
-                          <div className="text-[11px] text-text-muted truncate mt-0.5">
-                            {sess.trainerName} · {sess.room}
-                          </div>
-
-                          {sess.hasConflict && (
-                            <div className="mt-1">
-                              <ReasonChip
-                                reason="Clash: Room double-booked"
-                                variant="danger"
-                              />
+                        return (
+                          <div
+                            key={sess.id}
+                            onClick={() => setSelectedSession(sess)}
+                            style={{
+                              backgroundColor: pastel.bg,
+                              borderColor: sess.hasConflict ? '#A3123F' : pastel.border,
+                              borderWidth: sess.hasConflict ? '2px' : '1px',
+                            }}
+                            className={cn(
+                              'p-2 rounded-control text-xs cursor-pointer text-[#1E140E] transition-all mb-1 shadow-sm',
+                              sess.hasConflict ? 'ring-1 ring-[#A3123F]/20' : ''
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-medium truncate text-[#1E140E]">{sess.batchName}</span>
+                              {sess.isLocked ? (
+                                <Lock className="w-3 h-3 text-[#1E140E] shrink-0" />
+                              ) : null}
                             </div>
-                          )}
 
-                          {isDiffMode && sess.id === 'sess-th2' && (
-                            <div className="mt-1">
-                              <ReasonChip
-                                reason="Substituted: Meera Rao"
-                                variant="neutral"
-                              />
+                            <div className="text-[11px] text-[#5C4636] truncate mt-0.5">
+                              {sess.trainerName} · {sess.room}
                             </div>
-                          )}
-                        </div>
-                      ))}
+
+                            {sess.hasConflict && (
+                              <div className="mt-1">
+                                <ReasonChip
+                                  reason="Clash: Room double-booked"
+                                  variant="danger"
+                                />
+                              </div>
+                            )}
+
+                            {isDiffMode && sess.id === 'sess-th2' && (
+                              <div className="mt-1">
+                                <ReasonChip
+                                  reason="Substituted: Meera Rao"
+                                  variant="neutral"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   )
                 })}

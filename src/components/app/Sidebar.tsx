@@ -233,33 +233,33 @@ export const Sidebar: React.FC = () => {
   return (
     <aside
       className={cn(
-        'h-screen bg-surface border-r border-border flex flex-col justify-between transition-all select-none z-30 shrink-0 sticky top-0',
+        'h-screen bg-[#F6E3D1] border-r border-[#D6B48A] flex flex-col justify-between transition-all select-none z-30 shrink-0 sticky top-0 text-[#1F1F1F]',
         collapsed ? 'w-14' : 'w-[240px]'
       )}
     >
       {/* Top Header */}
       <div>
-        <div className="h-[52px] px-3 border-b border-border flex items-center justify-between">
+        <div className="h-[52px] px-3 border-b border-[#DDBF9F] flex items-center justify-between">
           {!collapsed ? (
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-6 h-6 rounded-control bg-surface-sunken border border-border flex items-center justify-center text-text font-medium text-xs shrink-0">
+              <div className="w-6 h-6 rounded-control bg-[#EBCDB1] border border-[#DDBF9F] flex items-center justify-center text-[#1F1F1F] font-medium text-xs shrink-0">
                 IO
               </div>
               <div className="min-w-0">
-                <div className="font-medium text-xs text-text truncate">
+                <div className="font-medium text-xs text-[#1F1F1F] truncate">
                   CodeCraft Academy
                 </div>
               </div>
             </div>
           ) : (
-            <div className="w-6 h-6 rounded-control bg-surface-sunken border border-border flex items-center justify-center text-text font-medium text-xs mx-auto">
+            <div className="w-6 h-6 rounded-control bg-[#EBCDB1] border border-[#DDBF9F] flex items-center justify-center text-[#1F1F1F] font-medium text-xs mx-auto">
               IO
             </div>
           )}
 
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-1 text-text-muted hover:text-text hover:bg-surface-sunken rounded-control transition-colors shrink-0"
+            className="p-1 text-[#5C4636] hover:text-[#1F1F1F] hover:bg-[#EBCDB1] rounded-control transition-colors shrink-0"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -276,7 +276,7 @@ export const Sidebar: React.FC = () => {
           {filteredGroups.map((grp, gIdx) => (
             <div key={gIdx} className="space-y-0.5">
               {grp.title && !collapsed && (
-                <div className="px-2 py-1 text-[11px] font-medium text-text-muted">
+                <div className="px-2 py-1 text-[11px] font-medium text-[#8A705E]">
                   {grp.title}
                 </div>
               )}
@@ -295,23 +295,23 @@ export const Sidebar: React.FC = () => {
                     className={cn(
                       'flex items-center gap-2 px-2 py-1.5 rounded-control text-xs transition-colors relative',
                       isActive
-                        ? 'bg-surface-sunken text-text font-medium border-l-2 border-accent'
-                        : 'text-text-muted hover:text-text hover:bg-surface-sunken'
+                        ? 'bg-[#D6B48A] text-[#1F1F1F] font-medium shadow-xs'
+                        : 'text-[#1F1F1F] hover:bg-[#EBCDB1]'
                     )}
                   >
-                    <Icon className="w-4 h-4 shrink-0" strokeWidth={1.5} />
+                    <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-[#1F1F1F]' : 'text-[#5C4636]')} strokeWidth={1.5} />
 
-                    {!collapsed && <span className="truncate flex-1">{item.label}</span>}
+                    {!collapsed && <span className="truncate flex-1 text-[#1F1F1F]">{item.label}</span>}
 
                     {/* Pill only for counts */}
                     {!collapsed && item.badge !== undefined && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[11px] font-normal bg-surface-sunken text-text-muted border border-border tnum">
+                      <span className="px-1.5 py-0.2 rounded-full text-[11px] font-normal bg-[#EBCDB1] text-[#1F1F1F] border border-[#DDBF9F] tnum">
                         {item.badge}
                       </span>
                     )}
 
                     {collapsed && item.badge !== undefined && (
-                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-accent" />
+                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#1F1F1F]" />
                     )}
                   </NavLink>
                 )
@@ -322,18 +322,18 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* User Card */}
-      <div className="p-2 border-t border-border bg-surface">
+      <div className="p-2 border-t border-[#DDBF9F] bg-[#F6E3D1]">
         <NavLink
           to="/me"
-          className="flex items-center gap-2 p-1.5 rounded-control hover:bg-surface-sunken transition-colors"
+          className="flex items-center gap-2 p-1.5 rounded-control hover:bg-[#EBCDB1] transition-colors"
           title="Account profile"
         >
-          <div className="w-6 h-6 rounded-full bg-surface-sunken border border-border text-text font-medium text-xs flex items-center justify-center shrink-0">
+          <div className="w-6 h-6 rounded-full bg-[#EBCDB1] border border-[#DDBF9F] text-[#1F1F1F] font-medium text-xs flex items-center justify-center shrink-0">
             {role.substring(0, 2).toUpperCase()}
           </div>
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-normal text-text truncate capitalize">
+              <div className="text-xs font-normal text-[#1F1F1F] truncate capitalize">
                 {role === 'trainer'
                   ? 'Arjun Mehta'
                   : role === 'counselor'
@@ -342,7 +342,7 @@ export const Sidebar: React.FC = () => {
                   ? 'Sunita Accounts'
                   : 'Rajesh Sharma'}
               </div>
-              <div className="text-[11px] text-text-muted truncate capitalize">
+              <div className="text-[11px] text-[#5C4636] truncate capitalize">
                 {role}
               </div>
             </div>
