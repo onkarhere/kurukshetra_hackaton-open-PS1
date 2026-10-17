@@ -72,6 +72,26 @@ export const LoginView: React.FC = () => {
       avatar: '👑',
       desc: 'Executive Head authorized to review and approve student admissions',
     },
+    {
+      id: 'acc-sunita',
+      name: 'Sunita Accounts',
+      email: 'accounts@codecraft.ac.in',
+      role: 'accounts' as UserRole,
+      badge: 'Accounts Head',
+      badgeColor: 'bg-cyan-500/10 text-cyan-700 border-cyan-500/20',
+      avatar: '💼',
+      desc: 'Financial ledger, fee payment extraction, and banking reconciliation',
+    },
+    {
+      id: 'acc-snehal',
+      name: 'Snehal Kulkarni',
+      email: 'snehal@codecraft.ac.in',
+      role: 'counselor' as UserRole,
+      badge: 'Academic Counselor',
+      badgeColor: 'bg-rose-500/10 text-rose-700 border-rose-500/20',
+      avatar: '🤝',
+      desc: 'Student risk monitoring, academic counseling, and parent outreach',
+    },
   ]
 
   const redirectAfterAuth = (userRole?: UserRole) => {
@@ -90,40 +110,44 @@ export const LoginView: React.FC = () => {
 
   // Handle Google Sign In button click
   const handleGoogleClick = async () => {
-    // If Supabase OAuth is configured, we can offer OAuth or modal
     setShowAccountModal(true)
   }
 
-  // Handle Google Account selection
+  // Handle Account selection
   const handleSelectAccount = async (account: {
     name: string
     email: string
     role?: UserRole
-    branch?: Branch
+    branch?: Branch | 'All'
+    approvalStatus?: 'approved' | 'pending'
   }) => {
     setIsLoading(true)
     setShowAccountModal(false)
 
     try {
+      const isNewStudentTest = account.email === 'student.new@gmail.com'
+      const resolvedApproval = account.approvalStatus || (isNewStudentTest ? 'pending' : 'approved')
+
       const res = await login({
         email: account.email,
         name: account.name,
         role: account.role || 'student',
         branch: account.branch || 'Kothrud',
         isGoogleAuth: true,
+        approvalStatus: resolvedApproval,
       })
 
       setIsLoading(false)
 
       if (res.success && res.user) {
-        success('Google authentication successful', `Signed in as ${account.email}`)
+        success('Signed in successfully', `Welcome, ${account.name}!`)
         redirectAfterAuth(res.user.role)
       } else {
-        toastError('Login error', res.error || 'Failed to sign in with Google.')
+        toastError('Login error', res.error || 'Failed to sign in.')
       }
     } catch (err: any) {
       setIsLoading(false)
-      toastError('Authentication error', err?.message || 'Google sign-in failed.')
+      toastError('Authentication error', err?.message || 'Sign-in failed.')
     }
   }
 
@@ -252,6 +276,104 @@ export const LoginView: React.FC = () => {
               <p className="text-[11px] text-[#7C5E48]">
                 Protected by Google Identity & CodeCraft Academy RBAC policies.
               </p>
+            </div>
+
+            {/* Demo Accounts (Instant 1-Click Access Without Approval) */}
+            <div className="pt-4 border-t border-[#DDBF9F] space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-[#1E140E]">
+                  Demo Accounts (Instant access without approval):
+                </span>
+                <span className="text-[10px] text-emerald-800 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">
+                  Pre-approved
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSelectAccount({
+                      name: 'Rajesh Sharma',
+                      email: 'rajesh@codecraft.ac.in',
+                      role: 'owner',
+                      branch: 'All',
+                      approvalStatus: 'approved',
+                    })
+                  }
+                  className="p-2.5 rounded-xl bg-white/80 hover:bg-white border border-[#DDBF9F] hover:border-[#4A3528] shadow-2xs hover:shadow-xs text-left transition-all group cursor-pointer"
+                >
+                  <div className="font-semibold text-[#1E140E] group-hover:text-[#4A3528] flex items-center gap-1.5">
+                    <span>👑 Rajesh (Owner)</span>
+                  </div>
+                  <div className="text-[10px] text-[#5C4636] mt-0.5 truncate font-mono">
+                    rajesh@codecraft.ac.in
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSelectAccount({
+                      name: 'Arjun Mehta',
+                      email: 'arjun.mehta@codecraft.ac.in',
+                      role: 'trainer',
+                      branch: 'Kothrud',
+                      approvalStatus: 'approved',
+                    })
+                  }
+                  className="p-2.5 rounded-xl bg-white/80 hover:bg-white border border-[#DDBF9F] hover:border-[#4A3528] shadow-2xs hover:shadow-xs text-left transition-all group cursor-pointer"
+                >
+                  <div className="font-semibold text-[#1E140E] group-hover:text-[#4A3528] flex items-center gap-1.5">
+                    <span>👨‍🏫 Arjun (Trainer / Head)</span>
+                  </div>
+                  <div className="text-[10px] text-[#5C4636] mt-0.5 truncate font-mono">
+                    arjun.mehta@codecraft.ac.in
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSelectAccount({
+                      name: 'Priya Nair',
+                      email: 'priya.nair@gmail.com',
+                      role: 'student',
+                      branch: 'Kothrud',
+                      approvalStatus: 'approved',
+                    })
+                  }
+                  className="p-2.5 rounded-xl bg-white/80 hover:bg-white border border-[#DDBF9F] hover:border-[#4A3528] shadow-2xs hover:shadow-xs text-left transition-all group cursor-pointer"
+                >
+                  <div className="font-semibold text-[#1E140E] group-hover:text-[#4A3528] flex items-center gap-1.5">
+                    <span>👩‍🎓 Priya (Student)</span>
+                  </div>
+                  <div className="text-[10px] text-[#5C4636] mt-0.5 truncate font-mono">
+                    priya.nair@gmail.com
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSelectAccount({
+                      name: 'Sunita Accounts',
+                      email: 'accounts@codecraft.ac.in',
+                      role: 'accounts',
+                      branch: 'All',
+                      approvalStatus: 'approved',
+                    })
+                  }
+                  className="p-2.5 rounded-xl bg-white/80 hover:bg-white border border-[#DDBF9F] hover:border-[#4A3528] shadow-2xs hover:shadow-xs text-left transition-all group cursor-pointer"
+                >
+                  <div className="font-semibold text-[#1E140E] group-hover:text-[#4A3528] flex items-center gap-1.5">
+                    <span>💼 Sunita (Accounts)</span>
+                  </div>
+                  <div className="text-[10px] text-[#5C4636] mt-0.5 truncate font-mono">
+                    accounts@codecraft.ac.in
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
 

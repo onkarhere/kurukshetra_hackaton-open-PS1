@@ -701,7 +701,10 @@ export class MockStore {
     )
 
     if (user.role === 'student') {
-      if (existingReg) {
+      if (user.approvalStatus === 'approved') {
+        user.hasCompletedOnboarding = true
+        user.approvalStatus = 'approved'
+      } else if (existingReg) {
         user.hasCompletedOnboarding = true
         user.approvalStatus = existingReg.status
         user.name = existingReg.name

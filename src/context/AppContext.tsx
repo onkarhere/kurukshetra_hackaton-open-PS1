@@ -19,6 +19,7 @@ interface AppContextType {
     branch?: Branch | 'All'
     isPersonaSwitch?: boolean
     isGoogleAuth?: boolean
+    approvalStatus?: 'approved' | 'pending' | 'rejected'
   }) => Promise<{ success: boolean; error?: string; user?: User }>
   register: (params: { name: string; email: string; password: string; role?: UserRole; branch?: Branch }) => Promise<{ success: boolean; error?: string; message?: string }>
   logout: () => Promise<void>
@@ -133,6 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     branch?: Branch | 'All'
     isPersonaSwitch?: boolean
     isGoogleAuth?: boolean
+    approvalStatus?: 'approved' | 'pending' | 'rejected'
   }): Promise<{ success: boolean; error?: string; user?: User }> => {
     try {
       const normalizedEmail = creds.email.trim().toLowerCase()
@@ -151,6 +153,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name: creds.name || demo?.name || normalizedEmail.split('@')[0],
           role: resolvedRole,
           branch: creds.branch || demo?.branch || 'Kothrud',
+          ...(creds.approvalStatus ? { approvalStatus: creds.approvalStatus, hasCompletedOnboarding: creds.approvalStatus === 'approved' } : {}),
         }
         store.login(userObj)
         return { success: true, user: store.currentUser }
