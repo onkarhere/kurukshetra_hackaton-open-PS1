@@ -78,7 +78,7 @@ export const Sidebar: React.FC = () => {
           to: '/approvals',
           icon: CheckCheck,
           badge: unreadApprovalsCount > 0 ? unreadApprovalsCount : undefined,
-          allowedRoles: ['owner', 'admin', 'counselor', 'accounts'],
+          allowedRoles: ['owner', 'admin', 'trainer', 'counselor', 'accounts'],
         },
         {
           label: 'Timetable',

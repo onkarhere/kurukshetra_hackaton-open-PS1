@@ -3,8 +3,8 @@ import { UserRole } from '@/types'
 export const ROUTE_ROLES: Record<string, UserRole[]> = {
   '/': ['owner', 'admin', 'trainer', 'counselor', 'accounts', 'student'],
   '/setup': ['owner', 'admin'],
-  '/copilot': ['owner', 'admin', 'trainer', 'counselor', 'accounts'],
-  '/approvals': ['owner', 'admin', 'counselor', 'accounts'],
+  '/copilot': ['owner', 'admin', 'trainer', 'counselor', 'accounts', 'student'],
+  '/approvals': ['owner', 'admin', 'trainer', 'counselor', 'accounts'],
   '/timetable': ['owner', 'admin', 'trainer', 'counselor'],
   '/sessions': ['owner', 'admin', 'trainer', 'counselor'],
   '/attendance': ['owner', 'admin', 'trainer', 'counselor'],

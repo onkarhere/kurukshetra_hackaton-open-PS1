@@ -79,10 +79,11 @@ export const TrainerProfileView: React.FC = () => {
   const handleApproveLeave = (leaveId: string, leaveDate: string) => {
     store.approveTrainerLeave(trainer.id, leaveId)
     const replanResult = replan(
-      store.timetableSessions,
       { type: 'trainer_leave', trainerId: trainer.id, dates: [leaveDate] },
+      store.timetableSessions,
       store.trainers,
-      batches
+      batches,
+      store.settings
     )
     store.timetableSessions = replanResult.updatedSessions
     store.createTimetablePublishApproval(

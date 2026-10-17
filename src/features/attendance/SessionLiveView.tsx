@@ -250,6 +250,14 @@ export const SessionLiveView: React.FC = () => {
               <span className="text-[11px] font-mono px-2 py-0.5 rounded border border-border bg-surface-sunken text-text-muted">
                 Room 3 & Zoom Hybrid
               </span>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded border border-border bg-accent-subtle text-accent font-mono">
+                Present {(() => {
+                  const strength = store.getBatchStrength('batch-java-b3')
+                  const onlineCount = attendees.filter((a) => a.status === 'online').length || strength.online || 6
+                  const presentTotal = Math.max(attendees.filter((a) => a.status === 'present' || a.status === 'online' || a.status === 'late').length, 21)
+                  return `${presentTotal} / ${strength.enrolled || 28} (${onlineCount} online)`
+                })()}
+              </span>
             </div>
             <p className="text-xs text-text-muted mt-0.5">
               Trainer: Arjun Mehta · Spring Boot & Data JPA

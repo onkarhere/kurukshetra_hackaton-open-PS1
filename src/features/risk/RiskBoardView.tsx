@@ -12,7 +12,7 @@ import { ReasonChip } from '@/components/ui/ReasonChip'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
-import { store, useStore } from '@/mocks/store'
+import { store, useStore, getStudentRiskReasons } from '@/mocks/store'
 import { RiskLevel, Student } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -252,20 +252,11 @@ export const RiskBoardView: React.FC = () => {
 
               {/* Reasons list (Financial details masked for trainer) */}
               <div className="space-y-1 pt-1">
-                {st.riskReasons.map((reason, rIdx) => {
-                  const isFinancial =
-                    reason.toLowerCase().includes('emi') ||
-                    reason.toLowerCase().includes('due') ||
-                    reason.toLowerCase().includes('₹')
-                  const displayedReason =
-                    isTrainer && isFinancial
-                      ? 'Non-academic factor — counselor notified'
-                      : reason
-
+                {getStudentRiskReasons(st, role).map((reason, rIdx) => {
                   return (
                     <ReasonChip
                       key={rIdx}
-                      reason={displayedReason}
+                      reason={reason}
                       variant={
                         st.riskLevel === 'critical'
                           ? 'danger'

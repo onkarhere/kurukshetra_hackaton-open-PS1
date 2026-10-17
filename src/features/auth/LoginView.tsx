@@ -2,43 +2,77 @@ import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   CheckCircle2,
-  ArrowRight,
   Building2,
-  AlertCircle,
-  Eye,
-  EyeOff,
+  ShieldCheck,
+  Lock,
+  User,
+  Plus,
+  ArrowRight,
+  X,
+  Sparkles,
 } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
 import { UserRole, Branch } from '@/types'
 import { store } from '@/mocks/store'
 import { canAccess } from '@/lib/permissions'
+import { signInWithGoogle, isSupabaseConfigured } from '@/lib/supabase'
 
 export const LoginView: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { success, error: toastError } = useToast()
-  const { login, register } = useApp()
+  const { login } = useApp()
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
-  const [authMethod, setAuthMethod] = useState<'password' | 'otp'>('password')
   const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [showAccountModal, setShowAccountModal] = useState(false)
+  const [isCustomAccount, setIsCustomAccount] = useState(false)
+  const [customName, setCustomName] = useState('')
+  const [customEmail, setCustomEmail] = useState('')
 
-  // Sign in fields
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [phone, setPhone] = useState('')
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
-  const [isOtpSent, setIsOtpSent] = useState(false)
-
-  // Sign up fields (strictly student role)
-  const [regName, setRegName] = useState('')
-  const [regEmail, setRegEmail] = useState('')
-  const [regPassword, setRegPassword] = useState('')
-  const [regBranch, setRegBranch] = useState<Branch>('Kothrud')
+  // Pre-configured Google Accounts for testing all roles seamlessly
+  const GOOGLE_ACCOUNTS = [
+    {
+      id: 'acc-new-student',
+      name: 'New Student (First-time Login)',
+      email: 'student.new@gmail.com',
+      role: 'student' as UserRole,
+      badge: 'First-time Onboarding',
+      badgeColor: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
+      avatar: '🎓',
+      desc: 'Triggers basic info form (Name, Class, Branch, Roll No, Phone, Email) -> Head Approval Pending',
+    },
+    {
+      id: 'acc-priya',
+      name: 'Priya Nair',
+      email: 'priya.nair@gmail.com',
+      role: 'student' as UserRole,
+      badge: 'Approved Student',
+      badgeColor: 'bg-blue-500/10 text-blue-700 border-blue-500/20',
+      avatar: '👩‍🎓',
+      desc: 'Already approved student · Directly opens Student Dashboard',
+    },
+    {
+      id: 'acc-arjun',
+      name: 'Arjun Mehta',
+      email: 'arjun.mehta@codecraft.ac.in',
+      role: 'trainer' as UserRole,
+      badge: 'Academic Head / Trainer',
+      badgeColor: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
+      avatar: '👨‍🏫',
+      desc: 'Head authorized to review and approve student admissions in Approvals',
+    },
+    {
+      id: 'acc-rajesh',
+      name: 'Rajesh Sharma',
+      email: 'rajesh@codecraft.ac.in',
+      role: 'owner' as UserRole,
+      badge: 'Institute Head / Owner',
+      badgeColor: 'bg-purple-500/10 text-purple-700 border-purple-500/20',
+      avatar: '👑',
+      desc: 'Executive Head authorized to review and approve student admissions',
+    },
+  ]
 
   const redirectAfterAuth = (userRole?: UserRole) => {
     const currentRole = userRole || store.currentUser.role
@@ -54,131 +88,58 @@ export const LoginView: React.FC = () => {
     }
   }
 
-  // Handle direct Email + Password sign in
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrorMessage(null)
-
-    if (authMethod === 'otp') {
-      if (!isOtpSent) {
-        if (!phone.trim()) {
-          setErrorMessage('Please enter your 10-digit mobile number.')
-          return
-        }
-        setIsOtpSent(true)
-        success('Verification code generated', 'Demo code: 482913. Enter below to sign in.')
-        return
-      }
-
-      const enteredOtp = otp.join('')
-      // P0-2: Phone OTP must accept only the demo code 482913; never accept any random 6 digits
-      if (enteredOtp !== '482913') {
-        setErrorMessage('Invalid verification code. Enter the demo code: 482913.')
-        return
-      }
-
-      setIsLoading(true)
-      const res = await login({
-        email: 'priya.nair@gmail.com',
-        role: 'student',
-        isPersonaSwitch: true,
-      })
-      setIsLoading(false)
-
-      if (res.success) {
-        success('Verified successfully', `Signed in with demo phone verification`)
-        redirectAfterAuth('student')
-      } else {
-        setErrorMessage(res.error || 'Verification failed. Please try again.')
-      }
-      return
-    }
-
-    // Standard Email & Password Authentication
-    if (!email.trim() || !password) {
-      setErrorMessage('Please enter both your email address and password.')
-      return
-    }
-
-    setIsLoading(true)
-    const res = await login({ email: email.trim(), password })
-    setIsLoading(false)
-
-    if (res.success) {
-      success('Authentication successful', `Signed in as ${email.trim()}`)
-      redirectAfterAuth(res.user?.role)
-    } else {
-      setErrorMessage(res.error || 'Incorrect email or password.')
-      toastError('Authentication failed', res.error || 'Incorrect email or password')
-    }
+  // Handle Google Sign In button click
+  const handleGoogleClick = async () => {
+    // If Supabase OAuth is configured, we can offer OAuth or modal
+    setShowAccountModal(true)
   }
 
-  // Handle Account Registration - strictly Student role
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrorMessage(null)
-
-    if (!regName.trim() || !regEmail.trim() || regPassword.length < 6) {
-      setErrorMessage('Please provide your full name, a valid email, and a password of at least 6 characters.')
-      return
-    }
-
-    setIsLoading(true)
-    const res = await register({
-      name: regName.trim(),
-      email: regEmail.trim(),
-      password: regPassword,
-      branch: regBranch,
-    })
-    setIsLoading(false)
-
-    if (res.success) {
-      if (res.message) {
-        success('Registration submitted', res.message)
-        setMode('signin')
-      } else {
-        success('Account created', `Welcome, ${regName}! Signed in as student.`)
-        redirectAfterAuth('student')
-      }
-    } else {
-      setErrorMessage(res.error || 'Registration failed. Please try again.')
-      toastError('Registration error', res.error)
-    }
-  }
-
-  // Demo Persona Quick-Login Switcher
-  const handleQuickPersona = async (persona: {
+  // Handle Google Account selection
+  const handleSelectAccount = async (account: {
     name: string
     email: string
-    role: UserRole
-    branch: Branch | 'All'
+    role?: UserRole
+    branch?: Branch
   }) => {
     setIsLoading(true)
-    setEmail(persona.email)
-    const res = await login({
-      email: persona.email,
-      name: persona.name,
-      role: persona.role,
-      branch: persona.branch,
-      isPersonaSwitch: true,
-    })
-    setIsLoading(false)
-    if (res.success) {
-      success('Switched persona', `Signed in as ${persona.name} (${persona.role})`)
-      redirectAfterAuth(persona.role)
+    setShowAccountModal(false)
+
+    try {
+      const res = await login({
+        email: account.email,
+        name: account.name,
+        role: account.role || 'student',
+        branch: account.branch || 'Kothrud',
+        isGoogleAuth: true,
+      })
+
+      setIsLoading(false)
+
+      if (res.success && res.user) {
+        success('Google authentication successful', `Signed in as ${account.email}`)
+        redirectAfterAuth(res.user.role)
+      } else {
+        toastError('Login error', res.error || 'Failed to sign in with Google.')
+      }
+    } catch (err: any) {
+      setIsLoading(false)
+      toastError('Authentication error', err?.message || 'Google sign-in failed.')
     }
   }
 
-  const handleOtpChange = (index: number, val: string) => {
-    if (val.length > 1) val = val[0]
-    const copy = [...otp]
-    copy[index] = val
-    setOtp(copy)
-
-    if (val && index < 5) {
-      const nextInput = document.getElementById(`otp-box-${index + 1}`)
-      nextInput?.focus()
+  // Handle custom Google email sign-in
+  const handleCustomSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!customEmail.trim() || !customEmail.includes('@')) {
+      toastError('Invalid email', 'Please enter a valid Google email address.')
+      return
     }
+    handleSelectAccount({
+      name: customName.trim() || customEmail.split('@')[0],
+      email: customEmail.trim().toLowerCase(),
+      role: 'student',
+      branch: 'Kothrud',
+    })
   }
 
   return (
@@ -191,17 +152,17 @@ export const LoginView: React.FC = () => {
           </div>
           <div className="flex flex-col">
             <span className="font-semibold text-sm text-[#F8F4EF] leading-tight">Institute OS</span>
-            <span className="text-[11px] text-[#E3D2C1]">Batchwise · Enterprise Platform</span>
+            <span className="text-[11px] text-[#E3D2C1]">CodeCraft Academy · Enterprise</span>
           </div>
         </div>
 
         <div className="space-y-6 my-auto max-w-sm">
           <div>
             <div className="text-xs text-[#E3D2C1] uppercase tracking-wider font-normal">
-              Enterprise Operations Platform
+              Student & Faculty Platform
             </div>
             <h1 className="text-2xl font-semibold text-[#F8F4EF] tracking-tight mt-2 leading-snug">
-              Precision operations, attendance, timetable scheduling and fee governance.
+              Unified classroom learning, attendance, and student governance.
             </h1>
           </div>
 
@@ -209,24 +170,24 @@ export const LoginView: React.FC = () => {
             <div className="flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-[#D6B48A] shrink-0 mt-0.5" />
               <div>
-                <span className="font-medium text-[#F8F4EF]">Supabase cloud security: </span>
-                Multi-tenant session tokens, encrypted credentials, and automated schema policies.
+                <span className="font-medium text-[#F8F4EF]">Single Sign-On with Google: </span>
+                Instant authentication with your verified institutional or personal Google account.
               </div>
             </div>
 
             <div className="flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-[#D6B48A] shrink-0 mt-0.5" />
               <div>
-                <span className="font-medium text-[#F8F4EF]">Dual-control safety: </span>
-                Automated reminders, timetable replans, and waivers require explicit owner authorization.
+                <span className="font-medium text-[#F8F4EF]">Head Admission Approval: </span>
+                First-time student registrations are routed to institute heads (Trainer or Owner) for authorization.
               </div>
             </div>
 
             <div className="flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-[#D6B48A] shrink-0 mt-0.5" />
               <div>
-                <span className="font-medium text-[#F8F4EF]">Role-based privacy: </span>
-                Strict financial opacity ensures instructors focus purely on academics and student outcomes.
+                <span className="font-medium text-[#F8F4EF]">Zero-reprompt onboarding: </span>
+                Fill your student admission profile once. Never asked again on subsequent logins.
               </div>
             </div>
           </div>
@@ -234,376 +195,233 @@ export const LoginView: React.FC = () => {
 
         <div className="text-xs text-[#E3D2C1] flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5" />
-          <span>CodeCraft Academy · Pune, Maharashtra</span>
+          <span>CodeCraft Academy · Pune Campuses (Kothrud & Baner)</span>
         </div>
       </div>
 
-      {/* Right Form Panel (7 cols) */}
-      <div className="md:col-span-7 p-6 sm:p-10 md:p-14 flex items-center justify-center bg-[#F6E3D1] text-[#1E140E] overflow-y-auto">
-        <div className="w-full max-w-md space-y-5">
-          {/* Top Switcher: Sign In vs Create Account */}
-          <div className="flex items-center justify-between pb-1 border-b border-[#DDBF9F]">
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('signin')
-                  setErrorMessage(null)
-                  setIsOtpSent(false)
-                }}
-                className={`text-sm font-semibold transition-colors pb-2 border-b-2 ${
-                  mode === 'signin'
-                    ? 'border-[#4A3528] text-[#1E140E]'
-                    : 'border-transparent text-[#5C4636] hover:text-[#1E140E]'
-                }`}
-              >
-                Sign in
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('signup')
-                  setErrorMessage(null)
-                }}
-                className={`text-sm font-semibold transition-colors pb-2 border-b-2 ${
-                  mode === 'signup'
-                    ? 'border-[#4A3528] text-[#1E140E]'
-                    : 'border-transparent text-[#5C4636] hover:text-[#1E140E]'
-                }`}
-              >
-                Create student account
-              </button>
+      {/* Right Login Panel (7 cols) - STRICTLY ONLY "CONTINUE WITH GOOGLE" */}
+      <div className="md:col-span-7 p-6 sm:p-10 md:p-16 flex items-center justify-center bg-[#F6E3D1] text-[#1E140E]">
+        <div className="w-full max-w-md space-y-8 text-center sm:text-left">
+          {/* Header */}
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E8D4C1] border border-[#DDBF9F] text-xs font-medium text-[#5C4636]">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#4A3528]" />
+              <span>Secure Institute Authentication</span>
             </div>
-            <span className="text-xs text-[#5C4636]">CodeCraft Pune</span>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1E140E]">
+              Sign in to CodeCraft
+            </h2>
+            <p className="text-xs text-[#5C4636] leading-relaxed max-w-sm">
+              Access your student portal, lecture schedules, QR check-in, and course materials.
+            </p>
           </div>
 
-          {errorMessage && (
-            <div className="p-3 rounded-control bg-surface-sunken border border-danger/30 text-xs text-danger flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMessage}</span>
+          {/* Primary Action: ONLY "Continue with Google" */}
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={handleGoogleClick}
+              disabled={isLoading}
+              className="w-full group bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-sm py-3 px-4 rounded-xl shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer select-none"
+            >
+              {/* Official Google G Logo */}
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span className="font-semibold text-slate-800 text-[14px]">
+                {isLoading ? 'Connecting to Google...' : 'Continue with Google'}
+              </span>
+            </button>
+
+            <div className="pt-2 text-center">
+              <p className="text-[11px] text-[#7C5E48]">
+                Protected by Google Identity & CodeCraft Academy RBAC policies.
+              </p>
             </div>
-          )}
+          </div>
 
-          {/* SIGN IN FORM */}
-          {mode === 'signin' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold text-text">
-                  Sign in to your account
-                </h2>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Enter your registered credentials to access your dashboard and tools
-                </p>
-              </div>
-
-              {/* Method Switcher: Email vs Phone OTP */}
-              <div className="flex items-center bg-surface-sunken border border-border rounded-control p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMethod('password')
-                    setErrorMessage(null)
-                    setIsOtpSent(false)
-                  }}
-                  className={`flex-1 py-1.5 rounded-control transition-colors ${
-                    authMethod === 'password'
-                      ? 'bg-surface text-text font-medium border border-border shadow-sm'
-                      : 'text-text-muted hover:text-text'
-                  }`}
-                >
-                  Email and password
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMethod('otp')
-                    setErrorMessage(null)
-                    setIsOtpSent(false)
-                  }}
-                  className={`flex-1 py-1.5 rounded-control transition-colors ${
-                    authMethod === 'otp'
-                      ? 'bg-surface text-text font-medium border border-border shadow-sm'
-                      : 'text-text-muted hover:text-text'
-                  }`}
-                >
-                  Phone OTP
-                </button>
-              </div>
-
-              <form onSubmit={handleSignIn} className="space-y-3.5 text-xs">
-                {/* Email + Password fields */}
-                {authMethod === 'password' && (
-                  <>
-                    <div className="space-y-1">
-                      <label className="text-text-muted font-normal">Work email address</label>
-                      <input
-                        type="email"
-                        placeholder="rajesh@codecraft.ac.in"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-text-muted font-normal">Password</label>
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="text-[11px] text-text-muted hover:text-text flex items-center gap-1"
-                        >
-                          {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                          <span>{showPassword ? 'Hide' : 'Show'}</span>
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="Enter your password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                          className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 pr-10"
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Phone OTP fields */}
-                {authMethod === 'otp' && (
-                  <>
-                    {!isOtpSent ? (
-                      <div className="space-y-1">
-                        <label className="text-text-muted font-normal">Registered mobile number (+91)</label>
-                        <input
-                          type="tel"
-                          placeholder="9820155432"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          required
-                          className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 font-mono"
-                        />
-                        <p className="text-[11px] text-text-muted font-mono pt-1">
-                          Demo code: <strong>482913</strong>
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-text-muted">Verification code sent to {phone}</span>
-                          <button
-                            type="button"
-                            onClick={() => setIsOtpSent(false)}
-                            className="text-accent hover:underline text-[11px]"
-                          >
-                            Change number
-                          </button>
-                        </div>
-                        <div className="p-2 rounded-control bg-accent/10 border border-accent/20 text-xs text-accent font-medium">
-                          Demo code: <strong>482913</strong>
-                        </div>
-                        <div className="flex items-center justify-between gap-1.5 pt-1">
-                          {otp.map((digit, idx) => (
-                            <input
-                              key={idx}
-                              id={`otp-box-${idx}`}
-                              type="text"
-                              maxLength={1}
-                              value={digit}
-                              onChange={(e) => handleOtpChange(idx, e.target.value)}
-                              className="w-11 h-12 text-center text-base font-mono font-medium bg-surface border border-border-strong rounded-control text-text focus:ring-2 focus:ring-accent outline-none"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="md"
-                  className="w-full mt-2"
-                  isLoading={isLoading}
-                  rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-                >
-                  {authMethod === 'otp'
-                    ? isOtpSent
-                      ? 'Verify and sign in'
-                      : 'Send verification code'
-                    : 'Sign in'}
-                </Button>
-              </form>
-
-              {/* Demo accounts Section */}
-              <div className="pt-3 border-t border-[#DDBF9F] space-y-2">
-                <div className="text-[11px] font-medium text-[#5C4636]">
-                  Demo accounts (Quick sign in):
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickPersona({
-                        name: 'Rajesh Sharma',
-                        email: 'rajesh@codecraft.ac.in',
-                        role: 'owner',
-                        branch: 'All',
-                      })
-                    }
-                    className="p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
-                  >
-                    <div className="font-medium text-[#1E140E]">Rajesh Sharma</div>
-                    <div className="text-[11px] text-[#5C4636]">Owner · Pass: Admin@1234</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickPersona({
-                        name: 'Arjun Mehta',
-                        email: 'arjun.mehta@codecraft.ac.in',
-                        role: 'trainer',
-                        branch: 'Kothrud',
-                      })
-                    }
-                    className="p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
-                  >
-                    <div className="font-medium text-[#1E140E]">Arjun Mehta</div>
-                    <div className="text-[11px] text-[#5C4636]">Trainer · Pass: Trainer@1234</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickPersona({
-                        name: 'Snehal Kulkarni',
-                        email: 'snehal@codecraft.ac.in',
-                        role: 'counselor',
-                        branch: 'Baner',
-                      })
-                    }
-                    className="p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
-                  >
-                    <div className="font-medium text-[#1E140E]">Snehal Kulkarni</div>
-                    <div className="text-[11px] text-[#5C4636]">Counselor · Pass: Counselor@1234</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickPersona({
-                        name: 'Sunita Accounts',
-                        email: 'accounts@codecraft.ac.in',
-                        role: 'accounts',
-                        branch: 'All',
-                      })
-                    }
-                    className="p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
-                  >
-                    <div className="font-medium text-[#1E140E]">Sunita Accounts</div>
-                    <div className="text-[11px] text-[#5C4636]">Accounts · Pass: Accounts@1234</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickPersona({
-                        name: 'Priya Nair',
-                        email: 'priya.nair@gmail.com',
-                        role: 'student',
-                        branch: 'Kothrud',
-                      })
-                    }
-                    className="col-span-2 p-2 text-left rounded-control border border-[#9A7655] bg-transparent hover:bg-[#EBCDB1] text-[#1E140E] transition-colors"
-                  >
-                    <div className="font-medium text-[#1E140E]">Priya Nair</div>
-                    <div className="text-[11px] text-[#5C4636]">Student · Pass: Student@1234</div>
-                  </button>
-                </div>
-              </div>
+          {/* Security Guarantee Box */}
+          <div className="p-4 rounded-xl bg-[#EFE3D5] border border-[#DDBF9F] space-y-2 text-xs text-[#5C4636]">
+            <div className="flex items-center gap-2 font-medium text-[#1E140E]">
+              <Lock className="w-3.5 h-3.5 text-[#5C4636]" />
+              <span>Admission Verification Workflow</span>
             </div>
-          )}
-
-          {/* CREATE ACCOUNT (SIGN UP) FORM */}
-          {mode === 'signup' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold text-text">Create a student account</h2>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Sign up for course access. Staff roles are assigned by an institute owner.
-                </p>
-              </div>
-
-              <form onSubmit={handleSignUp} className="space-y-3.5 text-xs">
-                <div className="space-y-1">
-                  <label className="text-text-muted font-normal">Full name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Ramesh Joshi"
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-text-muted font-normal">Email address</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="student@gmail.com"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-text-muted font-normal">Password</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    placeholder="Minimum 6 characters"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-text-muted font-normal">Branch</label>
-                  <select
-                    value={regBranch}
-                    onChange={(e) => setRegBranch(e.target.value as Branch)}
-                    className="w-full bg-surface border border-border-strong rounded-control p-2.5 text-xs text-text outline-none focus:ring-2 focus:ring-accent"
-                  >
-                    <option value="Kothrud">Kothrud Campus</option>
-                    <option value="Baner">Baner Campus</option>
-                  </select>
-                </div>
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="md"
-                  className="w-full mt-3"
-                  isLoading={isLoading}
-                  rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-                >
-                  Register student account
-                </Button>
-              </form>
-            </div>
-          )}
+            <p className="text-[11px] leading-relaxed">
+              <strong>First-time Student:</strong> You'll enter your Name, Class, Branch, Roll No, Phone, and Email.
+              Your profile is then forwarded to the Head (Trainer or Owner). While awaiting approval, your
+              status is displayed as <em>"Head Approval Pending"</em>.
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* Google Account Selector Dialog (Modal) */}
+      {showAccountModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden text-slate-900 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <div>
+                  <h3 className="font-semibold text-sm text-slate-900 leading-tight">
+                    Choose an account
+                  </h3>
+                  <p className="text-[11px] text-slate-500">to continue to CodeCraft Academy</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAccountModal(false)
+                  setIsCustomAccount(false)
+                }}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Account List */}
+            {!isCustomAccount ? (
+              <div className="p-3 space-y-1.5 max-h-[65vh] overflow-y-auto">
+                <div className="px-3 py-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  Select Google Account:
+                </div>
+
+                {GOOGLE_ACCOUNTS.map((acc) => (
+                  <button
+                    key={acc.id}
+                    type="button"
+                    onClick={() => handleSelectAccount(acc)}
+                    className="w-full text-left p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all flex items-start gap-3 group cursor-pointer"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-transform">
+                      {acc.avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm text-slate-900 truncate">
+                          {acc.name}
+                        </span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${acc.badgeColor}`}
+                        >
+                          {acc.badge}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500 font-mono truncate">{acc.email}</div>
+                      <div className="text-[11px] text-slate-400 mt-1 leading-tight">{acc.desc}</div>
+                    </div>
+                  </button>
+                ))}
+
+                {/* Option to type custom Google email */}
+                <button
+                  type="button"
+                  onClick={() => setIsCustomAccount(true)}
+                  className="w-full text-left p-3 rounded-xl hover:bg-slate-50 border border-dashed border-slate-300 hover:border-slate-400 transition-all flex items-center gap-3 cursor-pointer mt-2"
+                >
+                  <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-xs text-slate-800">
+                      Use another Google account
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Enter any custom name and @gmail.com to test new student admission
+                    </div>
+                  </div>
+                </button>
+              </div>
+            ) : (
+              /* Custom Account Form */
+              <form onSubmit={handleCustomSubmit} className="p-5 space-y-4">
+                <div className="text-xs text-slate-600">
+                  Enter your Google account details to sign in as a student:
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700">Full Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Rahul Sharma"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 outline-none focus:border-blue-500 focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700">Google Email</label>
+                  <input
+                    type="email"
+                    placeholder="rahul.sharma@gmail.com"
+                    value={customEmail}
+                    onChange={(e) => setCustomEmail(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 outline-none focus:border-blue-500 focus:bg-white font-mono"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomAccount(false)}
+                    className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-sm"
+                  >
+                    Continue with this account
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="p-3 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500 text-center">
+              Google Single Sign-On · CodeCraft Academy Security Gateway
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

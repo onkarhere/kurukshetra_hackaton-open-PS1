@@ -74,3 +74,21 @@ export async function getSupabaseSession() {
     return null
   }
 }
+
+export async function signInWithGoogle() {
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: new Error('Supabase not configured') }
+  }
+  try {
+    const res = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    })
+    return res
+  } catch (err: any) {
+    return { data: null, error: err }
+  }
+}
+

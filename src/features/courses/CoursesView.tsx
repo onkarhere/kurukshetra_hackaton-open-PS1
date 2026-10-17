@@ -160,27 +160,43 @@ export const CoursesView: React.FC = () => {
               <h3 className="text-xs font-semibold text-text mt-2.5">{course.title}</h3>
               <p className="text-[11px] text-text-muted mt-0.5">{course.category}</p>
 
-              <div
-                className={cn(
-                  'grid gap-2 pt-3 mt-3 border-t border-border text-center text-xs',
-                  role === 'trainer' ? 'grid-cols-2' : 'grid-cols-3'
-                )}
-              >
-                <div>
-                  <div className="font-medium text-text tabular-nums">{course.durationWeeks}w</div>
-                  <div className="text-[10px] text-text-muted">Duration</div>
-                </div>
-                <div>
-                  <div className="font-medium text-text tabular-nums">{course.activeBatchesCount}</div>
-                  <div className="text-[10px] text-text-muted">Batches</div>
-                </div>
-                {role !== 'trainer' && (
-                  <div>
-                    <div className="font-medium text-text tabular-nums">{formatINR(course.fees)}</div>
-                    <div className="text-[10px] text-text-muted">Tuition</div>
+              {(() => {
+                const courseBatches = store.batches.filter(
+                  (b) => b.courseId === course.id || b.courseName.toLowerCase() === course.title.toLowerCase()
+                )
+                const totalEnrolled = courseBatches.reduce(
+                  (acc, b) => acc + store.getBatchStrength(b.id).enrolled,
+                  0
+                )
+
+                return (
+                  <div
+                    className={cn(
+                      'grid gap-2 pt-3 mt-3 border-t border-border text-center text-xs',
+                      role === 'trainer' ? 'grid-cols-3' : 'grid-cols-4'
+                    )}
+                  >
+                    <div>
+                      <div className="font-medium text-text tabular-nums">{course.durationWeeks}w</div>
+                      <div className="text-[10px] text-text-muted">Duration</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-text tabular-nums">{course.activeBatchesCount}</div>
+                      <div className="text-[10px] text-text-muted">Batches</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-text tabular-nums">{totalEnrolled}</div>
+                      <div className="text-[10px] text-text-muted">Enrolled</div>
+                    </div>
+                    {role !== 'trainer' && (
+                      <div>
+                        <div className="font-medium text-text tabular-nums">{formatINR(course.fees)}</div>
+                        <div className="text-[10px] text-text-muted">Tuition</div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                )
+              })()}
             </div>
           )
         })}

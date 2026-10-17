@@ -4,7 +4,7 @@ import { CopilotView } from '@/features/copilot/CopilotView'
 import { useLocation } from 'react-router-dom'
 
 export const CopilotDrawer: React.FC = () => {
-  const { copilotOpen, setCopilotOpen } = useApp()
+  const { copilotOpen, setCopilotOpen, role } = useApp()
   const location = useLocation()
 
   if (!copilotOpen) return null
@@ -13,6 +13,7 @@ export const CopilotDrawer: React.FC = () => {
   if (location.pathname === '/copilot') return null
 
   const getContextLabel = () => {
+    if (role === 'student') return 'Context: Student Portal (Priya Nair)'
     if (location.pathname.startsWith('/students/')) return 'Context: Student Profile'
     if (location.pathname.startsWith('/batches/')) return 'Context: Batch Details'
     if (location.pathname === '/timetable') return 'Context: Timetable Scheduling'

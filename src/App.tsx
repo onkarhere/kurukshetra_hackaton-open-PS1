@@ -50,7 +50,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ToastProvider>
-          <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <BrowserRouter>
             <AppProvider>
               <ErrorBoundary>
                 <Routes>

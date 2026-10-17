@@ -37,6 +37,14 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
   const [selectedChannel, setSelectedChannel] = useState(approval.channel || 'whatsapp')
   const [isApproved, setIsApproved] = useState(approval.status === 'approved')
 
+  // Keep local state strictly in sync with the current approval item
+  React.useEffect(() => {
+    setIsApproved(approval.status === 'approved')
+    setSelectedChannel(approval.channel || 'whatsapp')
+    setIsEditing(false)
+    setExpandedRecipientId(null)
+  }, [approval.id, approval.status, approval.channel])
+
   const selectedRecipients = approval.recipients?.filter((r) => r.selected) || []
   const selectedCount = selectedRecipients.length
 
@@ -77,6 +85,21 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
           <span className="text-[11px] font-mono text-text-muted">Status: 200 OK</span>
         </div>
 
+        {approval.studentRegistration && (
+          <div className="p-3 rounded-control bg-success-subtle/30 border border-success/30 text-xs space-y-1.5">
+            <div className="font-semibold text-text">Student Admission Confirmed</div>
+            <div className="grid grid-cols-2 gap-2 text-text-muted text-[11px]">
+              <div>Name: <span className="text-text font-medium">{approval.studentRegistration.name}</span></div>
+              <div>Roll No: <span className="text-text font-mono font-medium">{approval.studentRegistration.rollNo}</span></div>
+              <div>Class: <span className="text-text font-medium">{approval.studentRegistration.className}</span></div>
+              <div>Branch: <span className="text-text font-medium">{approval.studentRegistration.branch}</span></div>
+            </div>
+            <div className="text-[11px] text-success pt-1">
+              ✓ Student dashboard and class resources unlocked.
+            </div>
+          </div>
+        )}
+
         {approval.recipients && (
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {approval.recipients.map((rec) => (
@@ -87,7 +110,9 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
                 <div className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-success" strokeWidth={1.5} />
                   <span className="text-text">{rec.name}</span>
-                  <span className="text-text-muted font-mono text-[11px]">{rec.phone}</span>
+                  <span className="text-text-muted font-mono text-[11px]">
+                    {rec.phone.replace(/(\+91 \d{2})\d{4}(\d{4})/, '$1••••$2')}
+                  </span>
                 </div>
                 <span className="text-text-muted text-[11px]">Delivered</span>
               </div>
@@ -194,7 +219,9 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
                         className="rounded-control border-border-strong text-accent focus:ring-accent w-3.5 h-3.5"
                       />
                       <span className="font-medium text-text">{rec.name}</span>
-                      <span className="text-text-muted font-mono text-[11px]">{rec.phone}</span>
+                      <span className="text-text-muted font-mono text-[11px]">
+                        {rec.phone.replace(/(\+91 \d{2})\d{4}(\d{4})/, '$1••••$2')}
+                      </span>
                     </label>
 
                     <div className="flex items-center gap-2">
@@ -253,6 +280,48 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
         </div>
       )}
 
+      {/* Student Registration Admission Details */}
+      {approval.type === 'student_registration' && approval.studentRegistration && (
+        <div className="mt-3.5 space-y-2.5">
+          <div className="text-xs font-semibold text-text uppercase tracking-wider">
+            Student Admission Profile
+          </div>
+          <div className="p-3.5 rounded-control bg-surface-sunken border border-border space-y-2.5 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-text">
+              <div>
+                <span className="text-text-muted">Student Name:</span>{' '}
+                <strong className="font-semibold">{approval.studentRegistration.name}</strong>
+              </div>
+              <div>
+                <span className="text-text-muted">Roll Number:</span>{' '}
+                <strong className="font-mono">{approval.studentRegistration.rollNo}</strong>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="text-text-muted">Selected Class:</span>{' '}
+                <strong className="font-semibold">{approval.studentRegistration.className}</strong>
+              </div>
+              <div>
+                <span className="text-text-muted">Branch:</span>{' '}
+                <strong className="font-medium">{approval.studentRegistration.branch}</strong>
+              </div>
+              <div>
+                <span className="text-text-muted">Phone:</span>{' '}
+                <strong className="font-mono">{approval.studentRegistration.phone}</strong>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="text-text-muted">Verified Google Email:</span>{' '}
+                <strong className="font-mono">{approval.studentRegistration.email}</strong>
+              </div>
+            </div>
+
+            <div className="p-2 rounded-control bg-accent/10 border border-accent/20 text-[11px] text-accent">
+              <strong>Head Authorization:</strong> As a Head (Trainer or Owner), approving this admission will
+              activate this student's account, enroll them into their class, and grant access to their dashboard.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Timetable Diff Details */}
       {approval.diff && (
         <div className="mt-3.5 space-y-2">
@@ -279,13 +348,15 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
         </Button>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            {isEditing ? 'Done' : 'Edit details'}
-          </Button>
+          {approval.type !== 'student_registration' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsEditing(!isEditing)}
+            >
+              {isEditing ? 'Done' : 'Edit details'}
+            </Button>
+          )}
 
           <Button
             variant="primary"
@@ -293,7 +364,11 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
             onClick={handleApprove}
             disabled={approval.recipients ? selectedCount === 0 : false}
           >
-            {approval.recipients ? `Approve and send (${selectedCount})` : 'Approve and apply'}
+            {approval.type === 'student_registration'
+              ? 'Approve Admission'
+              : approval.recipients
+              ? `Approve and send (${selectedCount})`
+              : 'Approve and apply'}
           </Button>
         </div>
       </div>

@@ -2,6 +2,22 @@ export type UserRole = 'owner' | 'admin' | 'trainer' | 'counselor' | 'accounts' 
 
 export type Branch = 'Kothrud' | 'Baner'
 
+export interface StudentRegistration {
+  id: string
+  studentId: string
+  name: string
+  className: string
+  branch: Branch
+  rollNo: string
+  phone: string
+  email: string
+  status: 'pending' | 'approved' | 'rejected'
+  submittedAt: string
+  approvedBy?: string
+  approvedAt?: string
+  rejectionReason?: string
+}
+
 export interface User {
   id: string
   name: string
@@ -9,6 +25,17 @@ export interface User {
   role: UserRole
   avatar?: string
   branch: Branch | 'All'
+  approvalStatus?: 'approved' | 'pending' | 'rejected'
+  hasCompletedOnboarding?: boolean
+  studentProfile?: {
+    name: string
+    className: string
+    branch: Branch
+    rollNo: string
+    phone: string
+    email: string
+    submittedAt?: string
+  }
 }
 
 export type AttendanceStatus = 'present' | 'partial' | 'late' | 'absent' | 'excused' | 'online'
@@ -109,6 +136,7 @@ export interface Batch {
   capacity: number
   enrolledCount: number
   onlineSeatLimit: number
+  roomCapacity?: number
   startDate: string
   endDate: string
   progress: number // 0-100%
@@ -170,7 +198,7 @@ export interface PaymentRecord {
 
 export interface ApprovalAction {
   id: string
-  type: 'whatsapp_bulk' | 'timetable_replan' | 'cert_issue' | 'fee_waiver' | 'schedule_change'
+  type: 'whatsapp_bulk' | 'timetable_replan' | 'cert_issue' | 'fee_waiver' | 'schedule_change' | 'student_registration'
   title: string
   summary: string
   requester: string
@@ -179,6 +207,7 @@ export interface ApprovalAction {
   riskLevel: 'low' | 'medium' | 'high'
   status: 'pending' | 'approved' | 'rejected'
   recipientCount?: number
+  studentRegistration?: StudentRegistration
   recipients?: {
     id: string
     name: string
@@ -306,6 +335,7 @@ export interface InstituteSettings {
   quietHoursEnd: string
   disableExternalLLMs: boolean
   autoSmsWaivers: boolean
+  onlineSeatLimit?: number
 }
 
 export interface AttendanceRecord {

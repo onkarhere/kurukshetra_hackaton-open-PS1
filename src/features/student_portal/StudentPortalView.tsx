@@ -22,15 +22,19 @@ import {
   ShieldCheck,
   School,
   FileCheck,
+  Command,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ReasonChip } from '@/components/ui/ReasonChip'
 import { StatusPill } from '@/components/ui/StatusPill'
 import { formatINR, cn } from '@/lib/utils'
 import { useToast } from '@/context/ToastContext'
+import { useApp } from '@/context/AppContext'
+import { CopilotDrawer } from '@/components/app/CopilotDrawer'
 import { store, useStore } from '@/mocks/store'
 
 export const StudentPortalView: React.FC = () => {
+  const { setCopilotOpen } = useApp()
   const { success, error } = useToast()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -47,8 +51,18 @@ export const StudentPortalView: React.FC = () => {
   const submissions = useStore((s) => s.submissions)
   const trainers = useStore((s) => s.trainers)
 
-  // Current logged in student
-  const currentStudent = students.find((s) => s.id === 'std-priya-01' || s.name.includes('Priya')) || students[0]
+  const currentUser = useStore((s) => s.currentUser)
+
+  // Current logged in student: match by logged in user id, email, or name
+  const currentStudent =
+    students.find(
+      (s) =>
+        s.id === currentUser.id ||
+        (currentUser.email && s.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+        s.name.toLowerCase() === currentUser.name.toLowerCase()
+    ) ||
+    students.find((s) => s.id === 'std-priya-01' || s.name.includes('Priya')) ||
+    students[0]
 
   // Enrolled classes for this student
   const studentClasses = classes.filter((c) => currentStudent.batchIds.includes(c.batchId))
@@ -241,6 +255,14 @@ export const StudentPortalView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Command className="w-3.5 h-3.5 text-accent" />}
+              onClick={() => setCopilotOpen(true)}
+            >
+              Ask Copilot
+            </Button>
             <Button
               variant="primary"
               size="sm"
@@ -1246,6 +1268,9 @@ export const StudentPortalView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Slide-over Copilot Drawer */}
+      <CopilotDrawer />
     </div>
   )
 }

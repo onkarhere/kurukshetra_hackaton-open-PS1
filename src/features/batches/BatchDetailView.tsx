@@ -221,6 +221,54 @@ export const BatchDetailView: React.FC = () => {
         </div>
       </div>
 
+      {/* Class Strength Card */}
+      {(() => {
+        const strength = store.getBatchStrength(batch.id)
+        const seatsLeft = Math.max(0, strength.capacity - strength.enrolled)
+        const isOver = strength.enrolled > strength.capacity || strength.inRoom > strength.roomCapacity
+
+        return (
+          <div className="p-4 rounded-card border border-border bg-surface text-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-accent" />
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-text">Class Strength & Capacity</h2>
+              </div>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded ${isOver ? 'bg-danger/10 text-danger' : 'bg-surface-sunken text-text'}`}>
+                {strength.enrolled} / {strength.capacity} Enrolled ({seatsLeft} seats left)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 pt-2 border-t border-border">
+              <div className="p-2.5 rounded-control bg-surface-sunken border border-border">
+                <span className="text-[10px] text-text-muted block">Enrolled Total</span>
+                <span className="text-sm font-semibold text-text tabular-nums">{strength.enrolled}</span>
+              </div>
+              <div className="p-2.5 rounded-control bg-surface-sunken border border-border">
+                <span className="text-[10px] text-text-muted block">In-Room</span>
+                <span className="text-sm font-semibold text-text tabular-nums">{strength.inRoom}</span>
+              </div>
+              <div className="p-2.5 rounded-control bg-surface-sunken border border-border">
+                <span className="text-[10px] text-text-muted block">Room Capacity</span>
+                <span className="text-sm font-semibold text-text tabular-nums">{strength.roomCapacity}</span>
+              </div>
+              <div className="p-2.5 rounded-control bg-surface-sunken border border-border">
+                <span className="text-[10px] text-text-muted block">Online Attending</span>
+                <span className="text-sm font-semibold text-text tabular-nums">{strength.online}</span>
+              </div>
+              <div className="p-2.5 rounded-control bg-surface-sunken border border-border">
+                <span className="text-[10px] text-text-muted block">Online Seat Limit</span>
+                <span className="text-sm font-semibold text-text tabular-nums">{strength.onlineSeatLimit}</span>
+              </div>
+              <div className="p-2.5 rounded-control bg-surface-sunken border border-border">
+                <span className="text-[10px] text-text-muted block">Seats Left</span>
+                <span className={`text-sm font-semibold tabular-nums ${seatsLeft === 0 ? 'text-danger' : 'text-success'}`}>{seatsLeft}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Roster of Enrolled Students */}
       <div className="rounded-card border border-border bg-surface overflow-hidden">
         <div className="p-3 border-b border-border bg-surface-sunken/40 flex items-center justify-between">

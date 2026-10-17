@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   MessageSquare,
   X,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { KpiCard } from '@/components/app/KpiCard'
 import { Button } from '@/components/ui/Button'
@@ -20,6 +21,7 @@ import { formatINR } from '@/lib/utils'
 import { canSeeFeeAmounts } from '@/lib/permissions'
 import { exportToCsv } from '@/lib/exportCsv'
 import { ApprovalAction } from '@/types'
+import { ExtractStudentPaymentModal } from '@/features/payments/ExtractStudentPaymentModal'
 
 export const FeesView: React.FC = () => {
   const { role } = useApp()
@@ -28,6 +30,8 @@ export const FeesView: React.FC = () => {
 
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [showBulkApprovalModal, setShowBulkApprovalModal] = useState(false)
+  const [showExtractModal, setShowExtractModal] = useState(false)
+  const [selectedStudentForExtract, setSelectedStudentForExtract] = useState<string | undefined>()
   const [currentApproval, setCurrentApproval] = useState<ApprovalAction | null>(null)
 
   const showAmounts = canSeeFeeAmounts(role)
@@ -118,6 +122,18 @@ export const FeesView: React.FC = () => {
             leftIcon={<MessageSquare className="w-3.5 h-3.5" />}
           >
             Draft reminders ({instalments.filter((i) => i.status === 'overdue').length} overdue)
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSelectedStudentForExtract(undefined)
+              setShowExtractModal(true)
+            }}
+            leftIcon={<FileSpreadsheet className="w-3.5 h-3.5 text-accent" />}
+          >
+            Extract child payments
           </Button>
 
           <Button
@@ -313,16 +329,30 @@ export const FeesView: React.FC = () => {
                   )}
                 </td>
                 <td className="px-3 text-right">
-                  <button
-                    onClick={() => {
-                      const approval = store.createDraftRemindersApproval()
-                      setCurrentApproval(approval)
-                      setShowBulkApprovalModal(true)
-                    }}
-                    className="text-xs text-accent hover:underline font-medium"
-                  >
-                    Draft reminder
-                  </button>
+                  <div className="flex items-center justify-end gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedStudentForExtract(inst.studentId)
+                        setShowExtractModal(true)
+                      }}
+                      className="text-xs text-text-muted hover:text-text font-medium flex items-center gap-1"
+                      title={`Extract payment data for ${inst.studentName}`}
+                    >
+                      <Download className="w-3 h-3 text-accent" />
+                      <span>Extract</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const approval = store.createDraftRemindersApproval()
+                        setCurrentApproval(approval)
+                        setShowBulkApprovalModal(true)
+                      }}
+                      className="text-xs text-accent hover:underline font-medium"
+                    >
+                      Draft reminder
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -363,6 +393,13 @@ export const FeesView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Extract Student Payment Data Modal */}
+      <ExtractStudentPaymentModal
+        isOpen={showExtractModal}
+        onClose={() => setShowExtractModal(false)}
+        initialStudentId={selectedStudentForExtract}
+      />
     </div>
   )
 }

@@ -29,6 +29,7 @@ import {
   UserRole,
   Branch,
   Student,
+  StudentRegistration,
   Trainer,
   Batch,
   Course,
@@ -57,8 +58,16 @@ import { formatINR } from '@/lib/utils'
 import { extractSubmissionText } from '@/features/classroom/grading/extractText'
 import { checkSubmissionSimilarity } from '@/features/classroom/grading/similarity'
 import { gradingService } from '@/features/classroom/grading/gradingService'
+import {
+  generateWeek,
+  replan,
+  ReplanDiffItem,
+  ReplanEvent,
+  detectConflicts,
+  ROOM_CAPACITIES,
+} from '@/features/timetable/scheduler'
 
-const STORAGE_KEY = 'batchwise_store_v1'
+const STORAGE_KEY = 'batchwise_store_v2'
 
 export class MockStore {
   // P0-2: Default isAuthenticated to false when nothing is saved
@@ -84,6 +93,9 @@ export class MockStore {
   attendanceRecords: AttendanceRecord[] = [...mockAttendanceRecords]
   sessionQrTokens: Record<string, { token: string; expiresAt: number }> = {}
 
+  // Student self-registration and admission approvals
+  studentRegistrations: StudentRegistration[] = []
+
   // Classroom slices
   classes: ClassRoom[] = [...mockClassRooms]
   notes: Note[] = [...mockNotes]
@@ -96,6 +108,438 @@ export class MockStore {
 
   constructor() {
     this.loadFromStorage()
+    this.seedDynamicRelativeData()
+    this.computeRiskScores()
+  }
+
+  // Unified audit logger helper (Section 7)
+  audit(params: {
+    action: string
+    entity: string
+    entityId: string
+    before?: Record<string, any>
+    after?: Record<string, any>
+    actorType?: 'User' | 'AI' | 'System'
+    actorName?: string
+    actorRole?: string
+    outcome?: 'success' | 'failure' | 'pending'
+    aiReplay?: {
+      prompt: string
+      sql: string
+      rowsCount: number
+      proposal?: string
+      approver?: string
+      result?: string
+    }
+  }): AuditLogEntry {
+    const entry: AuditLogEntry = {
+      id: `aud-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp:
+        new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+      actorType: params.actorType || (this.currentUser ? 'User' : 'System'),
+      actorName: params.actorName || this.currentUser?.name || 'System',
+      actorRole: params.actorRole || this.currentUser?.role || 'system',
+      action: params.action,
+      entity: params.entity,
+      entityId: params.entityId,
+      outcome: params.outcome || 'success',
+      ipAddress: '122.170.14.92',
+      changes:
+        params.before || params.after
+          ? {
+              before: params.before || {},
+              after: params.after || {},
+            }
+          : undefined,
+      aiReplay: params.aiReplay
+        ? {
+            prompt: params.aiReplay.prompt,
+            sql: params.aiReplay.sql,
+            rowsCount: params.aiReplay.rowsCount,
+            proposal: params.aiReplay.proposal || 'None',
+            approver: params.aiReplay.approver,
+            result: params.aiReplay.result || '',
+          }
+        : undefined,
+    }
+    this.auditLogs.unshift(entry)
+    this.notify()
+    return entry
+  }
+
+  // Dynamic relative data seeder (Section 1d)
+  seedDynamicRelativeData(now = new Date()) {
+    const day = now.getDay()
+    const diffToMon = (day === 0 ? -6 : 1) - day
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + diffToMon)
+    monday.setHours(0, 0, 0, 0)
+
+    const fmt = (d: Date) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const dt = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${dt}`
+    }
+
+    // 1. Ensure 6 past completed sessions for Java Full-Stack B3 (batch-java-b3)
+    const pastOffsets = [
+      { id: 'sess-jb3-p1', days: -14, dayOfWeek: 1, startTime: '19:00', endTime: '21:00' },
+      { id: 'sess-jb3-p2', days: -12, dayOfWeek: 3, startTime: '19:00', endTime: '21:00' },
+      { id: 'sess-jb3-p3', days: -10, dayOfWeek: 5, startTime: '19:00', endTime: '21:00' },
+      { id: 'sess-jb3-p4', days: -7, dayOfWeek: 1, startTime: '19:00', endTime: '21:00' },
+      { id: 'sess-jb3-p5', days: -5, dayOfWeek: 3, startTime: '19:00', endTime: '21:00' },
+      { id: 'sess-jb3-p6', days: -3, dayOfWeek: 5, startTime: '19:00', endTime: '21:00' },
+    ]
+
+    pastOffsets.forEach((po) => {
+      const sessDate = new Date(monday.getTime() + po.days * 86400000)
+      const dateStr = fmt(sessDate)
+      const existing = this.timetableSessions.find((s) => s.id === po.id)
+      if (!existing) {
+        this.timetableSessions.unshift({
+          id: po.id,
+          batchId: 'batch-java-b3',
+          batchName: 'Java Full-Stack B3 (Kothrud)',
+          courseName: 'Java Full-Stack Developer',
+          trainerId: 'tr-arjun',
+          trainerName: 'Arjun Mehta',
+          room: 'Room 3',
+          branch: 'Kothrud',
+          date: dateStr,
+          dayOfWeek: po.dayOfWeek,
+          startTime: po.startTime,
+          endTime: po.endTime,
+          isOnline: true,
+          isLocked: true,
+          status: 'completed',
+        })
+      } else {
+        existing.date = dateStr
+        existing.status = 'completed'
+      }
+    })
+
+    // 2. Ensure real attendance records for the 6 completed sessions
+    // Priya (4 absent): absent in p1, p2, p4, p6
+    // Rohan (4 absent): absent in p2, p3, p5, p6
+    // Devendra (3 absent): absent in p3, p4, p5
+    // Amit (3 absent): absent in p1, p3, p6
+    // Sunita (3 absent): absent in p2, p4, p5
+    const studentAbsences: Record<string, string[]> = {
+      'std-priya-01': ['sess-jb3-p1', 'sess-jb3-p2', 'sess-jb3-p4', 'sess-jb3-p6'],
+      'std-rohan-02': ['sess-jb3-p2', 'sess-jb3-p3', 'sess-jb3-p5', 'sess-jb3-p6'],
+      'std-devendra-03': ['sess-jb3-p3', 'sess-jb3-p4', 'sess-jb3-p5'],
+      'std-amit-04': ['sess-jb3-p1', 'sess-jb3-p3', 'sess-jb3-p6'],
+      'std-sunita-05': ['sess-jb3-p2', 'sess-jb3-p4', 'sess-jb3-p5'],
+    }
+
+    pastOffsets.forEach((po) => {
+      Object.keys(studentAbsences).forEach((stId) => {
+        const student = this.students.find((s) => s.id === stId)
+        if (!student) return
+        const isAbsent = studentAbsences[stId].includes(po.id)
+        const recId = `att-rel-${po.id}-${stId}`
+        const existingIdx = this.attendanceRecords.findIndex(
+          (r) => (r.sessionId === po.id && r.studentId === stId) || r.id === recId
+        )
+        const rec: AttendanceRecord = {
+          id: recId,
+          sessionId: po.id,
+          studentId: stId,
+          studentName: student.name,
+          status: isAbsent ? 'absent' : 'present',
+          method: isAbsent ? 'manual' : 'qr',
+          checkInTime: isAbsent ? undefined : '19:02 IST',
+        }
+        if (existingIdx >= 0) {
+          this.attendanceRecords[existingIdx] = rec
+        } else {
+          this.attendanceRecords.unshift(rec)
+        }
+      })
+    })
+
+    // 3. Ensure fee instalments for the 5 students in current week
+    const currentWeekDues = [
+      {
+        id: 'fee-inst-priya-cw',
+        studentId: 'std-priya-01',
+        studentName: 'Priya Nair',
+        sequence: 'EMI 3 of 6',
+        amount: 8000,
+        dueDayOffset: 3, // Thursday
+        status: 'due_soon' as const,
+      },
+      {
+        id: 'fee-inst-rohan-cw',
+        studentId: 'std-rohan-02',
+        studentName: 'Rohan Kulkarni',
+        sequence: 'EMI 3 of 6',
+        amount: 8000,
+        dueDayOffset: 4, // Friday
+        status: 'due_soon' as const,
+      },
+      {
+        id: 'fee-inst-devendra-cw',
+        studentId: 'std-devendra-03',
+        studentName: 'Devendra Joshi',
+        sequence: 'EMI 3 of 6',
+        amount: 7500,
+        dueDayOffset: 2, // Wednesday
+        status: 'due_soon' as const,
+      },
+      {
+        id: 'fee-inst-amit-cw',
+        studentId: 'std-amit-04',
+        studentName: 'Amit Sane',
+        sequence: 'EMI 3 of 6',
+        amount: 7500,
+        dueDayOffset: 1, // Tuesday
+        status: 'due_soon' as const,
+      },
+      {
+        id: 'fee-inst-sunita-cw',
+        studentId: 'std-sunita-05',
+        studentName: 'Sunita Rao',
+        sequence: 'EMI 3 of 6',
+        amount: 6500,
+        dueDayOffset: 5, // Saturday
+        status: 'due_soon' as const,
+      },
+    ]
+
+    currentWeekDues.forEach((cwd) => {
+      const dueDate = new Date(monday.getTime() + cwd.dueDayOffset * 86400000)
+      const dueDateStr = fmt(dueDate)
+      const existingIdx = this.feeInstalments.findIndex(
+        (f) => f.id === cwd.id || (f.studentId === cwd.studentId && f.sequence === cwd.sequence)
+      )
+      const inst: FeeInstalment = {
+        id: cwd.id,
+        studentId: cwd.studentId,
+        studentName: cwd.studentName,
+        batchName: 'Java Full-Stack B3 (Kothrud)',
+        sequence: cwd.sequence,
+        dueDate: dueDateStr,
+        amount: cwd.amount,
+        paidAmount: 0,
+        status: cwd.status,
+        daysOverdue: 0,
+      }
+      if (existingIdx >= 0) {
+        this.feeInstalments[existingIdx] = inst
+      } else {
+        this.feeInstalments.unshift(inst)
+      }
+    })
+
+    // Rohan's 2nd overdue EMI (18 days overdue)
+    const rohanOverdueDueDate = new Date(now.getTime() - 18 * 86400000)
+    const rohanOverdueStr = fmt(rohanOverdueDueDate)
+    const rohanOverdueIdx = this.feeInstalments.findIndex(
+      (f) => f.id === 'fee-inst-rohan-overdue' || (f.studentId === 'std-rohan-02' && f.sequence === 'EMI 2 of 6')
+    )
+    const rohanOverdueInst: FeeInstalment = {
+      id: 'fee-inst-rohan-overdue',
+      studentId: 'std-rohan-02',
+      studentName: 'Rohan Kulkarni',
+      batchName: 'Java Full-Stack B3 (Kothrud)',
+      sequence: 'EMI 2 of 6',
+      dueDate: rohanOverdueStr,
+      amount: 6500,
+      paidAmount: 0,
+      status: 'overdue',
+      daysOverdue: 18,
+      isSecondMissed: true,
+    }
+    if (rohanOverdueIdx >= 0) {
+      this.feeInstalments[rohanOverdueIdx] = rohanOverdueInst
+    } else {
+      this.feeInstalments.unshift(rohanOverdueInst)
+    }
+  }
+
+  // Real-time batch strength computation (Section 3)
+  getBatchStrength(batchId: string): {
+    enrolled: number
+    capacity: number
+    inRoom: number
+    online: number
+    onlineSeatLimit: number
+    roomCapacity: number
+  } {
+    const batch = this.batches.find(
+      (b) => b.id === batchId || b.code === batchId || b.name === batchId
+    )
+    const roomCap = batch?.room
+      ? ROOM_CAPACITIES[batch.room] || batch.capacity || 30
+      : batch?.capacity || 30
+    const onlineLimit =
+      batch?.onlineSeatLimit ??
+      (batch?.mode === 'online' ? 100 : batch?.mode === 'hybrid' ? 15 : 0)
+    const totalCapacity = roomCap + onlineLimit
+
+    const enrolledStudents = this.students.filter(
+      (s) =>
+        batch &&
+        (s.batchIds.includes(batch.id) || s.batchNames?.includes(batch.name))
+    )
+    const enrolled =
+      enrolledStudents.length > 0 ? enrolledStudents.length : batch?.enrolledCount || 0
+
+    let onlineCount = 0
+    if (batch?.mode === 'online') {
+      onlineCount = enrolled
+    } else if (batch?.mode === 'hybrid') {
+      const explicitOnline = enrolledStudents.filter(
+        (s: any) => s.attendancePreference === 'online' || s.mode === 'online'
+      ).length
+      onlineCount =
+        explicitOnline > 0
+          ? explicitOnline
+          : Math.min(onlineLimit, Math.max(4, Math.round(enrolled * 0.2)))
+    } else {
+      onlineCount = 0
+    }
+    const inRoom = Math.max(0, enrolled - onlineCount)
+
+    return {
+      enrolled,
+      capacity: batch?.capacity || totalCapacity,
+      inRoom,
+      online: onlineCount,
+      onlineSeatLimit: onlineLimit,
+      roomCapacity: roomCap,
+    }
+  }
+
+  // Dynamic Risk Flag computation with real numerical evidence (Section 6)
+  computeRiskScores() {
+    const settings = this.settings || { minAttendanceThreshold: 75, criticalRiskThreshold: 50 }
+
+    this.students.forEach((student) => {
+      // 1. Attendance Analysis
+      const studentRecords = this.attendanceRecords
+        .filter((r) => r.studentId === student.id)
+        .sort((a, b) => (b.checkInTime || '').localeCompare(a.checkInTime || ''))
+
+      const totalSessions = studentRecords.length
+      const presentSessions = studentRecords.filter(
+        (r) => r.status === 'present' || r.status === 'online'
+      ).length
+
+      let consecutiveAbsences = 0
+      for (let i = 0; i < Math.min(5, studentRecords.length); i++) {
+        if (studentRecords[i].status === 'absent') {
+          consecutiveAbsences++
+        } else {
+          break
+        }
+      }
+
+      const computedRate =
+        totalSessions > 0
+          ? Math.round((presentSessions / totalSessions) * 100)
+          : student.attendanceRate || 85
+      student.attendanceRate = computedRate
+
+      // 2. Classroom Assignments Analysis
+      const studentSubs = this.submissions.filter((s) => s.studentId === student.id)
+      const lateSubs = studentSubs.filter((s) => s.status === 'late').length
+      const missingSubs = studentSubs.filter((s) => s.status === 'assigned').length
+
+      // 3. Fee Instalments Analysis
+      const overdueInstalments = this.feeInstalments.filter(
+        (fi) => fi.studentId === student.id && fi.status === 'overdue'
+      )
+      const dueSoonInstalments = this.feeInstalments.filter(
+        (fi) => fi.studentId === student.id && fi.status === 'due_soon'
+      )
+
+      const maxDaysOverdue =
+        overdueInstalments.length > 0
+          ? Math.max(...overdueInstalments.map((fi) => fi.daysOverdue || 0))
+          : 0
+      const totalOverdueAmount = overdueInstalments.reduce(
+        (sum, fi) => sum + (fi.amount - (fi.paidAmount || 0)),
+        0
+      )
+
+      // 4. Calculate Risk Score
+      let score = 0
+      const reasons: string[] = []
+
+      if (computedRate < settings.criticalRiskThreshold) {
+        score += 45
+      } else if (computedRate < settings.minAttendanceThreshold) {
+        score += 25
+      } else if (computedRate < 80) {
+        score += 15
+      }
+
+      if (totalSessions >= 3) {
+        reasons.push(
+          `Attended ${presentSessions} of last ${totalSessions} sessions (${computedRate}%)`
+        )
+      } else if (computedRate < 80) {
+        reasons.push(`Current attendance rate is ${computedRate}%`)
+      }
+
+      if (consecutiveAbsences >= 2) {
+        score += consecutiveAbsences * 6
+        reasons.push(`${consecutiveAbsences} consecutive class absences`)
+      }
+
+      if (missingSubs > 0 || lateSubs > 0) {
+        score += missingSubs * 10 + lateSubs * 5
+        reasons.push(
+          `${missingSubs > 0 ? `${missingSubs} assignment(s) missing` : ''}${
+            missingSubs > 0 && lateSubs > 0 ? ', ' : ''
+          }${lateSubs > 0 ? `${lateSubs} assignment(s) submitted late` : ''}`
+        )
+      }
+
+      if (overdueInstalments.length >= 2) {
+        score += 35 + Math.min(20, Math.floor(maxDaysOverdue / 2))
+        reasons.push(
+          `2nd missed EMI (${formatINR(totalOverdueAmount)} overdue by ${maxDaysOverdue} days)`
+        )
+        student.feeStatus = 'overdue'
+      } else if (overdueInstalments.length === 1) {
+        score += 20 + Math.min(15, Math.floor(maxDaysOverdue / 2))
+        const inst = overdueInstalments[0]
+        reasons.push(
+          `EMI ${inst.sequence} overdue by ${inst.daysOverdue} days (${formatINR(inst.amount - inst.paidAmount)})`
+        )
+        student.feeStatus = 'overdue'
+      } else if (dueSoonInstalments.length > 0) {
+        const inst = dueSoonInstalments[0]
+        reasons.push(
+          `EMI ${inst.sequence} (${formatINR(inst.amount - inst.paidAmount)}) due on ${inst.dueDate}`
+        )
+        student.feeStatus = 'due_soon'
+      } else {
+        student.feeStatus = 'paid'
+      }
+
+      const finalScore = Math.min(100, Math.max(5, score))
+      student.riskScore = finalScore
+      if (finalScore >= 75) {
+        student.riskLevel = 'critical'
+      } else if (finalScore >= 50) {
+        student.riskLevel = 'high'
+      } else if (finalScore >= 25) {
+        student.riskLevel = 'watch'
+      } else {
+        student.riskLevel = 'low'
+        if (reasons.length === 0) {
+          reasons.push('Consistently punctual and regular attendance')
+        }
+      }
+
+      student.riskReasons = reasons.slice(0, 3)
+    })
   }
 
   private loadFromStorage() {
@@ -111,6 +555,16 @@ export class MockStore {
         this.currentUser = JSON.parse(authUser)
       } else {
         this.isAuthenticated = false
+      }
+
+      // Rehydrate persisted student registrations
+      const savedRegistrations = localStorage.getItem('batchwise_student_registrations')
+      if (savedRegistrations) {
+        try {
+          this.studentRegistrations = JSON.parse(savedRegistrations)
+        } catch {
+          this.studentRegistrations = []
+        }
       }
 
       // Rehydrate persisted store
@@ -139,6 +593,7 @@ export class MockStore {
         if (parsed.assignments) this.assignments = parsed.assignments
         if (parsed.submissions) this.submissions = parsed.submissions
         if (parsed.streamPosts) this.streamPosts = parsed.streamPosts
+        if (parsed.studentRegistrations) this.studentRegistrations = parsed.studentRegistrations
       }
     } catch (e) {
       console.warn('Failed to rehydrate store from localStorage', e)
@@ -149,12 +604,14 @@ export class MockStore {
     if (typeof window === 'undefined') return
 
     try {
+      localStorage.setItem('batchwise_student_registrations', JSON.stringify(this.studentRegistrations))
       const stateToSave = {
         selectedBranch: this.selectedBranch,
         courses: this.courses,
         trainers: this.trainers,
         batches: this.batches,
         students: this.students,
+        studentRegistrations: this.studentRegistrations,
         feeInstalments: this.feeInstalments,
         payments: this.payments,
         approvals: this.approvals,
@@ -215,6 +672,20 @@ export class MockStore {
     // Reset copilot message based on role
     if (this.currentUser.role === 'trainer') {
       this.copilotMessages = [mockTrainerSeedRefusalMessage]
+    } else if (this.currentUser.role === 'student') {
+      this.copilotMessages = [
+        {
+          id: `seed-student-${Date.now()}`,
+          sender: 'assistant',
+          timestamp: 'Just now',
+          content: "Hi Priya! I'm your Student Copilot. Ask me about your attendance, today's lecture schedule, or pending assignments.",
+          suggestedFollowUps: [
+            "What's my attendance?",
+            "What lecture do I have today?",
+            "What assignments are pending?",
+          ],
+        },
+      ]
     } else {
       this.copilotMessages = [mockSeedCopilotMessage]
     }
@@ -223,6 +694,49 @@ export class MockStore {
   }
 
   login(user: User) {
+    // Check if user has an existing student registration
+    const userEmail = (user.email || '').trim().toLowerCase()
+    const existingReg = this.studentRegistrations.find(
+      (r) => r.email.toLowerCase() === userEmail
+    )
+
+    if (user.role === 'student') {
+      if (existingReg) {
+        user.hasCompletedOnboarding = true
+        user.approvalStatus = existingReg.status
+        user.name = existingReg.name
+        user.branch = existingReg.branch
+        user.studentProfile = {
+          name: existingReg.name,
+          className: existingReg.className,
+          branch: existingReg.branch,
+          rollNo: existingReg.rollNo,
+          phone: existingReg.phone,
+          email: existingReg.email,
+          submittedAt: existingReg.submittedAt,
+        }
+      } else {
+        // Check if user is an existing seeded mock student (like Priya Nair)
+        const seededStudent = this.students.find(
+          (s) => s.email.toLowerCase() === userEmail || s.id === user.id
+        )
+        if (seededStudent) {
+          user.hasCompletedOnboarding = true
+          user.approvalStatus = 'approved'
+          user.name = seededStudent.name
+          user.branch = seededStudent.branch
+        } else {
+          // Brand new student login: first time!
+          user.hasCompletedOnboarding = false
+          user.approvalStatus = 'pending'
+        }
+      }
+    } else {
+      // Non-student roles (trainer, owner, counselor, accounts) are automatically approved
+      user.hasCompletedOnboarding = true
+      user.approvalStatus = 'approved'
+    }
+
     this.currentUser = { ...user }
     this.isAuthenticated = true
     if (typeof window !== 'undefined') {
@@ -277,7 +791,12 @@ export class MockStore {
           id: `seed-student-${Date.now()}`,
           sender: 'assistant',
           timestamp: 'Just now',
-          content: 'Hi Priya! You can view your classes, check-in status, and syllabus catch-up recordings.',
+          content: "Hi Priya! I'm your Student Copilot. Ask me about your attendance, today's lecture schedule, or pending assignments.",
+          suggestedFollowUps: [
+            "What's my attendance?",
+            "What lecture do I have today?",
+            "What assignments are pending?",
+          ],
         },
       ]
     } else {
@@ -300,7 +819,27 @@ export class MockStore {
   // P0-5: Approvals execution
   approveProposal(id: string) {
     const item = this.approvals.find((a) => a.id === id)
-    if (!item || item.status !== 'pending') return
+    if (!item || item.status !== 'pending') return false
+
+    // Role safety check: Only owner, admin, counselor, accounts can approve fee reminders
+    const isFeeApproval =
+      item.type === 'whatsapp_bulk' &&
+      (item.title?.toLowerCase().includes('fee') ||
+        item.title?.toLowerCase().includes('emi') ||
+        item.summary?.toLowerCase().includes('fee') ||
+        item.summary?.toLowerCase().includes('emi') ||
+        item.recipients?.some((r) => r.amountDue && r.amountDue > 0))
+
+    const feeAllowedRoles = ['owner', 'admin', 'counselor', 'accounts']
+    if (isFeeApproval && !feeAllowedRoles.includes(this.currentUser.role)) {
+      this.audit({
+        action: `Approval blocked: role '${this.currentUser.role}' not permitted to approve fee reminders`,
+        entity: item.type,
+        entityId: item.id,
+        outcome: 'failure',
+      })
+      return false
+    }
 
     item.status = 'approved'
     item.approvedAt = new Date().toISOString()
@@ -321,23 +860,16 @@ export class MockStore {
           studentId: rec.id,
           studentName: rec.name,
           body: rec.customizedMessage || rec.messagePreview,
-          status: 'queued',
+          status: 'sent',
           approvalId: item.id,
-          createdAt: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
+          createdAt:
+            new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
         }
         createdMessages.push(outboxMsg)
         this.messages.unshift(outboxMsg)
       })
 
-      resultSummary = `Queued ${createdMessages.length} message(s) for delivery.`
-
-      // Simulate network delivery
-      setTimeout(() => {
-        createdMessages.forEach((m) => {
-          m.status = 'sent'
-        })
-        this.notify()
-      }, 1000)
+      resultSummary = `Dispatched ${createdMessages.length} message(s) via ${item.channel || 'WhatsApp'}.`
     }
 
     // 2. timetable_replan / publish_timetable execution
@@ -357,7 +889,9 @@ export class MockStore {
     else if (item.type === 'cert_issue' || (item.type as string) === 'generate_certificates') {
       const eligible = item.recipients?.filter((r) => r.selected !== false) || []
       eligible.forEach((r) => {
-        const certNo = `CC-2026-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`
+        const certNo = `CC-2026-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.floor(
+          1000 + Math.random() * 9000
+        )}`
         const newCert: Certificate = {
           id: `cert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           certificateNo: certNo,
@@ -376,25 +910,96 @@ export class MockStore {
         this.certificates.unshift(newCert)
       })
       resultSummary = `Issued ${eligible.length} accredited certificate(s).`
+    }
+
+    // 4. student_registration admission approval by Head (Trainer / Owner)
+    else if (item.type === 'student_registration') {
+      const headAllowedRoles = ['trainer', 'owner', 'admin']
+      if (!headAllowedRoles.includes(this.currentUser.role)) {
+        this.audit({
+          action: `Approval blocked: role '${this.currentUser.role}' not permitted to approve student admissions. Requires Head (Trainer or Owner).`,
+          entity: item.type,
+          entityId: item.id,
+          outcome: 'failure',
+        })
+        return false
+      }
+
+      const reg = item.studentRegistration
+      if (reg) {
+        reg.status = 'approved'
+        reg.approvedBy = `${this.currentUser.name} (${this.currentUser.role === 'trainer' ? 'Trainer' : 'Owner'})`
+        reg.approvedAt = new Date().toISOString()
+
+        // Also update in this.studentRegistrations
+        const targetReg = this.studentRegistrations.find(
+          (r) => r.id === reg.id || r.email.toLowerCase() === reg.email.toLowerCase()
+        )
+        if (targetReg) {
+          targetReg.status = 'approved'
+          targetReg.approvedBy = reg.approvedBy
+          targetReg.approvedAt = reg.approvedAt
+        }
+
+        // Enroll student into active students directory if not already there
+        const matchingBatch = this.batches.find(
+          (b) => b.name === reg.className || b.code === reg.className
+        )
+        const batchId = matchingBatch?.id || 'batch-java-b3'
+        const batchName = matchingBatch?.name || reg.className
+        const existingStudent = this.students.find(
+          (s) => s.email.toLowerCase() === reg.email.toLowerCase() || s.id === reg.studentId
+        )
+        if (!existingStudent) {
+          const newStudent: Student = {
+            id: reg.studentId,
+            name: reg.name,
+            email: reg.email,
+            phone: reg.phone,
+            branch: reg.branch,
+            batchIds: [batchId],
+            batchNames: [batchName],
+            attendanceRate: 100,
+            feeStatus: 'paid',
+            riskLevel: 'low',
+            riskScore: 5,
+            riskReasons: ['Newly admitted student · Head verified'],
+            lastSeen: 'Just now',
+            enrolledAt: new Date().toISOString().split('T')[0],
+          }
+          this.students.unshift(newStudent)
+        }
+
+        // If the student is currently logged in, update their session
+        if (this.currentUser.email.toLowerCase() === reg.email.toLowerCase()) {
+          this.currentUser.approvalStatus = 'approved'
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('batchwise_auth_user', JSON.stringify(this.currentUser))
+          }
+        }
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('batchwise_student_registrations', JSON.stringify(this.studentRegistrations))
+        }
+      }
+      resultSummary = `Approved student registration for ${item.studentRegistration?.name || 'student'}. Dashboard unlocked.`
     } else {
       resultSummary = `Action ${item.title} completed successfully.`
     }
 
     // Write audit log entry
-    this.auditLogs.unshift({
-      id: `aud-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
-      actorType: 'User',
-      actorName: this.currentUser.name,
-      actorRole: this.currentUser.role,
+    this.audit({
       action: `Approved: ${item.title}`,
       entity: item.type,
       entityId: item.id,
       outcome: 'success',
-      ipAddress: '122.170.14.92',
-      changes: {
-        before: { status: 'pending' },
-        after: { status: 'approved', result: resultSummary },
+      before: { status: 'pending' },
+      after: {
+        status: 'approved',
+        result: resultSummary,
+        approver: this.currentUser.name,
+        count: item.recipients?.filter((r) => r.selected !== false).length || 0,
+        approvalId: item.id,
       },
     })
 
@@ -404,7 +1009,9 @@ export class MockStore {
       msg.approvalProposal.status = 'approved'
     }
 
+    this.saveToStorage()
     this.notify()
+    return true
   }
 
   rejectProposal(id: string, reason?: string) {
@@ -414,21 +1021,34 @@ export class MockStore {
     item.status = 'rejected'
     item.approvedBy = this.currentUser.name
 
-    this.auditLogs.unshift({
-      id: `aud-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
-      actorType: 'User',
-      actorName: this.currentUser.name,
-      actorRole: this.currentUser.role,
+    if (item.type === 'student_registration' && item.studentRegistration) {
+      item.studentRegistration.status = 'rejected'
+      item.studentRegistration.rejectionReason = reason || 'Rejected by Head'
+      const targetReg = this.studentRegistrations.find(
+        (r) => r.id === item.studentRegistration?.id || r.email.toLowerCase() === item.studentRegistration?.email.toLowerCase()
+      )
+      if (targetReg) {
+        targetReg.status = 'rejected'
+        targetReg.rejectionReason = reason || 'Rejected by Head'
+      }
+      if (this.currentUser.email.toLowerCase() === item.studentRegistration.email.toLowerCase()) {
+        this.currentUser.approvalStatus = 'rejected'
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('batchwise_auth_user', JSON.stringify(this.currentUser))
+        }
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('batchwise_student_registrations', JSON.stringify(this.studentRegistrations))
+      }
+    }
+
+    this.audit({
       action: `Rejected: ${item.title}${reason ? ` (Reason: ${reason})` : ''}`,
       entity: item.type,
       entityId: item.id,
       outcome: 'success',
-      ipAddress: '122.170.14.92',
-      changes: {
-        before: { status: 'pending' },
-        after: { status: 'rejected', reason: reason || 'Rejected by user' },
-      },
+      before: { status: 'pending' },
+      after: { status: 'rejected', reason: reason || 'Rejected by user', approver: this.currentUser.name },
     })
 
     const msg = this.copilotMessages.find((m) => m.approvalProposal?.id === id)
@@ -436,7 +1056,97 @@ export class MockStore {
       msg.approvalProposal.status = 'rejected'
     }
 
+    this.saveToStorage()
     this.notify()
+  }
+
+  // Student self-registration on first login
+  submitStudentRegistration(data: {
+    name: string
+    className: string
+    branch: Branch
+    rollNo: string
+    phone: string
+    email: string
+  }) {
+    const regId = `reg-${Date.now()}`
+    const studentId = this.currentUser.id || `std-${Date.now()}`
+    const submittedAt = new Date().toISOString()
+
+    const reg: StudentRegistration = {
+      id: regId,
+      studentId,
+      name: data.name,
+      className: data.className,
+      branch: data.branch,
+      rollNo: data.rollNo,
+      phone: data.phone,
+      email: data.email,
+      status: 'pending',
+      submittedAt,
+    }
+
+    // Upsert registration
+    const existingIndex = this.studentRegistrations.findIndex(
+      (r) => r.email.toLowerCase() === data.email.toLowerCase()
+    )
+    if (existingIndex >= 0) {
+      this.studentRegistrations[existingIndex] = reg
+    } else {
+      this.studentRegistrations.unshift(reg)
+    }
+
+    // Upsert approval proposal
+    const existingApprovalIndex = this.approvals.findIndex(
+      (a) =>
+        a.type === 'student_registration' &&
+        a.studentRegistration?.email.toLowerCase() === data.email.toLowerCase() &&
+        a.status === 'pending'
+    )
+    const approval: ApprovalAction = {
+      id: `appr-reg-${Date.now()}`,
+      type: 'student_registration',
+      title: `Student Admission: ${data.name}`,
+      summary: `New student registration for ${data.className} (${data.branch} branch). Roll No: ${data.rollNo}, Phone: ${data.phone}. Awaiting Head review.`,
+      requester: data.name,
+      requesterRole: 'student',
+      createdAt: 'Just now',
+      riskLevel: 'medium',
+      status: 'pending',
+      studentRegistration: reg,
+    }
+    if (existingApprovalIndex >= 0) {
+      this.approvals[existingApprovalIndex] = approval
+    } else {
+      this.approvals.unshift(approval)
+    }
+
+    // Update current user state
+    this.currentUser.name = data.name
+    this.currentUser.branch = data.branch
+    this.currentUser.hasCompletedOnboarding = true
+    this.currentUser.approvalStatus = 'pending'
+    this.currentUser.studentProfile = {
+      ...data,
+      submittedAt,
+    }
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('batchwise_student_registrations', JSON.stringify(this.studentRegistrations))
+      localStorage.setItem('batchwise_auth_user', JSON.stringify(this.currentUser))
+    }
+
+    this.audit({
+      action: `Submitted student registration for ${data.name}`,
+      entity: 'student_registration',
+      entityId: regId,
+      outcome: 'success',
+      after: { student: data.name, class: data.className, branch: data.branch, rollNo: data.rollNo },
+    })
+
+    this.saveToStorage()
+    this.notify()
+    return reg
   }
 
   updateRecipientMessage(approvalId: string, recipientId: string, newMsg: string) {
@@ -467,10 +1177,26 @@ export class MockStore {
         (r) => r.sessionId === rec.sessionId && r.studentId === rec.studentId
       )
       if (idx >= 0) {
+        const existing = this.attendanceRecords[idx]
+        // In-room check-in takes precedence over online
+        if (
+          (existing.method === 'qr' || existing.method === 'manual') &&
+          existing.status === 'present' &&
+          rec.method === 'online_import'
+        ) {
+          return
+        }
         this.attendanceRecords[idx] = rec
       } else {
         this.attendanceRecords.push(rec)
       }
+    })
+    this.computeRiskScores()
+    this.audit({
+      action: `Recorded session attendance for ${records.length} attendee(s)`,
+      entity: 'attendance',
+      entityId: records[0]?.sessionId || 'bulk',
+      after: { count: records.length },
     })
     this.notify()
   }
@@ -486,6 +1212,11 @@ export class MockStore {
         content,
         createdAt: 'Just now',
       })
+      this.audit({
+        action: `Added counseling note for student ${student.name}`,
+        entity: 'student',
+        entityId: student.id,
+      })
       this.notify()
     }
   }
@@ -495,6 +1226,15 @@ export class MockStore {
     if (payment) {
       payment.status = 'verified'
       payment.confidence = 100
+      payment.reconcileReasons = [`Verified by ${this.currentUser.name}`]
+      this.audit({
+        action: `Reconciled bank payment ${payment.receiptNo} (${formatINR(payment.amount)}) for ${payment.studentName}`,
+        entity: 'payment',
+        entityId: payment.id,
+        before: { status: 'needs_review' },
+        after: { status: 'verified', confidence: 100 },
+      })
+      this.computeRiskScores()
       this.notify()
     }
   }
@@ -503,6 +1243,11 @@ export class MockStore {
     const trainer = this.trainers.find((t) => t.id === trainerId)
     if (trainer) {
       trainer.availability = availability
+      this.audit({
+        action: `Updated weekly availability schedule for ${trainer.name}`,
+        entity: 'trainer',
+        entityId: trainer.id,
+      })
       this.notify()
     }
   }
@@ -513,6 +1258,13 @@ export class MockStore {
       const leave = trainer.leaveRequests.find((l) => l.id === leaveId)
       if (leave) {
         leave.status = 'approved'
+        this.audit({
+          action: `Approved leave request for ${trainer.name} on ${leave.date}`,
+          entity: 'trainer_leave',
+          entityId: leave.id,
+          before: { status: 'pending' },
+          after: { status: 'approved' },
+        })
         this.notify()
       }
     }
@@ -520,6 +1272,29 @@ export class MockStore {
 
   addCopilotMessage(msg: CopilotMessage) {
     this.copilotMessages.push(msg)
+    if (msg.sender === 'assistant' && msg.query) {
+      this.audit({
+        action: `Copilot query: "${msg.query}"`,
+        entity: 'copilot',
+        entityId: msg.id,
+        actorType: 'AI',
+        actorName: 'Batchwise Copilot',
+        actorRole: this.currentUser?.role,
+        aiReplay: {
+          prompt: msg.query,
+          sql: msg.sql || '-- Deterministic query executed',
+          rowsCount: msg.rowsCount ?? (msg.tableData?.length || 0),
+          proposal: msg.approvalProposal ? msg.approvalProposal.title : 'None',
+          approver: this.currentUser?.name,
+          result: msg.content.slice(0, 160),
+        },
+        after: {
+          query: msg.query,
+          refused: Boolean(msg.refusal?.isRefused),
+          rowsCount: msg.rowsCount ?? 0,
+        },
+      })
+    }
     this.notify()
   }
 
@@ -527,6 +1302,12 @@ export class MockStore {
     const msg = this.copilotMessages.find((m) => m.id === messageId)
     if (msg) {
       msg.feedback = feedback
+      this.audit({
+        action: `Submitted Copilot response feedback (${feedback === 'up' ? 'Helpful' : 'Not helpful'})`,
+        entity: 'copilot',
+        entityId: messageId,
+        after: { feedback },
+      })
       this.notify()
     }
   }
@@ -535,17 +1316,12 @@ export class MockStore {
     const cert = this.certificates.find((c) => c.id === certId || c.certificateNo === certId)
     if (cert) {
       cert.status = 'revoked'
-      this.auditLogs.unshift({
-        id: `aud-${Date.now()}`,
-        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
-        actorType: 'User',
-        actorName: this.currentUser.name,
-        actorRole: this.currentUser.role,
-        action: `Revoked certificate: ${cert.certificateNo}`,
+      this.audit({
+        action: `Revoked certificate: ${cert.certificateNo} issued to ${cert.studentName}`,
         entity: 'certificate',
         entityId: cert.id,
-        outcome: 'success',
-        ipAddress: '122.170.14.92',
+        before: { status: 'valid' },
+        after: { status: 'revoked' },
       })
       this.notify()
     }
@@ -555,6 +1331,7 @@ export class MockStore {
     if (!this.riskAcknowledgements) {
       this.riskAcknowledgements = {}
     }
+    const isAcknowledging = !this.riskAcknowledgements[studentId]
     if (this.riskAcknowledgements[studentId]) {
       delete this.riskAcknowledgements[studentId]
     } else {
@@ -568,23 +1345,26 @@ export class MockStore {
         }),
       }
     }
+    this.audit({
+      action: `${isAcknowledging ? 'Acknowledged' : 'Cleared acknowledgement for'} student ${studentId} academic risk`,
+      entity: 'risk',
+      entityId: studentId,
+      after: { acknowledged: isAcknowledging, by },
+    })
     this.notify()
   }
 
   updateSettings(newSettings: Partial<InstituteSettings>) {
+    const before = { ...this.settings }
     this.settings = { ...this.settings, ...newSettings }
-    this.auditLogs.unshift({
-      id: `aud-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
-      actorType: 'User',
-      actorName: this.currentUser.name,
-      actorRole: this.currentUser.role,
+    this.audit({
       action: 'Updated institute settings and risk/attendance thresholds',
       entity: 'settings',
       entityId: 'inst-settings',
-      outcome: 'success',
-      ipAddress: '122.170.14.92',
+      before,
+      after: this.settings,
     })
+    this.computeRiskScores()
     this.notify()
   }
 
@@ -771,20 +1551,47 @@ export class MockStore {
           s.room = newRoom
         }
       })
-      this.auditLogs.unshift({
-        id: `aud-${Date.now()}`,
-        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST',
-        actorType: 'User',
-        actorName: this.currentUser.name,
-        actorRole: this.currentUser.role,
+      this.audit({
         action: `Reassigned batch ${batch.name} room from ${oldRoom} to ${newRoom}`,
         entity: 'batch',
         entityId: batch.id,
-        outcome: 'success',
-        ipAddress: '122.170.14.92',
+        before: { room: oldRoom },
+        after: { room: newRoom },
       })
       this.notify()
     }
+  }
+
+  addBatch(newBatch: Batch) {
+    this.batches.unshift(newBatch)
+    const replanResult = replan(
+      { type: 'new_batch', batchId: newBatch.id },
+      this.timetableSessions,
+      this.trainers,
+      this.batches,
+      this.settings
+    )
+    this.audit({
+      action: `Created new academic batch: ${newBatch.name} (${newBatch.code})`,
+      entity: 'batch',
+      entityId: newBatch.id,
+      after: newBatch,
+    })
+    this.notify()
+    return replanResult
+  }
+
+  applyReplan(diff: ReplanDiffItem[], updatedSessions: TimetableSession[]) {
+    const beforeCount = this.timetableSessions.length
+    this.timetableSessions = updatedSessions
+    this.audit({
+      action: `Applied timetable replan (${diff.length} changes)`,
+      entity: 'timetable',
+      entityId: `replan-${Date.now()}`,
+      before: { sessionCount: beforeCount },
+      after: { sessionCount: updatedSessions.length, diffCount: diff.length },
+    })
+    this.notify()
   }
 
   createSendMessageApproval(
@@ -889,8 +1696,17 @@ export class MockStore {
   markPaymentNonFee(paymentId: string) {
     const p = this.payments.find((x) => x.id === paymentId)
     if (p) {
+      const before = { status: p.status, reconcileReasons: p.reconcileReasons }
       p.status = 'verified'
       p.reconcileReasons = ['Marked as Non-fee transaction (vendor/refund/miscellaneous)']
+      this.audit({
+        action: `Marked payment ${paymentId} (${formatINR(p.amount)}) as non-fee`,
+        entity: 'payment',
+        entityId: paymentId,
+        before,
+        after: { status: p.status, reconcileReasons: p.reconcileReasons },
+      })
+      this.computeRiskScores()
       this.notify()
     }
   }
@@ -899,6 +1715,7 @@ export class MockStore {
     const p = this.payments.find((x) => x.id === paymentId)
     const s = this.students.find((x) => x.id === studentId)
     if (p && s) {
+      const before = { studentId: p.studentId, studentName: p.studentName, status: p.status }
       p.studentId = s.id
       p.studentName = s.name
       p.status = 'verified'
@@ -913,6 +1730,14 @@ export class MockStore {
           inst.status = 'partially_paid'
         }
       }
+      this.audit({
+        action: `Manually matched payment ${paymentId} (${formatINR(p.amount)}) to student ${s.name}`,
+        entity: 'payment',
+        entityId: paymentId,
+        before,
+        after: { studentId: s.id, studentName: s.name, status: 'verified', instPaid: inst?.paidAmount },
+      })
+      this.computeRiskScores()
       this.notify()
     }
   }
@@ -1598,4 +2423,32 @@ export function useStore<T>(selector: (state: MockStore) => T): T {
     () => selector(store),
     () => selector(store)
   )
+}
+
+/**
+ * Returns role-sanitized risk reasons for a student.
+ * Trainers see financial factors replaced by 'Non-academic factor — counselor informed'.
+ */
+export function getStudentRiskReasons(student: Student, role: UserRole): string[] {
+  const reasons =
+    student.riskReasons && student.riskReasons.length > 0
+      ? student.riskReasons
+      : ['Regular academic attendance']
+
+  if (role === 'trainer') {
+    return reasons.map((r) => {
+      const lower = r.toLowerCase()
+      if (
+        lower.includes('emi') ||
+        lower.includes('fee') ||
+        lower.includes('₹') ||
+        lower.includes('overdue') ||
+        lower.includes('instalment')
+      ) {
+        return 'Non-academic factor — counselor informed'
+      }
+      return r
+    })
+  }
+  return reasons
 }

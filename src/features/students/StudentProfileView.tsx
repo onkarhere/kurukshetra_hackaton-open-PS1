@@ -15,13 +15,15 @@ import {
   Printer,
   Download,
   X,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { ReasonChip } from '@/components/ui/ReasonChip'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
-import { store, useStore } from '@/mocks/store'
+import { store, useStore, getStudentRiskReasons } from '@/mocks/store'
 import { formatINR, maskPhone, cn } from '@/lib/utils'
+import { ExtractStudentPaymentModal } from '@/features/payments/ExtractStudentPaymentModal'
 
 export const StudentProfileView: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -34,6 +36,7 @@ export const StudentProfileView: React.FC = () => {
   >('overview')
   const [newNote, setNewNote] = useState('')
   const [showStatementModal, setShowStatementModal] = useState(false)
+  const [showExtractModal, setShowExtractModal] = useState(false)
 
   const students = useStore((s) => s.students)
   const allFeeInstalments = useStore((s) => s.feeInstalments)
@@ -84,14 +87,16 @@ export const StudentProfileView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleAskAboutStudent}
-              leftIcon={<Command className="w-3.5 h-3.5" />}
-            >
-              Ask about {student.name.split(' ')[0]}
-            </Button>
+            {role !== 'student' && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleAskAboutStudent}
+                leftIcon={<Command className="w-3.5 h-3.5" />}
+              >
+                Ask about {student.name.split(' ')[0]}
+              </Button>
+            )}
             <Button
               variant="primary"
               size="sm"
@@ -309,14 +314,24 @@ export const StudentProfileView: React.FC = () => {
         <div className="p-4 rounded-card border border-border bg-surface space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-border">
             <h3 className="text-xs font-semibold text-text">Instalment schedule</h3>
-            <Button
-              variant="secondary"
-              size="xs"
-              onClick={() => setShowStatementModal(true)}
-              leftIcon={<Download className="w-3.5 h-3.5" />}
-            >
-              Download statement
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="primary"
+                size="xs"
+                onClick={() => setShowExtractModal(true)}
+                leftIcon={<FileSpreadsheet className="w-3.5 h-3.5" />}
+              >
+                Extract payment data
+              </Button>
+              <Button
+                variant="secondary"
+                size="xs"
+                onClick={() => setShowStatementModal(true)}
+                leftIcon={<Download className="w-3.5 h-3.5" />}
+              >
+                Download statement
+              </Button>
+            </div>
           </div>
 
           <table className="w-full text-xs text-left">
@@ -384,7 +399,7 @@ export const StudentProfileView: React.FC = () => {
 
           <div className="space-y-2">
             <h4 className="text-xs font-medium text-text">Primary contributing factors</h4>
-            {student.riskReasons.map((r, i) => (
+            {getStudentRiskReasons(student, role).map((r, i) => (
               <div
                 key={i}
                 className="p-3 rounded-control bg-surface-sunken border border-border text-xs flex items-center justify-between"
@@ -531,6 +546,13 @@ export const StudentProfileView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Extract Student Payment Data Modal */}
+      <ExtractStudentPaymentModal
+        isOpen={showExtractModal}
+        onClose={() => setShowExtractModal(false)}
+        initialStudentId={student.id}
+      />
     </div>
   )
 }

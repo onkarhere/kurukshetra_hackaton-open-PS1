@@ -11,7 +11,15 @@ interface AppContextType {
   branch: Branch | 'All'
   setBranch: (branch: Branch | 'All') => void
   isAuthenticated: boolean
-  login: (userOrCredentials: { email: string; password?: string; role?: UserRole; name?: string; branch?: Branch | 'All'; isPersonaSwitch?: boolean }) => Promise<{ success: boolean; error?: string; user?: User }>
+  login: (userOrCredentials: {
+    email: string
+    password?: string
+    role?: UserRole
+    name?: string
+    branch?: Branch | 'All'
+    isPersonaSwitch?: boolean
+    isGoogleAuth?: boolean
+  }) => Promise<{ success: boolean; error?: string; user?: User }>
   register: (params: { name: string; email: string; password: string; role?: UserRole; branch?: Branch }) => Promise<{ success: boolean; error?: string; message?: string }>
   logout: () => Promise<void>
   copilotOpen: boolean
@@ -124,23 +132,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     name?: string
     branch?: Branch | 'All'
     isPersonaSwitch?: boolean
+    isGoogleAuth?: boolean
   }): Promise<{ success: boolean; error?: string; user?: User }> => {
     try {
       const normalizedEmail = creds.email.trim().toLowerCase()
 
-      // Quick-access demo persona switch
-      if (creds.isPersonaSwitch && creds.role) {
+      // Google Auth login or Persona login
+      if (creds.isGoogleAuth || creds.isPersonaSwitch) {
         const demo = Object.values(DEMO_CREDENTIALS).find((d) => d.role === creds.role)
-        const demoEmail = Object.keys(DEMO_CREDENTIALS).find((k) => DEMO_CREDENTIALS[k].role === creds.role) || normalizedEmail
+        const demoEmail = creds.isPersonaSwitch && creds.role
+          ? Object.keys(DEMO_CREDENTIALS).find((k) => DEMO_CREDENTIALS[k].role === creds.role) || normalizedEmail
+          : normalizedEmail
+
+        const resolvedRole: UserRole = creds.role || (demo?.role) || (normalizedEmail.includes('codecraft') ? 'trainer' : 'student')
         const userObj: User = {
-          id: `usr-${creds.role}`,
+          id: `usr-${resolvedRole}-${normalizedEmail.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}`,
           email: demoEmail,
-          name: demo?.name || creds.name || 'User',
-          role: creds.role,
-          branch: demo?.branch || creds.branch || 'Kothrud',
+          name: creds.name || demo?.name || normalizedEmail.split('@')[0],
+          role: resolvedRole,
+          branch: creds.branch || demo?.branch || 'Kothrud',
         }
         store.login(userObj)
-        return { success: true, user: userObj }
+        return { success: true, user: store.currentUser }
       }
 
       // 1. Attempt Supabase Auth sign in if password provided
@@ -255,8 +268,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeEl?.tagName === 'TEXTAREA' ||
         (activeEl as HTMLElement)?.isContentEditable
 
-      // ⌘K / Ctrl+K and ⌘J / Ctrl+J both open the command bar
-      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'k' || e.key.toLowerCase() === 'j')) {
+      // ⌘J / Ctrl+J toggles copilot
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault()
+        setCopilotOpen((prev) => !prev)
+        return
+      }
+
+      // ⌘K / Ctrl+K opens the command bar
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setCommandPaletteOpen(true)
         return

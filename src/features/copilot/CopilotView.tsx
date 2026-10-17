@@ -88,6 +88,8 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   const selectedMessage =
     messages.find((m) => m.id === selectedMessageId) || messages[messages.length - 1]
 
+
+
   const handleCopyText = (id: string, text: string) => {
     navigator.clipboard.writeText(text)
     setCopiedId(id)
@@ -429,14 +431,14 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                     )
                   })()}
 
-                  {/* Actions requiring approval render as ApprovalCard */}
-                  {msg.approvalProposal && role !== 'trainer' && (
+                  {/* Actions requiring approval render as ApprovalCard directly under answer */}
+                  {msg.approvalProposal && (
                     <div className="pt-1">
                       <ApprovalCard approval={msg.approvalProposal} />
                     </div>
                   )}
 
-                  {/* Metadata line & actions */}
+                  {/* Metadata line & actions with direct Evidence button */}
                   <div className="flex items-center justify-between text-[11px] text-text-muted pt-1">
                     <div className="flex items-center gap-1.5 font-mono">
                       <span>{msg.executionTimeMs || 312} ms</span>
@@ -444,6 +446,18 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                       <span>{msg.rowsCount || (msg.tableData ? msg.tableData.length : 0)} rows</span>
                       <span>·</span>
                       <span>{msg.confidence || 'High'} confidence</span>
+                      <span>·</span>
+                      <button
+                        onClick={() => {
+                          setSelectedMessageId(msg.id)
+                          setActiveTab('evidence')
+                        }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-sunken border border-border text-text hover:bg-surface text-[11px] font-sans transition-colors cursor-pointer"
+                        title="View SQL query and audit safety provenance"
+                      >
+                        <ShieldCheck className="w-3 h-3 text-accent" />
+                        <span>Evidence</span>
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -521,13 +535,38 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
             <div ref={chatEndRef} />
           </div>
 
+          {/* Student Quick Action Prompts */}
+          {role === 'student' && (
+            <div className="px-3 pt-2 pb-1 flex flex-wrap items-center gap-1.5 border-t border-border bg-surface-sunken/40">
+              <span className="text-[10px] text-text-muted font-medium mr-0.5">Quick ask:</span>
+              {[
+                "What's my attendance?",
+                "What lecture do I have today?",
+                "What assignments are pending?",
+              ].map((promptText) => (
+                <button
+                  key={promptText}
+                  type="button"
+                  onClick={() => handleSend(promptText)}
+                  className="px-2 py-0.5 rounded-control border border-border bg-surface hover:bg-surface-sunken text-[11px] text-text transition-colors text-left hover:border-accent"
+                >
+                  {promptText}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Composer */}
           <div className="p-3 border-t border-border bg-surface">
             <div className="border border-border-strong rounded-control bg-surface focus-within:border-accent transition-colors">
               <textarea
                 ref={inputRef}
                 rows={2}
-                placeholder="Ask about students, schedule, or fees… (⌘↵ to send)"
+                placeholder={
+                  role === 'student'
+                    ? "Ask about your attendance, today's lecture, or pending assignments… (⌘↵ to send)"
+                    : "Ask about students, schedule, or fees… (⌘↵ to send)"
+                }
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}

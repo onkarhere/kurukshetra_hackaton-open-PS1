@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -23,6 +23,7 @@ import {
   Send,
   X,
   FileCheck,
+  Upload,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
@@ -89,6 +90,8 @@ export const ClassDetailView: React.FC = () => {
   const [asgLevel, setAsgLevel] = useState<CheckingLevel>('medium')
   const [asgReleaseMode, setAsgReleaseMode] = useState<'teacher_review' | 'auto_release'>('teacher_review')
   const [asgRefSolution, setAsgRefSolution] = useState('')
+  const [asgAttachments, setAsgAttachments] = useState<Attachment[]>([])
+  const asgFileInputRef = useRef<HTMLInputElement>(null)
   const [asgRubric, setAsgRubric] = useState<RubricCriterion[]>([
     {
       id: 'crit-1',
@@ -285,6 +288,34 @@ export const ClassDetailView: React.FC = () => {
     }
   }
 
+  const handleAsgFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    const newAtts: Attachment[] = []
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i]
+      if (f.size > 25 * 1024 * 1024) {
+        error('File too large', `${f.name} exceeds 25 MB limit.`)
+        continue
+      }
+      newAtts.push({
+        id: `att-asg-${Date.now()}-${i}`,
+        name: f.name,
+        mimeType: f.type || 'application/octet-stream',
+        sizeBytes: f.size,
+        url: URL.createObjectURL(f),
+      })
+    }
+    setAsgAttachments((prev) => [...prev, ...newAtts])
+    if (asgFileInputRef.current) asgFileInputRef.current.value = ''
+    success('File attached', `${files.length} file(s) attached to assignment.`)
+  }
+
+  const handleRemoveAsgAttachment = (attId: string) => {
+    setAsgAttachments((prev) => prev.filter((a) => a.id !== attId))
+  }
+
   const handleCreateAssignment = (publishStatus: 'published' | 'draft') => {
     if (!asgTitle.trim()) {
       error('Validation error', 'Please provide an assignment title.')
@@ -296,7 +327,7 @@ export const ClassDetailView: React.FC = () => {
       classId: currentClass.id,
       title: asgTitle.trim(),
       instructions: asgInstructions.trim() || 'Complete the assignment following the rubric parameters.',
-      attachments: [],
+      attachments: asgAttachments,
       maxMarks: asgMaxMarks,
       dueAt: asgDueAt,
       allowLate: asgAllowLate,
@@ -315,9 +346,10 @@ export const ClassDetailView: React.FC = () => {
     setAsgTitle('')
     setAsgInstructions('')
     setAsgRefSolution('')
+    setAsgAttachments([])
     success(
       publishStatus === 'published' ? 'Assignment published' : 'Assignment saved as draft',
-      `Rubric configured with ${newAsg.rubric.length} parameters.`
+      `Rubric configured with ${newAsg.rubric.length} parameters and ${newAsg.attachments.length} attachment(s).`
     )
   }
 
@@ -1244,6 +1276,62 @@ export const ClassDetailView: React.FC = () => {
                   placeholder="Specify problem statement, input requirements, edge cases…"
                   className="w-full p-2.5 rounded-control bg-surface-sunken border border-border text-text font-mono text-xs focus:outline-none focus:border-border-strong resize-none"
                 />
+              </div>
+
+              {/* Attach Reference Material / Problem Files */}
+              <div className="space-y-2 p-3 rounded-control bg-surface-sunken border border-border">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <label className="block text-text font-medium">Attach Problem Statement / Starter Files</label>
+                    <p className="text-[11px] text-text-muted mt-0.5">
+                      Upload PDF, DOCX, ZIP, or Java/Python starter files (max 25 MB each)
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    ref={asgFileInputRef}
+                    onChange={handleAsgFileUpload}
+                    multiple
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={() => asgFileInputRef.current?.click()}
+                    leftIcon={<Upload className="w-3.5 h-3.5 text-accent" />}
+                    className="shrink-0"
+                  >
+                    Upload file
+                  </Button>
+                </div>
+
+                {asgAttachments.length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-border">
+                    {asgAttachments.map((att) => (
+                      <div
+                        key={att.id}
+                        className="flex items-center justify-between p-2 rounded bg-surface border border-border text-xs"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <FileText className="w-3.5 h-3.5 text-accent shrink-0" />
+                          <span className="font-medium text-text truncate">{att.name}</span>
+                          <span className="text-[10px] text-text-muted font-mono shrink-0">
+                            {(att.sizeBytes / 1024).toFixed(1)} KB
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAsgAttachment(att.id)}
+                          className="text-text-muted hover:text-danger p-1 rounded"
+                          title="Remove file"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

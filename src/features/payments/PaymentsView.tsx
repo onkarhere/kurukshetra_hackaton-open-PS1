@@ -11,6 +11,7 @@ import {
   X,
   Search,
   UserCheck,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/context/AppContext'
@@ -19,6 +20,7 @@ import { store, useStore } from '@/mocks/store'
 import { formatINR, cn } from '@/lib/utils'
 import { exportToCsv } from '@/lib/exportCsv'
 import { PaymentRecord } from '@/types'
+import { ExtractStudentPaymentModal } from './ExtractStudentPaymentModal'
 
 export const PaymentsView: React.FC = () => {
   const { role } = useApp()
@@ -30,6 +32,10 @@ export const PaymentsView: React.FC = () => {
 
   // Modals state
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showExtractModal, setShowExtractModal] = useState(false)
+  const [selectedStudentForExtract, setSelectedStudentForExtract] = useState<string | undefined>()
+  const [allTabStudentFilter, setAllTabStudentFilter] = useState<string>('all')
+  const [allTabStatusFilter, setAllTabStatusFilter] = useState<string>('all')
   const [csvContent, setCsvContent] = useState('')
   const [manualMatchPayment, setManualMatchPayment] = useState<PaymentRecord | null>(null)
   const [studentSearchQuery, setStudentSearchQuery] = useState('')
@@ -190,7 +196,18 @@ export const PaymentsView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSelectedStudentForExtract(undefined)
+              setShowExtractModal(true)
+            }}
+            leftIcon={<FileSpreadsheet className="w-3.5 h-3.5 text-accent" />}
+          >
+            Extract child payments
+          </Button>
           <Button
             variant="secondary"
             size="sm"
@@ -428,48 +445,149 @@ export const PaymentsView: React.FC = () => {
       )}
 
       {/* ALL PAYMENTS TABLE */}
-      {activeTab === 'all' && (
-        <div className="rounded-card border border-border bg-surface overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-surface-sunken border-b border-border text-[11px] font-medium text-text-muted sticky top-0">
-              <tr>
-                <th className="py-2 px-3">Receipt no</th>
-                <th className="py-2 px-3">Student name</th>
-                <th className="py-2 px-3">Date</th>
-                <th className="py-2 px-3 text-right">Amount</th>
-                <th className="py-2 px-3">Payment method</th>
-                <th className="py-2 px-3">UTR reference</th>
-                <th className="py-2 px-3">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {payments.map((p) => (
-                <tr key={p.id} className="hover:bg-surface-sunken/40 h-10 transition-colors">
-                  <td className="px-3 font-mono text-[11px] text-text-muted">{p.receiptNo}</td>
-                  <td className="px-3 font-medium text-text">{p.studentName}</td>
-                  <td className="px-3 text-text-muted tabular-nums">{p.date}</td>
-                  <td className="px-3 text-right tabular-nums font-medium text-text">
-                    {formatINR(p.amount)}
-                  </td>
-                  <td className="px-3 text-text-muted">{p.method}</td>
-                  <td className="px-3 font-mono text-[11px] text-text-muted">{p.utrNo}</td>
-                  <td className="px-3">
-                    {p.status === 'verified' ? (
-                      <span className="inline-flex items-center gap-1 text-success text-xs">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-warning text-xs">
-                        <AlertTriangle className="w-3.5 h-3.5" /> Needs review
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {activeTab === 'all' && (() => {
+        const filteredAllTabPayments = payments.filter((p) => {
+          if (allTabStatusFilter !== 'all' && p.status !== allTabStatusFilter) return false
+          if (allTabStudentFilter !== 'all') {
+            const match =
+              p.studentId === allTabStudentFilter ||
+              p.studentName.toLowerCase().includes(
+                (students.find((s) => s.id === allTabStudentFilter)?.name || '').toLowerCase()
+              )
+            if (!match) return false
+          }
+          return true
+        })
+
+        return (
+          <div className="space-y-3">
+            {/* Filter Bar with Student Selection & Instant Extract */}
+            <div className="p-3 rounded-card border border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-text-muted font-medium">Child / Student:</span>
+                <select
+                  value={allTabStudentFilter}
+                  onChange={(e) => setAllTabStudentFilter(e.target.value)}
+                  className="bg-surface-sunken border border-border rounded-control px-2.5 py-1 text-text outline-none focus:border-accent font-medium"
+                >
+                  <option value="all">All students ({payments.length} transactions)</option>
+                  {students.map((st) => (
+                    <option key={st.id} value={st.id}>
+                      {st.name} ({st.id})
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={allTabStatusFilter}
+                  onChange={(e) => setAllTabStatusFilter(e.target.value)}
+                  className="bg-surface-sunken border border-border rounded-control px-2.5 py-1 text-text outline-none focus:border-accent"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="verified">Verified only</option>
+                  <option value="needs_review">Needs review</option>
+                  <option value="unmatched">Unmatched</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {allTabStudentFilter !== 'all' ? (
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    onClick={() => {
+                      setSelectedStudentForExtract(allTabStudentFilter)
+                      setShowExtractModal(true)
+                    }}
+                    leftIcon={<Download className="w-3.5 h-3.5" />}
+                  >
+                    Extract {students.find((s) => s.id === allTabStudentFilter)?.name.split(' ')[0]}'s data
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => {
+                      setSelectedStudentForExtract(undefined)
+                      setShowExtractModal(true)
+                    }}
+                    leftIcon={<FileSpreadsheet className="w-3.5 h-3.5 text-accent" />}
+                  >
+                    Extract by child…
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-card border border-border bg-surface overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-surface-sunken border-b border-border text-[11px] font-medium text-text-muted sticky top-0">
+                  <tr>
+                    <th className="py-2 px-3">Receipt no</th>
+                    <th className="py-2 px-3">Student name</th>
+                    <th className="py-2 px-3">Date</th>
+                    <th className="py-2 px-3 text-right">Amount</th>
+                    <th className="py-2 px-3">Payment method</th>
+                    <th className="py-2 px-3">UTR reference</th>
+                    <th className="py-2 px-3">Status</th>
+                    <th className="py-2 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredAllTabPayments.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-text-muted">
+                        No payments found for this filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAllTabPayments.map((p) => (
+                      <tr key={p.id} className="hover:bg-surface-sunken/40 h-10 transition-colors">
+                        <td className="px-3 font-mono text-[11px] text-text-muted">{p.receiptNo}</td>
+                        <td className="px-3 font-medium text-text">{p.studentName}</td>
+                        <td className="px-3 text-text-muted tabular-nums">{p.date}</td>
+                        <td className="px-3 text-right tabular-nums font-medium text-text">
+                          {formatINR(p.amount)}
+                        </td>
+                        <td className="px-3 text-text-muted">{p.method}</td>
+                        <td className="px-3 font-mono text-[11px] text-text-muted">{p.utrNo}</td>
+                        <td className="px-3">
+                          {p.status === 'verified' ? (
+                            <span className="inline-flex items-center gap-1 text-success text-xs">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-warning text-xs">
+                              <AlertTriangle className="w-3.5 h-3.5" /> Needs review
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const foundStudent = students.find(
+                                (s) => s.id === p.studentId || p.studentName.toLowerCase().includes(s.name.toLowerCase())
+                              )
+                              setSelectedStudentForExtract(foundStudent?.id || p.studentId)
+                              setShowExtractModal(true)
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border text-[11px] text-text-muted hover:text-text hover:bg-surface-sunken transition-colors"
+                            title="Extract all payment records for this student"
+                          >
+                            <Download className="w-3 h-3 text-accent" />
+                            <span>Extract</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Import Statement Modal */}
       {showImportModal && (
@@ -624,6 +742,13 @@ export const PaymentsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Extract Student Payment Data Modal */}
+      <ExtractStudentPaymentModal
+        isOpen={showExtractModal}
+        onClose={() => setShowExtractModal(false)}
+        initialStudentId={selectedStudentForExtract}
+      />
     </div>
   )
 }

@@ -193,7 +193,7 @@ export const ClassroomListView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleClasses.map((cls) => {
             const batch = batches.find((b) => b.id === cls.batchId)
-            const enrolledCount = students.filter((s) => s.batchIds.includes(cls.batchId)).length
+            const enrolledCount = store.getBatchStrength(cls.batchId).enrolled
             const classNotes = notes.filter((n) => n.classId === cls.id)
             const classAssignments = assignments.filter((a) => a.classId === cls.id && a.status === 'published')
             const classTeachers = trainers.filter((t) => cls.teacherIds.includes(t.id))

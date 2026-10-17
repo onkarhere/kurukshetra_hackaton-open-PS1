@@ -5,6 +5,10 @@ import {
   MessageSquare,
   DollarSign,
   Layers,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  GraduationCap,
 } from 'lucide-react'
 import { ApprovalCard } from '@/components/app/ApprovalCard'
 import { ReasonChip } from '@/components/ui/ReasonChip'
@@ -26,11 +30,16 @@ export const ApprovalsView: React.FC = () => {
     return true
   })
 
+  // Select current item or default to first filtered item
   const selectedApproval =
-    approvals.find((a) => a.id === selectedApprovalId) || filtered[0]
+    approvals.find((a) => a.id === selectedApprovalId) ||
+    filtered.find((a) => a.status === 'pending') ||
+    filtered[0]
 
   const getTypeIcon = (type: string) => {
     switch (type) {
+      case 'student_registration':
+        return <GraduationCap className="w-3.5 h-3.5 text-accent" />
       case 'whatsapp_bulk':
         return <MessageSquare className="w-3.5 h-3.5 text-text-muted" />
       case 'timetable_replan':
@@ -40,6 +49,21 @@ export const ApprovalsView: React.FC = () => {
       default:
         return <Layers className="w-3.5 h-3.5 text-text-muted" />
     }
+  }
+
+  const handleItemProcessed = (processedId: string) => {
+    const remainingPending = approvals.filter(
+      (a) => a.id !== processedId && a.status === 'pending'
+    )
+    if (statusFilter === 'pending' && remainingPending.length > 0) {
+      setSelectedApprovalId(remainingPending[0].id)
+    }
+  }
+
+  const handleQuickApprove = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    store.approveProposal(id)
+    handleItemProcessed(id)
   }
 
   const pendingCount = approvals.filter((a) => a.status === 'pending').length
@@ -99,7 +123,7 @@ export const ApprovalsView: React.FC = () => {
                     className={cn(
                       'p-3 rounded-control border text-xs cursor-pointer transition-colors space-y-1.5',
                       isSelected
-                        ? 'border-border-strong bg-surface-sunken'
+                        ? 'border-border-strong bg-surface-sunken ring-1 ring-accent/30'
                         : 'border-border bg-surface hover:bg-surface-sunken/50'
                     )}
                   >
@@ -120,10 +144,38 @@ export const ApprovalsView: React.FC = () => {
                     </p>
 
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] text-text-muted truncate">
-                        By {item.requester}
-                      </span>
-                      <ReasonChip reason={`${item.riskLevel} risk`} variant="neutral" />
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-text-muted truncate">
+                          By {item.requester}
+                        </span>
+                        {item.status === 'approved' ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-success font-medium bg-success/10 border border-success/30 px-1.5 py-0.5 rounded">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Approved
+                          </span>
+                        ) : item.status === 'rejected' ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-danger font-medium bg-danger/10 border border-danger/30 px-1.5 py-0.5 rounded">
+                            <XCircle className="w-2.5 h-2.5" /> Rejected
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-warning font-medium bg-warning/10 border border-warning/30 px-1.5 py-0.5 rounded">
+                            <Clock className="w-2.5 h-2.5" /> Pending
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <ReasonChip reason={`${item.riskLevel} risk`} variant="neutral" />
+                        {item.status === 'pending' && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickApprove(e, item.id)}
+                            className="text-[11px] font-medium px-2 py-0.5 rounded border border-border bg-surface text-text hover:bg-surface-sunken hover:border-border-strong transition-colors"
+                            title="Approve this item"
+                          >
+                            Approve
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
@@ -136,7 +188,10 @@ export const ApprovalsView: React.FC = () => {
             {selectedApproval ? (
               <div className="sticky top-20">
                 <ApprovalCard
+                  key={selectedApproval.id}
                   approval={selectedApproval}
+                  onApproved={() => handleItemProcessed(selectedApproval.id)}
+                  onRejected={() => handleItemProcessed(selectedApproval.id)}
                 />
               </div>
             ) : (

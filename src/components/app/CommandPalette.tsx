@@ -138,6 +138,54 @@ export const CommandPalette: React.FC = () => {
         navigate('/payments')
       },
     },
+    {
+      id: 'cmd-student-portal',
+      label: 'My learning schedule & portal',
+      category: 'Commands',
+      shortcut: 'S',
+      path: '/s',
+      icon: <GraduationCap className="w-4 h-4 text-text-muted" />,
+      action: () => {
+        setCommandPaletteOpen(false)
+        navigate('/s')
+      },
+    },
+    {
+      id: 'cmd-student-assignments',
+      label: 'My assignments & submissions',
+      category: 'Commands',
+      shortcut: 'A',
+      path: '/s',
+      icon: <ClipboardCheck className="w-4 h-4 text-text-muted" />,
+      action: () => {
+        setCommandPaletteOpen(false)
+        navigate('/s/assignments')
+      },
+    },
+    {
+      id: 'cmd-student-recordings',
+      label: 'Lecture recordings',
+      category: 'Commands',
+      shortcut: 'R',
+      path: '/recordings',
+      icon: <Calendar className="w-4 h-4 text-text-muted" />,
+      action: () => {
+        setCommandPaletteOpen(false)
+        navigate('/recordings')
+      },
+    },
+    {
+      id: 'cmd-student-classroom',
+      label: 'Classroom & discussions',
+      category: 'Commands',
+      shortcut: 'C',
+      path: '/classroom',
+      icon: <Layers className="w-4 h-4 text-text-muted" />,
+      action: () => {
+        setCommandPaletteOpen(false)
+        navigate('/classroom')
+      },
+    },
   ]
 
   // Filter commands by permissions
@@ -205,6 +253,7 @@ export const CommandPalette: React.FC = () => {
   const allItems = [...filteredCommands, ...filteredEntities]
 
   const triggerAsk = (askText: string) => {
+    if (role === 'student') return
     setPendingAskQuery(askText)
     setCommandPaletteOpen(false)
     setCopilotOpen(true)
@@ -221,6 +270,12 @@ export const CommandPalette: React.FC = () => {
       setSelectedIndex((prev) => (prev > 0 ? prev - 1 : allItems.length))
     } else if (e.key === 'Enter') {
       e.preventDefault()
+      if (role === 'student') {
+        if (allItems[selectedIndex]) {
+          allItems[selectedIndex].action()
+        }
+        return
+      }
       if (query.trim().length > 0 && selectedIndex >= allItems.length) {
         triggerAsk(query.trim())
       } else if (allItems[selectedIndex]) {
@@ -270,8 +325,8 @@ export const CommandPalette: React.FC = () => {
           )}
         </div>
 
-        {/* Suggested questions as plain text examples inside the bar */}
-        {!query && (
+        {/* Suggested questions as plain text examples inside the bar (hidden for student) */}
+        {!query && role !== 'student' && (
           <div className="px-4 py-3 border-b border-border bg-surface-sunken/30 text-xs">
             <span className="font-medium text-text-muted text-[11px]">Suggested questions:</span>
             <div className="mt-1.5 space-y-1">
@@ -358,8 +413,8 @@ export const CommandPalette: React.FC = () => {
             </div>
           )}
 
-          {/* Ask row */}
-          {query.trim().length > 0 && (
+          {/* Ask row (hidden for student) */}
+          {role !== 'student' && query.trim().length > 0 && (
             <div className="pt-1 border-t border-border">
               <div
                 onClick={() => triggerAsk(query.trim())}

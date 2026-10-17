@@ -17,6 +17,9 @@ import {
   Clock,
   UserCheck,
   Sparkles,
+  DoorClosed,
+  UserX,
+  Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ReasonChip } from '@/components/ui/ReasonChip'
@@ -26,7 +29,13 @@ import { useToast } from '@/context/ToastContext'
 import { store, useStore } from '@/mocks/store'
 import { TimetableSession, ApprovalAction } from '@/types'
 import { cn } from '@/lib/utils'
-import { detectConflicts, replan, ReplanDiffItem } from './scheduler'
+import {
+  detectConflicts,
+  replan,
+  generateWeek,
+  ReplanDiffItem,
+  ROOM_CAPACITIES,
+} from './scheduler'
 
 export const TimetableView: React.FC = () => {
   const { branch } = useApp()
@@ -44,6 +53,9 @@ export const TimetableView: React.FC = () => {
   const [showPublishApproval, setShowPublishApproval] = useState(false)
   const [showChangeDrawer, setShowChangeDrawer] = useState(false)
   const [diffItems, setDiffItems] = useState<ReplanDiffItem[]>([])
+  const [unresolvedItems, setUnresolvedItems] = useState<
+    { sessionId: string; blocker: string; suggestion?: string }[]
+  >([])
   const [currentPublishApproval, setCurrentPublishApproval] = useState<ApprovalAction | null>(null)
   const [replanMetrics, setReplanMetrics] = useState<{
     timeMs: number
@@ -52,6 +64,15 @@ export const TimetableView: React.FC = () => {
     remainingConflicts: number
   } | null>(null)
 
+  // Modals for Trainer on leave & Room closed
+  const [showTrainerLeaveModal, setShowTrainerLeaveModal] = useState(false)
+  const [leaveTrainerId, setLeaveTrainerId] = useState(trainers[0]?.id || 'tr-arjun')
+  const [leaveDate, setLeaveDate] = useState('2026-10-22')
+
+  const [showRoomClosedModal, setShowRoomClosedModal] = useState(false)
+  const [closedRoom, setClosedRoom] = useState('Room 3')
+  const [closedRoomDate, setClosedRoomDate] = useState('2026-10-22')
+
   // Sync with store when not in preview/diff mode
   useEffect(() => {
     if (!isDiffMode) {
@@ -59,10 +80,17 @@ export const TimetableView: React.FC = () => {
     }
   }, [storeSessions, isDiffMode])
 
-  // Check if routed from leave approval
+  // Handle route state from NewBatchModal or leave approval
   useEffect(() => {
-    if ((location.state as any)?.diffMode) {
-      handleSimulateArjunLeave()
+    const st = location.state as any
+    if (st?.newBatchDiff) {
+      setDiffItems(st.newBatchDiff)
+      if (st.updatedSessions) setSessions(st.updatedSessions)
+      if (st.replanMetrics) setReplanMetrics(st.replanMetrics)
+      setIsDiffMode(true)
+      setShowChangeDrawer(true)
+    } else if (st?.diffMode) {
+      handleTrainerLeaveReplan('tr-arjun', '2026-10-22')
     }
   }, [location.state])
 
@@ -93,44 +121,42 @@ export const TimetableView: React.FC = () => {
     '21:00',
   ]
 
-  const activeConflicts = detectConflicts(sessions, trainers, batches)
+  const activeConflicts = detectConflicts(sessions, trainers, batches, store.settings)
   const hasConflicts = activeConflicts.length > 0
   const conflictCount = activeConflicts.length
 
-  // Trigger Re-plan via Scheduler
-  const handleSimulateArjunLeave = () => {
-    const res = replan(
-      sessions,
-      { type: 'trainer_leave', trainerId: 'tr-arjun', dates: ['2026-10-22'] },
-      trainers,
-      batches
-    )
+  // Auto-generate whole week
+  const handleAutoGenerate = () => {
+    const res = generateWeek('2026-10-19', batches, trainers, store.settings)
     setDiffItems(res.diff)
-    setSessions(res.updatedSessions)
+    setSessions(res.sessions)
+    setUnresolvedItems(res.unresolved || [])
     setIsDiffMode(true)
     setShowChangeDrawer(true)
     setReplanMetrics({
       timeMs: res.executionTimeMs,
       moved: res.movedCount,
       substitutes: res.substituteCount,
-      remainingConflicts: res.remainingConflictsCount,
+      remainingConflicts: res.conflicts.length,
     })
     success(
-      'Schedule re-planned',
-      `Re-plan completed in ${res.executionTimeMs}ms: ${res.movedCount} moved, ${res.substituteCount} substitute assigned, ${res.remainingConflictsCount} conflicts remaining.`
+      'Schedule generated',
+      `Generated in ${res.executionTimeMs.toFixed(1)}ms: ${res.sessions.length} sessions scheduled across ${batches.length} batches.`
     )
   }
 
-  // Generate / Optimize week schedule
-  const handleGenerateScheduler = () => {
+  // Trainer on leave replan
+  const handleTrainerLeaveReplan = (trainerId: string, date: string) => {
     const res = replan(
+      { type: 'trainer_leave', trainerId, dates: [date] },
       sessions,
-      { type: 'trainer_leave', trainerId: 'tr-arjun', dates: ['2026-10-22'] },
       trainers,
-      batches
+      batches,
+      store.settings
     )
     setDiffItems(res.diff)
     setSessions(res.updatedSessions)
+    setUnresolvedItems(res.unresolved || [])
     setIsDiffMode(true)
     setShowChangeDrawer(true)
     setReplanMetrics({
@@ -139,9 +165,37 @@ export const TimetableView: React.FC = () => {
       substitutes: res.substituteCount,
       remainingConflicts: res.remainingConflictsCount,
     })
+    setShowTrainerLeaveModal(false)
     success(
-      'Optimization complete',
-      `Evaluated schedule in ${res.executionTimeMs}ms: ${res.remainingConflictsCount} conflicts.`
+      'Schedule re-planned',
+      `Re-plan completed in ${res.executionTimeMs.toFixed(1)}ms: ${res.movedCount} moved, ${res.substituteCount} substitute assigned, ${res.remainingConflictsCount} conflicts remaining.`
+    )
+  }
+
+  // Room closed replan
+  const handleRoomClosedReplan = (room: string, date: string) => {
+    const res = replan(
+      { type: 'room_closed', room, dates: [date] },
+      sessions,
+      trainers,
+      batches,
+      store.settings
+    )
+    setDiffItems(res.diff)
+    setSessions(res.updatedSessions)
+    setUnresolvedItems(res.unresolved || [])
+    setIsDiffMode(true)
+    setShowChangeDrawer(true)
+    setReplanMetrics({
+      timeMs: res.executionTimeMs,
+      moved: res.movedCount,
+      substitutes: res.substituteCount,
+      remainingConflicts: res.remainingConflictsCount,
+    })
+    setShowRoomClosedModal(false)
+    success(
+      'Room closure handled',
+      `Re-plan completed in ${res.executionTimeMs.toFixed(1)}ms: ${res.movedCount} session(s) moved to available rooms.`
     )
   }
 
@@ -149,6 +203,7 @@ export const TimetableView: React.FC = () => {
     setIsDiffMode(false)
     setShowChangeDrawer(false)
     setDiffItems([])
+    setUnresolvedItems([])
     setSessions([...store.timetableSessions])
   }
 
@@ -169,22 +224,17 @@ export const TimetableView: React.FC = () => {
 
   const handleOpenPublish = () => {
     const activeDiff = diffItems.filter((d) => d.accepted)
-    const approval = store.createTimetablePublishApproval(
+    const diffToPublish =
       activeDiff.length > 0
         ? activeDiff.map((d) => ({ before: d.before, after: d.after, reason: d.reason }))
         : [
             {
               before: 'Thu 22 Oct · 19:00 - 21:00 · Room 3 (Arjun Mehta)',
               after: 'Fri 23 Oct · 19:00 - 21:00 · Room 3 (Arjun Mehta)',
-              reason: 'Trainer leave coverage on Thursday; Friday 19:00 retains Room 3',
-            },
-            {
-              before: 'Spring Doubt Lab · Arjun Mehta',
-              after: 'Spring Doubt Lab · Meera Rao (Substitute)',
-              reason: 'Meera Rao certified in Java; 0 clashes in calendar',
+              reason: 'Trainer leave coverage; Friday 19:00 retains Room 3 with Arjun Mehta',
             },
           ]
-    )
+    const approval = store.createTimetablePublishApproval(diffToPublish)
     setCurrentPublishApproval(approval)
     setShowPublishApproval(true)
   }
@@ -250,23 +300,33 @@ export const TimetableView: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Buttons: single primary button */}
-        <div className="flex items-center gap-2">
+        {/* Action Buttons: Auto-generate, Trainer on leave, Room closed, Publish */}
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={handleGenerateScheduler}
-            leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+            onClick={handleAutoGenerate}
+            leftIcon={<Sparkles className="w-3.5 h-3.5 text-accent" />}
           >
-            Generate
+            Auto-generate
           </Button>
 
           <Button
             variant="secondary"
             size="sm"
-            onClick={handleSimulateArjunLeave}
+            onClick={() => setShowTrainerLeaveModal(true)}
+            leftIcon={<UserX className="w-3.5 h-3.5 text-warning" />}
           >
-            Simulate: Arjun on leave Thursday
+            Trainer on leave
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowRoomClosedModal(true)}
+            leftIcon={<DoorClosed className="w-3.5 h-3.5 text-text-muted" />}
+          >
+            Room closed
           </Button>
 
           {isDiffMode && (
@@ -291,28 +351,46 @@ export const TimetableView: React.FC = () => {
         </div>
       </div>
 
-      {/* Conflict Bar */}
+      {/* Conflict Bar - Data driven */}
       {!isDiffMode && hasConflicts && (
-        <div className="p-3 rounded-card border border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="p-3 rounded-card border border-danger/30 bg-danger/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <AlertOctagon className="w-4 h-4 text-danger shrink-0" />
             <div className="text-text">
               <span className="font-semibold text-danger">
-                {conflictCount} conflicts detected:
+                {conflictCount} conflict{conflictCount > 1 ? 's' : ''} detected:
               </span>{' '}
-              <span>
-                Arjun Thu 19:00 (Room 3 & Room 1) · Room 3 over capacity (32 of 30)
+              <span className="text-text">
+                {activeConflicts.map((c) => c.reason).join(' · ')}
               </span>
             </div>
           </div>
           <Button
             variant="secondary"
             size="xs"
-            onClick={handleSimulateArjunLeave}
+            onClick={() => handleTrainerLeaveReplan('tr-arjun', '2026-10-22')}
             className="self-start sm:self-auto shrink-0"
           >
-            Simulate clash resolution
+            Resolve clashes
           </Button>
+        </div>
+      )}
+
+      {/* Unresolved items banner */}
+      {unresolvedItems.length > 0 && (
+        <div className="p-3 rounded-card border border-warning/40 bg-warning/10 text-xs text-text space-y-1.5">
+          <div className="font-semibold text-warning flex items-center gap-1.5">
+            <AlertOctagon className="w-3.5 h-3.5" />
+            {unresolvedItems.length} unresolved scheduling item{unresolvedItems.length > 1 ? 's' : ''}:
+          </div>
+          {unresolvedItems.map((u, i) => (
+            <div key={i} className="pl-5 text-text-muted">
+              • <span className="font-medium text-text">{u.blocker}</span>
+              {u.suggestion && (
+                <span className="italic text-text-muted"> — Suggestion: {u.suggestion}</span>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -323,7 +401,10 @@ export const TimetableView: React.FC = () => {
             <GitCompare className="w-4 h-4 text-accent shrink-0" />
             <div className="text-text">
               <span className="font-semibold">
-                Re-planned diff: 3 moved · 1 substitute (Meera Rao) · 0 conflicts
+                Re-planned diff: {replanMetrics?.moved || diffItems.length} moved ·{' '}
+                {replanMetrics?.substitutes || 0} substitute ·{' '}
+                {replanMetrics?.remainingConflicts ?? 0} conflicts
+                {replanMetrics ? ` (Generated in ${replanMetrics.timeMs.toFixed(1)} ms)` : ''}
               </span>
               <p className="text-[11px] text-text-muted mt-0.5">
                 Staged adjustments pending owner approval before publication.
@@ -336,7 +417,7 @@ export const TimetableView: React.FC = () => {
             onClick={() => setShowChangeDrawer(true)}
             className="self-start sm:self-auto shrink-0"
           >
-            Inspect change list
+            Inspect change list ({diffItems.length})
           </Button>
         </div>
       )}
@@ -388,7 +469,8 @@ export const TimetableView: React.FC = () => {
                       )}
                     >
                       {matchingSessions.map((sess) => {
-                        // 10 pastel order: peach, sage, sky, lavender, mustard, rose, teal, sand, coral, mint
+                        const strength = store.getBatchStrength(sess.batchId)
+
                         const pastelOrder = [
                           { bg: '#F4C7A1', border: '#DCA477' }, // peach
                           { bg: '#C5D9B8', border: '#A3BC94' }, // sage
@@ -406,6 +488,8 @@ export const TimetableView: React.FC = () => {
                         for (let i = 0; i < key.length; i++) charSum += key.charCodeAt(i)
                         const pastel = pastelOrder[charSum % pastelOrder.length]
 
+                        const matchingDiff = diffItems.find((d) => d.sessionId === sess.id)
+
                         return (
                           <div
                             key={sess.id}
@@ -421,10 +505,17 @@ export const TimetableView: React.FC = () => {
                             )}
                           >
                             <div className="flex items-center justify-between gap-1">
-                              <span className="font-medium truncate text-[#1E140E]">{sess.batchName}</span>
+                              <span className="font-semibold truncate text-[#1E140E]">
+                                {sess.batchName}
+                              </span>
                               {sess.isLocked ? (
                                 <Lock className="w-3 h-3 text-[#1E140E] shrink-0" />
                               ) : null}
+                            </div>
+
+                            {/* Second line: Class strength computed dynamically (Section 3) */}
+                            <div className="text-[11px] text-[#5C4636] font-medium truncate mt-0.5">
+                              {strength.enrolled} students · {strength.online} online
                             </div>
 
                             <div className="text-[11px] text-[#5C4636] truncate mt-0.5">
@@ -434,17 +525,21 @@ export const TimetableView: React.FC = () => {
                             {sess.hasConflict && (
                               <div className="mt-1">
                                 <ReasonChip
-                                  reason="Clash: Room double-booked"
+                                  reason={sess.conflictReason || 'Clash: Double-booked'}
                                   variant="danger"
                                 />
                               </div>
                             )}
 
-                            {isDiffMode && sess.id === 'sess-th2' && (
+                            {isDiffMode && matchingDiff && (
                               <div className="mt-1">
                                 <ReasonChip
-                                  reason="Substituted: Meera Rao"
-                                  variant="neutral"
+                                  reason={matchingDiff.reason}
+                                  variant={
+                                    matchingDiff.reasonCode === 'SUBSTITUTE_ALLOCATED'
+                                      ? 'warning'
+                                      : 'neutral'
+                                  }
                                 />
                               </div>
                             )}
@@ -489,6 +584,58 @@ export const TimetableView: React.FC = () => {
                 <p className="text-xs text-text-muted mt-0.5">{selectedSession.courseName}</p>
               </div>
 
+              {/* Class Strength breakdown (Section 3) */}
+              {(() => {
+                const str = store.getBatchStrength(selectedSession.batchId)
+                return (
+                  <div className="p-3 rounded-card border border-border bg-surface-sunken space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-text flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-accent" />
+                        Class Strength & Capacity
+                      </span>
+                      <span
+                        className={cn(
+                          'text-[10px] px-1.5 py-0.5 rounded font-medium',
+                          str.enrolled > str.capacity
+                            ? 'bg-danger/10 text-danger border border-danger/30'
+                            : 'bg-success/10 text-success border border-success/30'
+                        )}
+                      >
+                        {str.enrolled > str.capacity ? 'Over capacity' : 'Optimal'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2 rounded bg-surface border border-border">
+                        <div className="text-[10px] text-text-muted">Total Enrolled</div>
+                        <div className="font-semibold text-text mt-0.5">
+                          {str.enrolled} / {str.capacity}
+                        </div>
+                      </div>
+                      <div className="p-2 rounded bg-surface border border-border">
+                        <div className="text-[10px] text-text-muted">Seats Left</div>
+                        <div className="font-semibold text-text mt-0.5">
+                          {Math.max(0, str.capacity - str.enrolled)}
+                        </div>
+                      </div>
+                      <div className="p-2 rounded bg-surface border border-border">
+                        <div className="text-[10px] text-text-muted">In-Room</div>
+                        <div className="font-semibold text-text mt-0.5">
+                          {str.inRoom} (Cap: {str.roomCapacity})
+                        </div>
+                      </div>
+                      <div className="p-2 rounded bg-surface border border-border">
+                        <div className="text-[10px] text-text-muted">Online / Remote</div>
+                        <div className="font-semibold text-text mt-0.5">
+                          {str.online} (Limit: {str.onlineSeatLimit})
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div className="space-y-2.5 text-xs">
                 <div className="flex items-center justify-between py-1.5 border-b border-border">
                   <span className="text-text-muted">Trainer</span>
@@ -513,7 +660,7 @@ export const TimetableView: React.FC = () => {
               </div>
 
               {selectedSession.hasConflict && (
-                <div className="p-3 rounded-card border border-border bg-surface-sunken text-xs text-text space-y-1">
+                <div className="p-3 rounded-card border border-danger/30 bg-danger/5 text-xs text-text space-y-1">
                   <div className="font-semibold text-danger flex items-center gap-1.5">
                     <AlertOctagon className="w-3.5 h-3.5" />
                     Conflict detected
@@ -578,7 +725,7 @@ export const TimetableView: React.FC = () => {
               <div className="space-y-3 overflow-y-auto max-h-[460px]">
                 {replanMetrics && (
                   <div className="p-2.5 rounded-card bg-surface border border-border text-[11px] text-text-muted flex items-center justify-between font-mono">
-                    <span>Re-plan: {replanMetrics.timeMs} ms</span>
+                    <span>Re-plan: {replanMetrics.timeMs.toFixed(1)} ms</span>
                     <span>·</span>
                     <span>{replanMetrics.moved} moved</span>
                     <span>·</span>
@@ -648,19 +795,144 @@ export const TimetableView: React.FC = () => {
                 variant="primary"
                 className="flex-1"
                 onClick={() => {
-                  store.timetableSessions = sessions
-                  store.notify()
                   setShowChangeDrawer(false)
-                  success('Diff accepted into working timetable')
+                  handleOpenPublish()
                 }}
               >
-                Accept all adjustments
+                Proceed to publish ({diffItems.filter((d) => d.accepted).length})
+              </Button>
+              <Button variant="outline" onClick={() => setShowChangeDrawer(false)}>
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trainer on leave modal */}
+      {showTrainerLeaveModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setShowTrainerLeaveModal(false)}
+        >
+          <div
+            className="w-full max-w-md bg-surface border border-border rounded-dialog shadow-dialog p-6 text-text space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+                <UserX className="w-4 h-4 text-warning" />
+                Simulate Trainer on Leave
+              </h3>
+              <button
+                onClick={() => setShowTrainerLeaveModal(false)}
+                className="text-text-muted hover:text-text p-1 rounded-control"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-text font-medium mb-1">Select Trainer</label>
+                <select
+                  value={leaveTrainerId}
+                  onChange={(e) => setLeaveTrainerId(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-control bg-surface border border-border text-text focus:outline-none focus:border-accent"
+                >
+                  {trainers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.specialization?.[0] || 'Trainer'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-text font-medium mb-1">Leave Date</label>
+                <input
+                  type="date"
+                  value={leaveDate}
+                  onChange={(e) => setLeaveDate(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-control bg-surface border border-border text-text focus:outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => setShowTrainerLeaveModal(false)}>
+                Cancel
               </Button>
               <Button
-                variant="outline"
-                onClick={() => setShowChangeDrawer(false)}
+                variant="primary"
+                onClick={() => handleTrainerLeaveReplan(leaveTrainerId, leaveDate)}
               >
-                Close
+                Run re-plan
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Room closed modal */}
+      {showRoomClosedModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setShowRoomClosedModal(false)}
+        >
+          <div
+            className="w-full max-w-md bg-surface border border-border rounded-dialog shadow-dialog p-6 text-text space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+                <DoorClosed className="w-4 h-4 text-text-muted" />
+                Simulate Room Closure
+              </h3>
+              <button
+                onClick={() => setShowRoomClosedModal(false)}
+                className="text-text-muted hover:text-text p-1 rounded-control"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-text font-medium mb-1">Select Room to Close</label>
+                <select
+                  value={closedRoom}
+                  onChange={(e) => setClosedRoom(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-control bg-surface border border-border text-text focus:outline-none focus:border-accent"
+                >
+                  {Object.keys(ROOM_CAPACITIES).map((roomName) => (
+                    <option key={roomName} value={roomName}>
+                      {roomName} (Cap: {ROOM_CAPACITIES[roomName]} seats)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-text font-medium mb-1">Closure Date</label>
+                <input
+                  type="date"
+                  value={closedRoomDate}
+                  onChange={(e) => setClosedRoomDate(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-control bg-surface border border-border text-text focus:outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => setShowRoomClosedModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => handleRoomClosedReplan(closedRoom, closedRoomDate)}
+              >
+                Run re-plan
               </Button>
             </div>
           </div>
@@ -694,8 +966,17 @@ export const TimetableView: React.FC = () => {
               <ApprovalCard
                 approval={currentPublishApproval || store.approvals[1]}
                 onApproved={() => {
+                  store.applyReplan(
+                    diffItems.filter((d) => d.accepted),
+                    sessions
+                  )
+                  setIsDiffMode(false)
+                  setShowChangeDrawer(false)
                   setShowPublishApproval(false)
                   success('Timetable published & student alerts sent')
+                }}
+                onRejected={() => {
+                  setShowPublishApproval(false)
                 }}
               />
             </div>

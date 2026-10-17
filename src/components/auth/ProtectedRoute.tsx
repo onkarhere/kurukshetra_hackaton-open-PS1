@@ -3,17 +3,30 @@ import { Navigate, useLocation, Outlet, Link } from 'react-router-dom'
 import { ShieldAlert, ArrowLeft } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 
+import { StudentOnboardingView } from '@/features/auth/StudentOnboardingView'
+import { HeadApprovalPendingView } from '@/features/auth/HeadApprovalPendingView'
+
 interface ProtectedRouteProps {
   children?: React.ReactNode
   allowedRoles?: string[]
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { isAuthenticated, role } = useApp()
+  const { isAuthenticated, role, currentUser } = useApp()
   const location = useLocation()
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  // First-time student onboarding check
+  if (role === 'student') {
+    if (!currentUser.hasCompletedOnboarding) {
+      return <StudentOnboardingView />
+    }
+    if (currentUser.approvalStatus === 'pending') {
+      return <HeadApprovalPendingView />
+    }
   }
 
   // P0-3: If unauthorized, show "You don't have access to this page" panel with a link home (not a silent redirect)

@@ -7,14 +7,14 @@ import {
   GitCompare,
   Code2,
 } from 'lucide-react'
-import { store } from '@/mocks/store'
+import { store, useStore } from '@/mocks/store'
 import { AuditLogEntry } from '@/types'
 import { SqlBlock } from '@/components/ui/SqlBlock'
 import { cn } from '@/lib/utils'
 
 export const AuditLogView: React.FC = () => {
-  const [logs] = useState<AuditLogEntry[]>([...store.auditLogs])
-  const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(store.auditLogs[0])
+  const logs = useStore((s) => s.auditLogs)
+  const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(store.auditLogs[0] || null)
   const [actorFilter, setActorFilter] = useState<'all' | 'User' | 'AI' | 'System'>('all')
 
   const filteredLogs = logs.filter((l) => {

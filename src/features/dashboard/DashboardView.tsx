@@ -24,6 +24,7 @@ import {
   QrCode,
   Award,
   Video,
+  GraduationCap,
 } from 'lucide-react'
 import { KpiCard } from '@/components/app/KpiCard'
 import { ReasonChip } from '@/components/ui/ReasonChip'
@@ -42,6 +43,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts'
+import { NewBatchModal } from '@/features/batches/NewBatchModal'
 
 export const DashboardView: React.FC = () => {
   const { role, currentUser, branch } = useApp()
@@ -50,6 +52,7 @@ export const DashboardView: React.FC = () => {
 
   const [isSummaryOpen, setIsSummaryOpen] = useState(false)
   const [showChartAsTable, setShowChartAsTable] = useState(false)
+  const [isNewBatchOpen, setIsNewBatchOpen] = useState(false)
 
   // Reactive store data
   const approvals = useStore((s) => s.approvals)
@@ -62,6 +65,9 @@ export const DashboardView: React.FC = () => {
 
   // Dynamic Data aggregations
   const pendingApprovalsCount = approvals.filter((a) => a.status === 'pending').length
+  const pendingStudentRegistrations = approvals.filter(
+    (a) => a.type === 'student_registration' && a.status === 'pending'
+  )
   const criticalStudents = students.filter((s) => s.riskLevel === 'critical')
   const highRiskStudents = students.filter((s) => s.riskLevel === 'high')
   const watchRiskStudents = students.filter((s) => s.riskLevel === 'watch')
@@ -491,6 +497,35 @@ export const DashboardView: React.FC = () => {
             </Button>
           </div>
         </div>
+
+        {/* Pending Student Admission Alert Banner for Head (Trainer) */}
+        {pendingStudentRegistrations.length > 0 && (
+          <div className="p-3.5 rounded-card bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                <GraduationCap className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-semibold text-text">
+                  {pendingStudentRegistrations.length === 1
+                    ? '1 new student admission awaiting Head review'
+                    : `${pendingStudentRegistrations.length} new student admissions awaiting Head review`}
+                </span>
+                <span className="text-text-muted text-[11px] block">
+                  Verify and approve registration to grant student access to their portal.
+                </span>
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate('/approvals')}
+              className="shrink-0 text-xs"
+            >
+              Review admissions
+            </Button>
+          </div>
+        )}
 
         {/* 4 Trainer KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -999,7 +1034,7 @@ export const DashboardView: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => navigate('/batches?action=new')}
+            onClick={() => setIsNewBatchOpen(true)}
           >
             New batch
           </Button>
@@ -1012,6 +1047,35 @@ export const DashboardView: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Pending Student Admission Alert Banner for Head (Owner / Admin) */}
+      {pendingStudentRegistrations.length > 0 && (
+        <div className="p-3.5 rounded-card bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+              <GraduationCap className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-semibold text-text">
+                {pendingStudentRegistrations.length === 1
+                  ? '1 new student admission awaiting Head review'
+                  : `${pendingStudentRegistrations.length} new student admissions awaiting Head review`}
+              </span>
+              <span className="text-text-muted text-[11px] block">
+                Verify and approve registration to grant student access to their portal.
+              </span>
+            </div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => navigate('/approvals')}
+            className="shrink-0 text-xs"
+          >
+            Review admissions
+          </Button>
+        </div>
+      )}
 
       {/* 2. Needs a decision: attention list */}
       <div className="border border-border rounded-card bg-surface overflow-hidden">
@@ -1242,45 +1306,57 @@ export const DashboardView: React.FC = () => {
                     <th className="py-2 px-2 font-medium">Batch</th>
                     <th className="py-2 px-2 font-medium">Time</th>
                     <th className="py-2 px-2 font-medium">Room</th>
+                    <th className="py-2 px-2 font-medium text-right">Strength</th>
                     <th className="py-2 px-2 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {store.timetableSessions.slice(0, 4).map((sess) => (
-                    <tr
-                      key={sess.id}
-                      onClick={() => navigate(`/sessions/${sess.id}`)}
-                      className="hover:bg-surface-sunken/50 cursor-pointer transition-colors"
-                    >
-                      <td className="py-2.5 px-2">
-                        <div className="font-medium text-text truncate max-w-[140px]">
-                          {sess.batchName}
-                        </div>
-                        <div className="text-[11px] text-text-muted truncate">
-                          {sess.trainerName}
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-2 tabular-nums text-text font-normal whitespace-nowrap">
-                        {sess.startTime}
-                      </td>
-                      <td className="py-2.5 px-2 text-text-muted whitespace-nowrap">
-                        {sess.room}
-                      </td>
-                      <td className="py-2.5 px-2 whitespace-nowrap">
-                        {sess.hasConflict ? (
-                          <span className="inline-flex items-center gap-1 text-danger font-medium text-[11px]">
-                            <AlertOctagon className="w-3 h-3" />
-                            Clash
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-text-muted text-[11px]">
-                            <CheckCircle2 className="w-3 h-3 text-success" />
-                            OK
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {store.timetableSessions.slice(0, 4).map((sess) => {
+                    const sessStrength = store.getBatchStrength(sess.batchId)
+                    return (
+                      <tr
+                        key={sess.id}
+                        onClick={() => navigate(`/sessions/${sess.id}`)}
+                        className="hover:bg-surface-sunken/50 cursor-pointer transition-colors"
+                      >
+                        <td className="py-2.5 px-2">
+                          <div className="font-medium text-text truncate max-w-[140px]">
+                            {sess.batchName}
+                          </div>
+                          <div className="text-[11px] text-text-muted truncate">
+                            {sess.trainerName}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2 tabular-nums text-text font-normal whitespace-nowrap">
+                          {sess.startTime}
+                        </td>
+                        <td className="py-2.5 px-2 text-text-muted whitespace-nowrap">
+                          {sess.room}
+                        </td>
+                        <td className="py-2.5 px-2 text-right tabular-nums whitespace-nowrap">
+                          <div className="font-medium text-text">
+                            {sessStrength.enrolled} / {sessStrength.capacity}
+                          </div>
+                          <div className="text-[10px] text-text-muted font-mono">
+                            {sessStrength.inRoom} in-room · {sessStrength.online} online
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2 whitespace-nowrap">
+                          {sess.hasConflict ? (
+                            <span className="inline-flex items-center gap-1 text-danger font-medium text-[11px]">
+                              <AlertOctagon className="w-3 h-3" />
+                              Clash
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-text-muted text-[11px]">
+                              <CheckCircle2 className="w-3 h-3 text-success" />
+                              OK
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1508,6 +1584,11 @@ export const DashboardView: React.FC = () => {
           </div>
         )}
       </div>
+
+      <NewBatchModal
+        isOpen={isNewBatchOpen}
+        onClose={() => setIsNewBatchOpen(false)}
+      />
     </div>
   )
 }
